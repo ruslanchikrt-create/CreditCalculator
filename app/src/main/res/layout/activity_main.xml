@@ -35,9 +35,7 @@
                     android:textColor="@color/white"
                     android:textSize="28sp"
                     app:backgroundTint="@android:color/transparent"
-                    app:cornerRadius="28dp"
-                    app:insetBottom="0dp"
-                    app:insetTop="0dp" />
+                    app:cornerRadius="28dp" />
 
                 <TextView
                     android:layout_width="0dp"
@@ -408,9 +406,7 @@
             android:textSize="30sp"
             app:backgroundTint="@color/primary"
             app:cornerRadius="30dp"
-            app:elevation="8dp"
-            app:insetBottom="0dp"
-            app:insetTop="0dp" />
+            app:elevation="8dp" />
     </FrameLayout>
 
     <LinearLayout
