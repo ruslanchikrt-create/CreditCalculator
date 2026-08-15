@@ -1,13 +1,27 @@
 package com.example.creditcalculator;
 
+import android.Manifest;
+import android.app.DatePickerDialog;
+import android.content.pm.PackageManager;
 import android.content.res.ColorStateList;
+import android.graphics.Rect;
+import android.os.Build;
 import android.os.Bundle;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.view.View;
+import android.widget.ArrayAdapter;
+import android.widget.ScrollView;
+import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
+import androidx.core.view.GravityCompat;
+import androidx.drawerlayout.widget.DrawerLayout;
 
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.card.MaterialCardView;
@@ -16,9 +30,15 @@ import com.google.android.material.textfield.TextInputEditText;
 import com.google.android.material.textfield.TextInputLayout;
 
 import java.text.NumberFormat;
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.List;
 import java.util.Locale;
 
 public class MainActivity extends AppCompatActivity {
+
+    private static final int NOTIFICATION_PERMISSION_REQUEST = 2001;
 
     private enum CalculatorMode {
         CREDIT,
@@ -50,6 +70,8 @@ public class MainActivity extends AppCompatActivity {
     private MaterialCardView formCard;
     private MaterialCardView resultCard;
     private SwitchMaterial capitalizationSwitch;
+    private DrawerLayout drawerLayout;
+    private ScrollView mainScroll;
 
     private MaterialButton creditButton;
     private MaterialButton mortgageButton;
@@ -59,6 +81,11 @@ public class MainActivity extends AppCompatActivity {
 
     private CalculatorMode currentMode;
     private NumberFormat moneyFormat;
+    private MoneyTextWatcher amountMoneyWatcher;
+    private MoneyTextWatcher monthsMoneyWatcher;
+
+    private double lastSuggestedPayment = 0.0;
+    private int lastSuggestedMonths = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -67,13 +94,19 @@ public class MainActivity extends AppCompatActivity {
 
         bindViews();
         setupMoneyFormat();
+        setupMoneyInputs();
         setupModeButtons();
+        setupDrawer();
+        setupKeyboardScrolling();
 
         formCard.setVisibility(View.GONE);
         resultCard.setVisibility(View.GONE);
     }
 
     private void bindViews() {
+        drawerLayout = findViewById(R.id.drawerLayout);
+        mainScroll = findViewById(R.id.mainScroll);
+
         amountLayout = findViewById(R.id.amountLayout);
         monthsLayout = findViewById(R.id.monthsLayout);
         rateLayout = findViewById(R.id.rateLayout);
@@ -104,13 +137,24 @@ public class MainActivity extends AppCompatActivity {
         depositButton = findViewById(R.id.depositButton);
 
         MaterialButton calcButton = findViewById(R.id.calcButton);
+        MaterialButton addReminderButton = findViewById(R.id.addReminderButton);
         calcButton.setOnClickListener(v -> calculate());
+        addReminderButton.setOnClickListener(v -> showReminderDialog());
     }
 
     private void setupMoneyFormat() {
         moneyFormat = NumberFormat.getNumberInstance(new Locale("ru", "RU"));
         moneyFormat.setMaximumFractionDigits(2);
         moneyFormat.setMinimumFractionDigits(2);
+    }
+
+    private void setupMoneyInputs() {
+        amountMoneyWatcher = new MoneyTextWatcher(amountInput);
+        monthsMoneyWatcher = new MoneyTextWatcher(monthsInput);
+        amountMoneyWatcher.setEnabled(true);
+        monthsMoneyWatcher.setEnabled(false);
+        amountInput.addTextChangedListener(amountMoneyWatcher);
+        monthsInput.addTextChangedListener(monthsMoneyWatcher);
     }
 
     private void setupModeButtons() {
@@ -121,6 +165,55 @@ public class MainActivity extends AppCompatActivity {
         depositButton.setOnClickListener(v -> selectMode(CalculatorMode.DEPOSIT));
     }
 
+    private void setupDrawer() {
+        findViewById(R.id.menuButton).setOnClickListener(v -> drawerLayout.openDrawer(GravityCompat.START));
+
+        findViewById(R.id.drawerCalculators).setOnClickListener(v -> {
+            drawerLayout.closeDrawer(GravityCompat.START);
+            mainScroll.smoothScrollTo(0, 0);
+        });
+
+        findViewById(R.id.drawerPayments).setOnClickListener(v -> {
+            drawerLayout.closeDrawer(GravityCompat.START);
+            showPaymentsDialog();
+        });
+
+        findViewById(R.id.drawerAddReminder).setOnClickListener(v -> {
+            drawerLayout.closeDrawer(GravityCompat.START);
+            showReminderDialog();
+        });
+
+        findViewById(R.id.drawerAbout).setOnClickListener(v -> {
+            drawerLayout.closeDrawer(GravityCompat.START);
+            new AlertDialog.Builder(this)
+                    .setTitle("Финансовый калькулятор")
+                    .setMessage("Кредит, ипотека, автокредит, рассрочка и вклад. Можно сохранить график платежей и получать напоминания заранее.")
+                    .setPositiveButton("ОК", null)
+                    .show();
+        });
+    }
+
+    private void setupKeyboardScrolling() {
+        setupAutoScroll(amountInput);
+        setupAutoScroll(monthsInput);
+        setupAutoScroll(rateInput);
+        setupAutoScroll(extraInput);
+    }
+
+    private void setupAutoScroll(View field) {
+        field.setOnFocusChangeListener((v, hasFocus) -> {
+            if (!hasFocus) {
+                return;
+            }
+            mainScroll.postDelayed(() -> {
+                Rect rect = new Rect();
+                v.getDrawingRect(rect);
+                mainScroll.offsetDescendantRectToMyCoords(v, rect);
+                mainScroll.smoothScrollTo(0, Math.max(0, rect.top - dp(100)));
+            }, 300);
+        });
+    }
+
     private void selectMode(CalculatorMode mode) {
         currentMode = mode;
         clearInputs();
@@ -128,6 +221,14 @@ public class MainActivity extends AppCompatActivity {
         extraLayout.setVisibility(View.GONE);
         capitalizationSwitch.setVisibility(View.GONE);
         capitalizationSwitch.setChecked(false);
+        lastSuggestedPayment = 0.0;
+        lastSuggestedMonths = 0;
+
+        monthsMoneyWatcher.setEnabled(
+                mode == CalculatorMode.MORTGAGE
+                        || mode == CalculatorMode.AUTO
+                        || mode == CalculatorMode.INSTALLMENT
+        );
 
         switch (mode) {
             case CREDIT:
@@ -178,6 +279,7 @@ public class MainActivity extends AppCompatActivity {
 
         updateButtonStyles();
         formCard.setVisibility(View.VISIBLE);
+        mainScroll.post(() -> mainScroll.smoothScrollTo(0, formCard.getTop()));
     }
 
     private void calculate() {
@@ -222,6 +324,8 @@ public class MainActivity extends AppCompatActivity {
         double annualRate = nonNegativeDouble(rateInput);
 
         double[] result = annuity(principal, months, annualRate);
+        lastSuggestedPayment = result[0];
+        lastSuggestedMonths = months;
         showMoneyResult(
                 "Ежемесячный платёж", result[0],
                 "Общая сумма выплат", result[1],
@@ -244,9 +348,11 @@ public class MainActivity extends AppCompatActivity {
             throw new IllegalArgumentException();
         }
 
-        double principal = propertyPrice - downPayment;
         int months = (int) monthsLong;
+        double principal = propertyPrice - downPayment;
         double[] result = annuity(principal, months, annualRate);
+        lastSuggestedPayment = result[0];
+        lastSuggestedMonths = months;
 
         showMoneyResult(
                 "Ежемесячный платёж", result[0],
@@ -267,6 +373,8 @@ public class MainActivity extends AppCompatActivity {
 
         double principal = carPrice - downPayment;
         double[] result = annuity(principal, months, annualRate);
+        lastSuggestedPayment = result[0];
+        lastSuggestedMonths = months;
 
         showMoneyResult(
                 "Ежемесячный платёж", result[0],
@@ -286,6 +394,8 @@ public class MainActivity extends AppCompatActivity {
 
         double installmentAmount = purchasePrice - downPayment;
         double monthlyPayment = installmentAmount / months;
+        lastSuggestedPayment = monthlyPayment;
+        lastSuggestedMonths = months;
 
         showMoneyResult(
                 "Ежемесячный платёж", monthlyPayment,
@@ -309,6 +419,8 @@ public class MainActivity extends AppCompatActivity {
         }
 
         double income = finalAmount - principal;
+        lastSuggestedPayment = 0.0;
+        lastSuggestedMonths = 0;
 
         resultLabel1.setText("Доход по вкладу");
         monthlyPaymentText.setText(formatMoney(income));
@@ -317,6 +429,7 @@ public class MainActivity extends AppCompatActivity {
         resultLabel3.setText("Капитализация");
         overpaymentText.setText(capitalizationSwitch.isChecked() ? "Ежемесячная" : "Без капитализации");
         resultCard.setVisibility(View.VISIBLE);
+        scrollResultIntoView();
     }
 
     private double[] annuity(double principal, int months, double annualRate) {
@@ -347,6 +460,210 @@ public class MainActivity extends AppCompatActivity {
         resultLabel3.setText(label3);
         overpaymentText.setText(formatMoney(value3));
         resultCard.setVisibility(View.VISIBLE);
+        scrollResultIntoView();
+    }
+
+    private void scrollResultIntoView() {
+        resultCard.postDelayed(() -> {
+            Rect rect = new Rect();
+            resultCard.getDrawingRect(rect);
+            mainScroll.offsetDescendantRectToMyCoords(resultCard, rect);
+            mainScroll.smoothScrollTo(0, Math.max(0, rect.top - dp(90)));
+        }, 120);
+    }
+
+    private void showReminderDialog() {
+        View view = getLayoutInflater().inflate(R.layout.dialog_reminder, null);
+        TextInputEditText titleInput = view.findViewById(R.id.reminderTitleInput);
+        TextInputEditText paymentInput = view.findViewById(R.id.reminderAmountInput);
+        TextInputEditText monthsInputDialog = view.findViewById(R.id.reminderMonthsInput);
+        TextInputEditText dateInput = view.findViewById(R.id.reminderDateInput);
+        Spinner daysSpinner = view.findViewById(R.id.reminderDaysSpinner);
+
+        MoneyTextWatcher paymentWatcher = new MoneyTextWatcher(paymentInput);
+        paymentWatcher.setEnabled(true);
+        paymentInput.addTextChangedListener(paymentWatcher);
+
+        if (currentMode != null) {
+            titleInput.setText(modeTitle(currentMode));
+        } else {
+            titleInput.setText("Кредит");
+        }
+
+        if (lastSuggestedPayment > 0.0) {
+            paymentInput.setText(formatInputAmount(lastSuggestedPayment));
+        }
+        if (lastSuggestedMonths > 0) {
+            monthsInputDialog.setText(String.valueOf(lastSuggestedMonths));
+        }
+
+        String[] daysOptions = {
+                "За 1 день",
+                "За 2 дня",
+                "За 3 дня",
+                "За 4 дня",
+                "За 5 дней",
+                "За 6 дней",
+                "За 7 дней"
+        };
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(
+                this,
+                android.R.layout.simple_spinner_dropdown_item,
+                daysOptions
+        );
+        daysSpinner.setAdapter(adapter);
+        daysSpinner.setSelection(2);
+
+        final Calendar[] selectedDate = new Calendar[1];
+        dateInput.setOnClickListener(v -> {
+            Calendar base = selectedDate[0] == null ? Calendar.getInstance() : selectedDate[0];
+            DatePickerDialog picker = new DatePickerDialog(
+                    this,
+                    (dialog, year, month, dayOfMonth) -> {
+                        Calendar selected = Calendar.getInstance();
+                        selected.clear();
+                        selected.set(year, month, dayOfMonth, 9, 0, 0);
+                        selectedDate[0] = selected;
+                        dateInput.setText(new SimpleDateFormat("dd.MM.yyyy", new Locale("ru", "RU"))
+                                .format(selected.getTime()));
+                    },
+                    base.get(Calendar.YEAR),
+                    base.get(Calendar.MONTH),
+                    base.get(Calendar.DAY_OF_MONTH)
+            );
+            picker.show();
+        });
+
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setTitle("Новое напоминание")
+                .setView(view)
+                .setNegativeButton("Отмена", null)
+                .setPositiveButton("Сохранить", null)
+                .create();
+
+        dialog.setOnShowListener(ignored -> dialog.getButton(AlertDialog.BUTTON_POSITIVE)
+                .setOnClickListener(v -> {
+                    try {
+                        String title = text(titleInput).trim();
+                        if (title.isEmpty()) {
+                            title = "Платёж по кредиту";
+                        }
+
+                        double payment = parsePositiveDouble(paymentInput);
+                        int months = parsePositiveInt(monthsInputDialog);
+                        if (selectedDate[0] == null) {
+                            Toast.makeText(this, "Выберите дату первого платежа", Toast.LENGTH_SHORT).show();
+                            return;
+                        }
+
+                        Calendar lastPayment = ReminderScheduler.buildDueDate(
+                                selectedDate[0].getTimeInMillis(),
+                                months - 1
+                        );
+                        if (lastPayment.getTimeInMillis() < System.currentTimeMillis()) {
+                            Toast.makeText(this, "Срок платежей уже закончился", Toast.LENGTH_SHORT).show();
+                            return;
+                        }
+
+                        int daysBefore = daysSpinner.getSelectedItemPosition() + 1;
+                        ReminderScheduler.PaymentReminder reminder = new ReminderScheduler.PaymentReminder(
+                                System.currentTimeMillis(),
+                                title,
+                                payment,
+                                selectedDate[0].getTimeInMillis(),
+                                months,
+                                daysBefore
+                        );
+
+                        ReminderScheduler.add(this, reminder);
+                        requestNotificationPermissionIfNeeded();
+                        Toast.makeText(this, "Напоминание сохранено", Toast.LENGTH_LONG).show();
+                        dialog.dismiss();
+                    } catch (Exception e) {
+                        Toast.makeText(this, "Проверьте сумму и срок", Toast.LENGTH_SHORT).show();
+                    }
+                }));
+
+        dialog.show();
+    }
+
+    private void showPaymentsDialog() {
+        List<ReminderScheduler.PaymentReminder> reminders = ReminderScheduler.load(this);
+        if (reminders.isEmpty()) {
+            new AlertDialog.Builder(this)
+                    .setTitle("Мои платежи")
+                    .setMessage("Сохранённых платежей пока нет. Нажмите +, чтобы добавить кредит и напоминания.")
+                    .setPositiveButton("Добавить", (d, which) -> showReminderDialog())
+                    .setNegativeButton("Закрыть", null)
+                    .show();
+            return;
+        }
+
+        String[] items = new String[reminders.size()];
+        for (int i = 0; i < reminders.size(); i++) {
+            ReminderScheduler.PaymentReminder reminder = reminders.get(i);
+            Calendar next = nextPayment(reminder);
+            String nextDate = next == null
+                    ? "завершён"
+                    : new SimpleDateFormat("dd.MM.yyyy", new Locale("ru", "RU")).format(next.getTime());
+            items[i] = reminder.title + "\n" + formatMoneyNoCents(reminder.amount)
+                    + " · следующий: " + nextDate;
+        }
+
+        new AlertDialog.Builder(this)
+                .setTitle("Мои платежи")
+                .setItems(items, (dialog, which) -> showPaymentDetails(reminders.get(which)))
+                .setPositiveButton("Добавить", (dialog, which) -> showReminderDialog())
+                .setNegativeButton("Закрыть", null)
+                .show();
+    }
+
+    private void showPaymentDetails(ReminderScheduler.PaymentReminder reminder) {
+        Calendar next = nextPayment(reminder);
+        String nextDate = next == null
+                ? "Платежи завершены"
+                : new SimpleDateFormat("dd.MM.yyyy", new Locale("ru", "RU")).format(next.getTime());
+
+        String message = "Сумма: " + formatMoneyNoCents(reminder.amount)
+                + "\nСледующий платёж: " + nextDate
+                + "\nСрок: " + reminder.months + " мес."
+                + "\nНапомнить за: " + reminder.daysBefore + " дн.";
+
+        new AlertDialog.Builder(this)
+                .setTitle(reminder.title)
+                .setMessage(message)
+                .setPositiveButton("Удалить", (dialog, which) -> {
+                    ReminderScheduler.delete(this, reminder.id);
+                    Toast.makeText(this, "Напоминание удалено", Toast.LENGTH_SHORT).show();
+                })
+                .setNegativeButton("Закрыть", null)
+                .show();
+    }
+
+    private Calendar nextPayment(ReminderScheduler.PaymentReminder reminder) {
+        long now = System.currentTimeMillis();
+        for (int i = 0; i < reminder.months; i++) {
+            Calendar due = ReminderScheduler.buildDueDate(reminder.firstPaymentMillis, i);
+            Calendar endOfDueDay = (Calendar) due.clone();
+            endOfDueDay.set(Calendar.HOUR_OF_DAY, 23);
+            endOfDueDay.set(Calendar.MINUTE, 59);
+            if (endOfDueDay.getTimeInMillis() >= now) {
+                return due;
+            }
+        }
+        return null;
+    }
+
+    private void requestNotificationPermissionIfNeeded() {
+        if (Build.VERSION.SDK_INT >= 33
+                && ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
+                != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(
+                    this,
+                    new String[]{Manifest.permission.POST_NOTIFICATIONS},
+                    NOTIFICATION_PERMISSION_REQUEST
+            );
+        }
     }
 
     private boolean hasRequiredValues() {
@@ -391,14 +708,72 @@ public class MainActivity extends AppCompatActivity {
         return (int) raw;
     }
 
+    private double parsePositiveDouble(TextInputEditText editText) {
+        String raw = text(editText)
+                .replace(" ", "")
+                .replace("\u00A0", "")
+                .replace("\u202F", "")
+                .replace(",", ".");
+        double number = Double.parseDouble(raw);
+        if (number <= 0 || Double.isNaN(number) || Double.isInfinite(number)) {
+            throw new IllegalArgumentException();
+        }
+        return number;
+    }
+
+    private int parsePositiveInt(TextInputEditText editText) {
+        int number = Integer.parseInt(text(editText).trim());
+        if (number <= 0) {
+            throw new IllegalArgumentException();
+        }
+        return number;
+    }
+
     private String value(TextInputEditText editText) {
-        return editText.getText() == null
-                ? ""
-                : editText.getText().toString().trim().replace(" ", "").replace(",", ".");
+        return text(editText)
+                .trim()
+                .replace(" ", "")
+                .replace("\u00A0", "")
+                .replace("\u202F", "")
+                .replace(",", ".");
+    }
+
+    private String text(TextInputEditText editText) {
+        return editText.getText() == null ? "" : editText.getText().toString();
     }
 
     private String formatMoney(double value) {
         return moneyFormat.format(value) + " ₽";
+    }
+
+    private String formatMoneyNoCents(double value) {
+        NumberFormat format = NumberFormat.getNumberInstance(new Locale("ru", "RU"));
+        format.setMaximumFractionDigits(2);
+        format.setMinimumFractionDigits(0);
+        return format.format(value) + " ₽";
+    }
+
+    private String formatInputAmount(double value) {
+        NumberFormat format = NumberFormat.getNumberInstance(new Locale("ru", "RU"));
+        format.setMaximumFractionDigits(2);
+        format.setMinimumFractionDigits(0);
+        return format.format(value).replace('\u00A0', ' ').replace('\u202F', ' ');
+    }
+
+    private String modeTitle(CalculatorMode mode) {
+        switch (mode) {
+            case MORTGAGE:
+                return "Ипотека";
+            case AUTO:
+                return "Автокредит";
+            case INSTALLMENT:
+                return "Рассрочка";
+            case DEPOSIT:
+                return "Вклад";
+            case CREDIT:
+            default:
+                return "Кредит";
+        }
     }
 
     private void clearInputs() {
@@ -432,5 +807,100 @@ public class MainActivity extends AppCompatActivity {
 
     private int dp(int value) {
         return Math.round(value * getResources().getDisplayMetrics().density);
+    }
+
+    @Override
+    public void onBackPressed() {
+        if (drawerLayout.isDrawerOpen(GravityCompat.START)) {
+            drawerLayout.closeDrawer(GravityCompat.START);
+        } else {
+            super.onBackPressed();
+        }
+    }
+
+    private static class MoneyTextWatcher implements TextWatcher {
+        private final TextInputEditText editText;
+        private boolean enabled;
+        private boolean editing;
+
+        MoneyTextWatcher(TextInputEditText editText) {
+            this.editText = editText;
+        }
+
+        void setEnabled(boolean enabled) {
+            this.enabled = enabled;
+            if (enabled && editText.getText() != null && editText.getText().length() > 0) {
+                afterTextChanged(editText.getText());
+            }
+        }
+
+        @Override
+        public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+        }
+
+        @Override
+        public void onTextChanged(CharSequence s, int start, int before, int count) {
+        }
+
+        @Override
+        public void afterTextChanged(Editable editable) {
+            if (!enabled || editing) {
+                return;
+            }
+
+            String formatted = groupNumber(editable.toString());
+            if (formatted.equals(editable.toString())) {
+                return;
+            }
+
+            editing = true;
+            editText.setText(formatted);
+            editText.setSelection(formatted.length());
+            editing = false;
+        }
+
+        private String groupNumber(String source) {
+            String clean = source
+                    .replace(" ", "")
+                    .replace("\u00A0", "")
+                    .replace("\u202F", "");
+
+            if (clean.isEmpty()) {
+                return "";
+            }
+
+            int comma = clean.indexOf(',');
+            int dot = clean.indexOf('.');
+            int separator;
+            if (comma >= 0 && dot >= 0) {
+                separator = Math.min(comma, dot);
+            } else {
+                separator = Math.max(comma, dot);
+            }
+
+            String integerPart = separator >= 0 ? clean.substring(0, separator) : clean;
+            String fractionPart = separator >= 0 ? clean.substring(separator + 1) : "";
+
+            integerPart = integerPart.replaceAll("[^0-9]", "");
+            fractionPart = fractionPart.replaceAll("[^0-9]", "");
+            if (integerPart.isEmpty()) {
+                integerPart = "0";
+            }
+
+            StringBuilder grouped = new StringBuilder();
+            int length = integerPart.length();
+            for (int i = 0; i < length; i++) {
+                if (i > 0 && (length - i) % 3 == 0) {
+                    grouped.append(' ');
+                }
+                grouped.append(integerPart.charAt(i));
+            }
+
+            if (separator >= 0) {
+                grouped.append(',');
+                grouped.append(fractionPart);
+            }
+            return grouped.toString();
+        }
     }
 }
