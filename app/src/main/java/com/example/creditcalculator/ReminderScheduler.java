@@ -39,8 +39,16 @@ public final class ReminderScheduler {
         public long id;
         public String type;
         public String title;
+
+        /** Amount entered by the user before down payment and insurance adjustments. */
+        public double baseAmount;
+        public double downPayment;
+        public double insurance;
+        /** Actual financed principal: baseAmount - downPayment + insurance. */
         public double principal;
+
         public double annualRate;
+        /** Monthly payment. For deposits this may be 0. */
         public double amount;
         public long firstPaymentMillis;
         public int months;
@@ -52,20 +60,34 @@ public final class ReminderScheduler {
         public PaymentReminder(long id, String type, String title, double principal,
                                double annualRate, double amount, long firstPaymentMillis,
                                int months, int daysBefore) {
-            this(id, type, title, principal, annualRate, amount, firstPaymentMillis,
-                    months, daysBefore, STATUS_ACTIVE, 0L, true);
+            this(id, type, title, principal, 0.0, 0.0, principal,
+                    annualRate, amount, firstPaymentMillis, months, daysBefore,
+                    STATUS_ACTIVE, 0L, true);
         }
 
-        public PaymentReminder(long id, String type, String title, double principal,
-                               double annualRate, double amount, long firstPaymentMillis,
-                               int months, int daysBefore, String status, long deletedAt,
-                               boolean soundEnabled) {
+        public PaymentReminder(long id, String type, String title,
+                               double baseAmount, double downPayment, double insurance,
+                               double principal, double annualRate, double amount,
+                               long firstPaymentMillis, int months, int daysBefore) {
+            this(id, type, title, baseAmount, downPayment, insurance, principal,
+                    annualRate, amount, firstPaymentMillis, months, daysBefore,
+                    STATUS_ACTIVE, 0L, true);
+        }
+
+        public PaymentReminder(long id, String type, String title,
+                               double baseAmount, double downPayment, double insurance,
+                               double principal, double annualRate, double amount,
+                               long firstPaymentMillis, int months, int daysBefore,
+                               String status, long deletedAt, boolean soundEnabled) {
             this.id = id;
             this.type = normalizeType(type);
             this.title = title;
-            this.principal = principal;
-            this.annualRate = annualRate;
-            this.amount = amount;
+            this.baseAmount = Math.max(0.0, baseAmount);
+            this.downPayment = Math.max(0.0, downPayment);
+            this.insurance = Math.max(0.0, insurance);
+            this.principal = Math.max(0.0, principal);
+            this.annualRate = Math.max(0.0, annualRate);
+            this.amount = Math.max(0.0, amount);
             this.firstPaymentMillis = firstPaymentMillis;
             this.months = Math.max(1, months);
             this.daysBefore = Math.max(1, Math.min(7, daysBefore));
@@ -105,6 +127,11 @@ public final class ReminderScheduler {
                 double principal = object.has("principal")
                         ? object.optDouble("principal", 0.0)
                         : amount * months;
+                double baseAmount = object.has("baseAmount")
+                        ? object.optDouble("baseAmount", principal)
+                        : principal;
+                double downPayment = object.optDouble("downPayment", 0.0);
+                double insurance = object.optDouble("insurance", 0.0);
                 String status = normalizeStatus(object.optString("status", STATUS_ACTIVE));
                 long deletedAt = object.optLong("deletedAt", 0L);
 
@@ -119,6 +146,9 @@ public final class ReminderScheduler {
                         object.getLong("id"),
                         object.optString("type", TYPE_CREDIT),
                         object.optString("title", "Кредит"),
+                        baseAmount,
+                        downPayment,
+                        insurance,
                         principal,
                         object.optDouble("annualRate", 0.0),
                         amount,
@@ -152,6 +182,9 @@ public final class ReminderScheduler {
                 object.put("id", reminder.id);
                 object.put("type", normalizeType(reminder.type));
                 object.put("title", reminder.title);
+                object.put("baseAmount", reminder.baseAmount);
+                object.put("downPayment", reminder.downPayment);
+                object.put("insurance", reminder.insurance);
                 object.put("principal", reminder.principal);
                 object.put("annualRate", reminder.annualRate);
                 object.put("amount", reminder.amount);
@@ -354,6 +387,68 @@ public final class ReminderScheduler {
             if (endOfDay.getTimeInMillis() >= now) return i;
         }
         return -1;
+    }
+
+    /** Number of scheduled payments whose due day has already ended. */
+    public static int elapsedPayments(PaymentReminder reminder) {
+        if (reminder == null) return 0;
+        long now = System.currentTimeMillis();
+        int elapsed = 0;
+        for (int i = 0; i < reminder.months; i++) {
+            Calendar due = buildDueDate(reminder.firstPaymentMillis, i);
+            due.set(Calendar.HOUR_OF_DAY, 23);
+            due.set(Calendar.MINUTE, 59);
+            due.set(Calendar.SECOND, 59);
+            if (due.getTimeInMillis() < now) elapsed++;
+            else break;
+        }
+        return elapsed;
+    }
+
+    /** Planned outstanding principal for an active debt item. Deposits return 0. */
+    public static double remainingDebt(PaymentReminder reminder) {
+        if (reminder == null || TYPE_DEPOSIT.equals(normalizeType(reminder.type))) return 0.0;
+        int paid = Math.min(reminder.months, elapsedPayments(reminder));
+        if (paid >= reminder.months) return 0.0;
+        double principal = Math.max(0.0, reminder.principal);
+        double payment = Math.max(0.0, reminder.amount);
+        if (principal <= 0.0) return 0.0;
+
+        double monthlyRate = reminder.annualRate / 100.0 / 12.0;
+        double balance;
+        if (monthlyRate <= 0.0) {
+            balance = principal - payment * paid;
+        } else {
+            double factor = Math.pow(1.0 + monthlyRate, paid);
+            balance = principal * factor - payment * ((factor - 1.0) / monthlyRate);
+        }
+        if (Double.isNaN(balance) || Double.isInfinite(balance)) return principal;
+        return Math.max(0.0, Math.min(principal, balance));
+    }
+
+    /** Payment amount belonging to the current calendar month. */
+    public static double dueThisMonth(PaymentReminder reminder) {
+        if (reminder == null || TYPE_DEPOSIT.equals(normalizeType(reminder.type))) return 0.0;
+        Calendar now = Calendar.getInstance();
+        for (int i = 0; i < reminder.months; i++) {
+            Calendar due = buildDueDate(reminder.firstPaymentMillis, i);
+            if (due.get(Calendar.YEAR) == now.get(Calendar.YEAR)
+                    && due.get(Calendar.MONTH) == now.get(Calendar.MONTH)) {
+                return Math.max(0.0, reminder.amount);
+            }
+        }
+        return 0.0;
+    }
+
+    public static double depositExpectedIncome(PaymentReminder reminder) {
+        if (reminder == null || !TYPE_DEPOSIT.equals(normalizeType(reminder.type))) return 0.0;
+        double years = reminder.months / 12.0;
+        return Math.max(0.0, reminder.principal * reminder.annualRate / 100.0 * years);
+    }
+
+    public static double depositFinalAmount(PaymentReminder reminder) {
+        if (reminder == null || !TYPE_DEPOSIT.equals(normalizeType(reminder.type))) return 0.0;
+        return Math.max(0.0, reminder.principal + depositExpectedIncome(reminder));
     }
 
     public static String normalizeType(String type) {
