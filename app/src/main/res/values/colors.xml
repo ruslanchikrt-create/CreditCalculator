@@ -1,12 +1,15 @@
 <resources>
     <color name="primary">#2563EB</color>
     <color name="primary_dark">#1D4ED8</color>
+    <color name="primary_soft">#DBEAFE</color>
     <color name="background">#F4F7FB</color>
     <color name="background_top">#EAF2FF</color>
     <color name="background_bottom">#F8FAFC</color>
     <color name="text_main">#111827</color>
     <color name="text_secondary">#64748B</color>
     <color name="white">#FFFFFF</color>
+    <color name="border">#DCE3EE</color>
+    <color name="danger">#DC2626</color>
     <color name="result_card">#0F172A</color>
     <color name="result_secondary">#CBD5E1</color>
 </resources>
