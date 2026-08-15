@@ -32,8 +32,9 @@ public class ReminderReceiver extends BroadcastReceiver {
         long dueDate = intent.getLongExtra("due_date", 0L);
         int daysBefore = intent.getIntExtra("days_before", 1);
         long reminderId = intent.getLongExtra("reminder_id", -1L);
+        boolean itemSoundEnabled = intent.getBooleanExtra("item_sound_enabled", true);
 
-        boolean soundEnabled = AppPreferences.isSoundEnabled(context);
+        boolean soundEnabled = AppPreferences.isSoundEnabled(context) && itemSoundEnabled;
         boolean vibrationEnabled = AppPreferences.isVibrationEnabled(context);
         Uri soundUri = resolveSoundUri(context, soundEnabled);
         String channelId = createChannel(context, soundEnabled, vibrationEnabled, soundUri);
@@ -47,9 +48,7 @@ public class ReminderReceiver extends BroadcastReceiver {
         Intent open = reminderId > 0
                 ? new Intent(context, PaymentDetailsActivity.class)
                 : new Intent(context, MainActivity.class);
-        if (reminderId > 0) {
-            open.putExtra(PaymentDetailsActivity.EXTRA_REMINDER_ID, reminderId);
-        }
+        if (reminderId > 0) open.putExtra(PaymentDetailsActivity.EXTRA_REMINDER_ID, reminderId);
         open.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
         PendingIntent contentIntent = PendingIntent.getActivity(
                 context,
@@ -70,14 +69,9 @@ public class ReminderReceiver extends BroadcastReceiver {
                 .setContentIntent(contentIntent);
 
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
-            if (soundEnabled && soundUri != null) {
-                builder.setSound(soundUri);
-            }
-            if (vibrationEnabled) {
-                builder.setVibrate(new long[]{0, 250, 150, 250});
-            } else {
-                builder.setVibrate(new long[]{0L});
-            }
+            if (soundEnabled && soundUri != null) builder.setSound(soundUri);
+            if (vibrationEnabled) builder.setVibrate(new long[]{0, 250, 150, 250});
+            else builder.setVibrate(new long[]{0L});
         }
 
         int notificationId = (int) (System.currentTimeMillis() & 0x7fffffff);
@@ -111,10 +105,7 @@ public class ReminderReceiver extends BroadcastReceiver {
                     "Напоминания о предстоящих платежах",
                     "Upcoming payment reminders"));
             channel.enableVibration(vibrationEnabled);
-            if (vibrationEnabled) {
-                channel.setVibrationPattern(new long[]{0, 250, 150, 250});
-            }
-
+            if (vibrationEnabled) channel.setVibrationPattern(new long[]{0, 250, 150, 250});
             if (soundEnabled && soundUri != null) {
                 AudioAttributes attributes = new AudioAttributes.Builder()
                         .setUsage(AudioAttributes.USAGE_NOTIFICATION)
@@ -123,11 +114,8 @@ public class ReminderReceiver extends BroadcastReceiver {
             } else {
                 channel.setSound(null, null);
             }
-
             NotificationManager manager = context.getSystemService(NotificationManager.class);
-            if (manager != null) {
-                manager.createNotificationChannel(channel);
-            }
+            if (manager != null) manager.createNotificationChannel(channel);
         }
         return channelId;
     }
