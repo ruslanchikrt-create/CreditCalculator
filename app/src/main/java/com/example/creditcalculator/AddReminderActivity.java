@@ -49,6 +49,7 @@ public class AddReminderActivity extends AppCompatActivity {
     public static final String EXTRA_RATE = "rate";
     public static final String EXTRA_MONTHS = "months";
     public static final String EXTRA_PAYMENT = "payment";
+    public static final String EXTRA_EDIT_ID = "edit_reminder_id";
 
     private static final int NOTIFICATION_PERMISSION_REQUEST = 3010;
 
@@ -78,6 +79,7 @@ public class AddReminderActivity extends AppCompatActivity {
     private boolean updatingPayment;
     private boolean updatingTitle;
     private boolean titleEditedByUser;
+    private ReminderScheduler.PaymentReminder editReminder;
 
     @Override
     protected void attachBaseContext(Context newBase) {
@@ -90,6 +92,8 @@ public class AddReminderActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
         getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
+        long editId = getIntent().getLongExtra(EXTRA_EDIT_ID, -1L);
+        if (editId > 0) editReminder = ReminderScheduler.findById(this, editId);
         setContentView(buildContent());
         setupSpinners();
         setupInputs();
@@ -120,7 +124,7 @@ public class AddReminderActivity extends AppCompatActivity {
         bar.addView(back, new LinearLayout.LayoutParams(dp(56), dp(56)));
 
         TextView barTitle = new TextView(this);
-        barTitle.setText(AppPreferences.tr(this, "Новое напоминание", "New reminder"));
+        barTitle.setText(editReminder == null ? AppPreferences.tr(this, "Новое напоминание", "New reminder") : AppPreferences.tr(this, "Редактировать запись", "Edit item"));
         barTitle.setTextColor(Color.WHITE);
         barTitle.setTextSize(20);
         barTitle.setTypeface(null, android.graphics.Typeface.BOLD);
@@ -378,6 +382,46 @@ public class AddReminderActivity extends AppCompatActivity {
     }
 
     private void applySuggestions() {
+        if (editReminder != null) {
+            String chosenType = ReminderScheduler.normalizeType(editReminder.type);
+            typeSpinner.setSelection(FormatUtils.typePosition(chosenType));
+            updateFieldsForType(false);
+
+            updatingTitle = true;
+            titleInput.setText(editReminder.title);
+            titleInput.setSelection(titleInput.length());
+            updatingTitle = false;
+            titleEditedByUser = true;
+
+            if (editReminder.baseAmount > 0) principalInput.setText(formatInput(editReminder.baseAmount));
+            if (editReminder.downPayment > 0) downPaymentInput.setText(formatInput(editReminder.downPayment));
+            if (editReminder.insurance > 0) insuranceInput.setText(formatInput(editReminder.insurance));
+            rateInput.setText(trimNumber(editReminder.annualRate));
+
+            if (editReminder.months > 0 && editReminder.months % 12 == 0) {
+                termInput.setText(String.valueOf(editReminder.months / 12));
+                termUnitSpinner.setSelection(1);
+            } else {
+                termInput.setText(String.valueOf(Math.max(1, editReminder.months)));
+                termUnitSpinner.setSelection(0);
+            }
+            updateTermUnitLabels();
+
+            selectedDate = Calendar.getInstance();
+            selectedDate.setTimeInMillis(editReminder.firstPaymentMillis);
+            dateInput.setText(FormatUtils.date(this, editReminder.firstPaymentMillis));
+            daysSpinner.setSelection(Math.max(0, Math.min(6, editReminder.daysBefore - 1)));
+
+            if (!ReminderScheduler.TYPE_DEPOSIT.equals(chosenType) && editReminder.amount > 0) {
+                updatingPayment = true;
+                paymentInput.setText(formatInput(editReminder.amount));
+                paymentInput.setSelection(paymentInput.length());
+                updatingPayment = false;
+            }
+            updateFieldsForType(false);
+            return;
+        }
+
         String type = getIntent().getStringExtra(EXTRA_TYPE);
         if (type != null) typeSpinner.setSelection(FormatUtils.typePosition(type));
         String chosenType = FormatUtils.typeCodeByPosition(typeSpinner.getSelectedItemPosition());
@@ -418,7 +462,6 @@ public class AddReminderActivity extends AppCompatActivity {
         }
         updateFieldsForType(false);
     }
-
     private double financedPrincipal() {
         String type = FormatUtils.typeCodeByPosition(typeSpinner.getSelectedItemPosition());
         double base = parsePositive(principalInput);
@@ -469,7 +512,6 @@ public class AddReminderActivity extends AppCompatActivity {
             selectedDate = value;
             dateInput.setText(FormatUtils.date(this, value.getTimeInMillis()));
         }, base.get(Calendar.YEAR), base.get(Calendar.MONTH), base.get(Calendar.DAY_OF_MONTH));
-        picker.getDatePicker().setMinDate(System.currentTimeMillis() - 86400000L);
         picker.show();
     }
 
@@ -496,20 +538,18 @@ public class AddReminderActivity extends AppCompatActivity {
                 return;
             }
 
-            Calendar lastPayment = ReminderScheduler.buildDueDate(selectedDate.getTimeInMillis(), months - 1);
-            if (lastPayment.getTimeInMillis() < System.currentTimeMillis()) {
-                Toast.makeText(this, AppPreferences.tr(this,
-                        "Срок уже закончился", "The term has already ended"), Toast.LENGTH_SHORT).show();
-                return;
-            }
 
+            long reminderId = editReminder == null ? System.currentTimeMillis() : editReminder.id;
             ReminderScheduler.PaymentReminder reminder = new ReminderScheduler.PaymentReminder(
-                    System.currentTimeMillis(), type, title,
+                    reminderId, type, title,
                     baseAmount, downPayment, insurance, principal,
                     annualRate, payment, selectedDate.getTimeInMillis(), months, daysBefore);
-            ReminderScheduler.add(this, reminder);
+            if (editReminder == null) ReminderScheduler.add(this, reminder);
+            else ReminderScheduler.updateEdited(this, reminder);
             requestNotificationPermissionIfNeeded();
-            Toast.makeText(this, AppPreferences.tr(this, "Запись сохранена", "Saved"), Toast.LENGTH_LONG).show();
+            Toast.makeText(this, editReminder == null
+                    ? AppPreferences.tr(this, "Запись сохранена", "Saved")
+                    : AppPreferences.tr(this, "Изменения сохранены", "Changes saved"), Toast.LENGTH_LONG).show();
             setResult(RESULT_OK);
             finish();
         } catch (Exception e) {

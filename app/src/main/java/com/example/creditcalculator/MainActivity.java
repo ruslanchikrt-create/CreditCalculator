@@ -311,15 +311,7 @@ public class MainActivity extends AppCompatActivity {
         drawer.addView(divider, new LinearLayout.LayoutParams(-1, dp(1)));
 
         TextView about = drawerItem("ⓘ   " + AppPreferences.tr(this, "О приложении", "About"));
-        about.setOnClickListener(v -> {
-            drawerLayout.closeDrawer(GravityCompat.START);
-            new AlertDialog.Builder(this)
-                    .setTitle(AppPreferences.tr(this, "Финансовый калькулятор", "Financial calculator"))
-                    .setMessage(AppPreferences.tr(this,
-                            "Кредит, ипотека, автокредит, рассрочка и вклад. Сохраняйте платежи, смотрите полный график, архив и получайте уведомления заранее.",
-                            "Loan, mortgage, auto loan, installment and deposit calculators. Save payments, view schedules and archive, and receive reminders."))
-                    .setPositiveButton("OK", null).show();
-        });
+        about.setOnClickListener(v -> openDrawerPage(AboutActivity.class));
         drawer.addView(about);
 
         TextView exit = drawerItem("↪   " + AppPreferences.tr(this, "Выход", "Exit"));
