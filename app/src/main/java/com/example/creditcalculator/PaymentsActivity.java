@@ -94,26 +94,112 @@ public class PaymentsActivity extends AppCompatActivity {
         listContainer.addView(heading);
 
         TextView subtitle = text(AppPreferences.tr(this,
-                "Выберите кредит, чтобы посмотреть весь график платежей.",
-                "Choose an item to view the full payment schedule."), 15, R.color.text_secondary, false);
+                "Активные кредиты, платежи и вклады.",
+                "Active loans, payments and deposits."), 15, R.color.text_secondary, false);
         LinearLayout.LayoutParams subParams = new LinearLayout.LayoutParams(-1, -2);
         subParams.setMargins(0, dp(6), 0, dp(18));
         listContainer.addView(subtitle, subParams);
 
         List<ReminderScheduler.PaymentReminder> reminders = ReminderScheduler.load(this);
+        listContainer.addView(createSummaryCard(reminders));
+
         if (reminders.isEmpty()) {
             TextView empty = text(AppPreferences.tr(this,
-                    "Сохранённых платежей пока нет. Нажмите +, чтобы добавить первый.",
-                    "No saved payments yet. Tap + to add the first one."), 17, R.color.text_secondary, false);
+                    "Активных записей пока нет. Нажмите +, чтобы добавить первую.",
+                    "No active items yet. Tap + to add the first one."), 17, R.color.text_secondary, false);
             empty.setGravity(Gravity.CENTER);
-            empty.setPadding(dp(16), dp(70), dp(16), dp(70));
+            empty.setPadding(dp(16), dp(54), dp(16), dp(70));
             listContainer.addView(empty, new LinearLayout.LayoutParams(-1, -2));
             return;
         }
 
+        TextView listTitle = text(AppPreferences.tr(this, "Активные записи", "Active items"), 19, R.color.text_main, true);
+        LinearLayout.LayoutParams listTitleParams = new LinearLayout.LayoutParams(-1, -2);
+        listTitleParams.setMargins(0, dp(20), 0, dp(10));
+        listContainer.addView(listTitle, listTitleParams);
+
         for (ReminderScheduler.PaymentReminder reminder : reminders) {
             listContainer.addView(createPaymentCard(reminder));
         }
+    }
+
+    private View createSummaryCard(List<ReminderScheduler.PaymentReminder> reminders) {
+        double totalDebt = 0.0;
+        double dueThisMonth = 0.0;
+        double depositPrincipal = 0.0;
+        double depositIncome = 0.0;
+        double depositFinal = 0.0;
+        boolean hasDeposit = false;
+
+        for (ReminderScheduler.PaymentReminder reminder : reminders) {
+            if (ReminderScheduler.TYPE_DEPOSIT.equals(ReminderScheduler.normalizeType(reminder.type))) {
+                hasDeposit = true;
+                depositPrincipal += reminder.principal;
+                depositIncome += ReminderScheduler.depositExpectedIncome(reminder);
+                depositFinal += ReminderScheduler.depositFinalAmount(reminder);
+            } else {
+                totalDebt += ReminderScheduler.remainingDebt(reminder);
+                dueThisMonth += ReminderScheduler.dueThisMonth(reminder);
+            }
+        }
+
+        MaterialCardView card = new MaterialCardView(this);
+        card.setCardBackgroundColor(ContextCompat.getColor(this, R.color.card_background));
+        card.setRadius(dp(18));
+        card.setStrokeColor(ContextCompat.getColor(this, R.color.border));
+        card.setStrokeWidth(dp(1));
+        card.setCardElevation(dp(1));
+
+        LinearLayout box = new LinearLayout(this);
+        box.setOrientation(LinearLayout.VERTICAL);
+        box.setPadding(dp(18), dp(16), dp(18), dp(18));
+        card.addView(box);
+
+        box.addView(text(AppPreferences.tr(this, "Общая сводка", "Summary"), 19, R.color.text_main, true));
+
+        TextView debtLabel = text(AppPreferences.tr(this, "Общий остаток долга", "Total remaining debt"), 13, R.color.text_secondary, false);
+        LinearLayout.LayoutParams debtLabelParams = new LinearLayout.LayoutParams(-1, -2);
+        debtLabelParams.setMargins(0, dp(14), 0, dp(2));
+        box.addView(debtLabel, debtLabelParams);
+        box.addView(text(FormatUtils.money(this, totalDebt), 25, R.color.text_main, true));
+
+        TextView monthLabel = text(AppPreferences.tr(this, "К оплате в этом месяце", "Due this month"), 13, R.color.text_secondary, false);
+        LinearLayout.LayoutParams monthLabelParams = new LinearLayout.LayoutParams(-1, -2);
+        monthLabelParams.setMargins(0, dp(12), 0, dp(2));
+        box.addView(monthLabel, monthLabelParams);
+        box.addView(text(FormatUtils.money(this, dueThisMonth), 21, R.color.primary, true));
+
+        if (hasDeposit) {
+            View divider = new View(this);
+            divider.setBackgroundColor(ContextCompat.getColor(this, R.color.border));
+            LinearLayout.LayoutParams dividerParams = new LinearLayout.LayoutParams(-1, dp(1));
+            dividerParams.setMargins(0, dp(16), 0, dp(14));
+            box.addView(divider, dividerParams);
+
+            box.addView(text(AppPreferences.tr(this, "Активные вклады", "Active deposits"), 17, R.color.text_main, true));
+            addSummaryLine(box, AppPreferences.tr(this, "Во вкладах", "Deposited"), depositPrincipal);
+            addSummaryLine(box, AppPreferences.tr(this, "Ожидаемый доход", "Expected income"), depositIncome);
+            addSummaryLine(box, AppPreferences.tr(this, "Итого к получению", "Expected total"), depositFinal);
+        }
+
+        LinearLayout.LayoutParams cardParams = new LinearLayout.LayoutParams(-1, -2);
+        cardParams.setMargins(0, 0, 0, dp(4));
+        card.setLayoutParams(cardParams);
+        return card;
+    }
+
+    private void addSummaryLine(LinearLayout parent, String label, double value) {
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        LinearLayout.LayoutParams rowParams = new LinearLayout.LayoutParams(-1, -2);
+        rowParams.setMargins(0, dp(9), 0, 0);
+        parent.addView(row, rowParams);
+
+        TextView left = text(label, 14, R.color.text_secondary, false);
+        row.addView(left, new LinearLayout.LayoutParams(0, -2, 1f));
+        TextView right = text(FormatUtils.money(this, value), 15, R.color.text_main, true);
+        row.addView(right);
     }
 
     private View createPaymentCard(ReminderScheduler.PaymentReminder reminder) {
@@ -153,11 +239,30 @@ public class PaymentsActivity extends AppCompatActivity {
         titleParams.setMargins(0, dp(2), 0, dp(8));
         content.addView(title, titleParams);
 
-        content.addView(text(AppPreferences.tr(this, "Сумма: ", "Amount: ")
-                + FormatUtils.money(this, reminder.principal), 15, R.color.text_secondary, false));
-
-        content.addView(text(AppPreferences.tr(this, "Ежемесячно: ", "Monthly: ")
-                + FormatUtils.money(this, reminder.amount), 16, R.color.text_main, false));
+        boolean deposit = ReminderScheduler.TYPE_DEPOSIT.equals(ReminderScheduler.normalizeType(reminder.type));
+        if (deposit) {
+            content.addView(text(AppPreferences.tr(this, "Сумма вклада: ", "Deposit: ")
+                    + FormatUtils.money(this, reminder.principal), 15, R.color.text_secondary, false));
+            content.addView(text(AppPreferences.tr(this, "Ожидаемый доход: ", "Expected income: ")
+                    + FormatUtils.money(this, ReminderScheduler.depositExpectedIncome(reminder)), 16, R.color.text_main, false));
+            content.addView(text(AppPreferences.tr(this, "Итого: ", "Total: ")
+                    + FormatUtils.money(this, ReminderScheduler.depositFinalAmount(reminder)), 15, R.color.text_secondary, false));
+        } else {
+            content.addView(text(AppPreferences.tr(this, "Исходная сумма: ", "Original amount: ")
+                    + FormatUtils.money(this, reminder.baseAmount), 15, R.color.text_secondary, false));
+            if (reminder.downPayment > 0) {
+                content.addView(text(AppPreferences.tr(this, "Первоначальный взнос: ", "Down payment: ")
+                        + FormatUtils.money(this, reminder.downPayment), 14, R.color.text_secondary, false));
+            }
+            if (reminder.insurance > 0) {
+                content.addView(text(AppPreferences.tr(this, "Страховка: ", "Insurance: ")
+                        + FormatUtils.money(this, reminder.insurance), 14, R.color.text_secondary, false));
+            }
+            content.addView(text(AppPreferences.tr(this, "Остаток долга: ", "Remaining debt: ")
+                    + FormatUtils.money(this, ReminderScheduler.remainingDebt(reminder)), 16, R.color.text_main, true));
+            content.addView(text(AppPreferences.tr(this, "Ежемесячно: ", "Monthly: ")
+                    + FormatUtils.money(this, reminder.amount), 16, R.color.text_main, false));
+        }
 
         if (!reminder.soundEnabled) {
             TextView muted = text(AppPreferences.tr(this, "🔇 Без звука", "🔇 Muted"), 13, R.color.text_secondary, false);
@@ -170,9 +275,12 @@ public class PaymentsActivity extends AppCompatActivity {
         TextView next = text("", 14, R.color.text_secondary, false);
         if (nextIndex >= 0) {
             long nextDate = ReminderScheduler.buildDueDate(reminder.firstPaymentMillis, nextIndex).getTimeInMillis();
-            next.setText(AppPreferences.tr(this, "Следующий платёж: ", "Next payment: ") + FormatUtils.date(this, nextDate));
+            next.setText((deposit
+                    ? AppPreferences.tr(this, "Ближайшая дата: ", "Next date: ")
+                    : AppPreferences.tr(this, "Следующий платёж: ", "Next payment: "))
+                    + FormatUtils.date(this, nextDate));
         } else {
-            next.setText(AppPreferences.tr(this, "Платежи завершены", "Payments completed"));
+            next.setText(AppPreferences.tr(this, "Срок завершён", "Term completed"));
         }
         LinearLayout.LayoutParams nextParams = new LinearLayout.LayoutParams(-1, -2);
         nextParams.setMargins(0, dp(8), 0, 0);
@@ -192,7 +300,6 @@ public class PaymentsActivity extends AppCompatActivity {
         menu.getMenu().add(AppPreferences.tr(this, "В архив", "Archive"));
         menu.getMenu().add(AppPreferences.tr(this, "Удалить", "Delete"));
         menu.setOnMenuItemClickListener(item -> {
-            int position = item.getItemId();
             String label = item.getTitle().toString();
             if (label.equals(AppPreferences.tr(this, "Без звука", "Mute"))
                     || label.equals(AppPreferences.tr(this, "Включить звук", "Enable sound"))) {
