@@ -1,0 +1,184 @@
+name: Apply v1.8 final patches
+
+on:
+  push:
+    paths:
+      - '.github/workflows/apply-v18-final.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch v1.8 files
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          add_path = Path('app/src/main/java/com/example/creditcalculator/AddReminderActivity.java')
+          s = add_path.read_text()
+
+          old = '    public static final String EXTRA_PAYMENT = "payment";\n'
+          new = old + '    public static final String EXTRA_EDIT_ID = "edit_reminder_id";\n'
+          if 'EXTRA_EDIT_ID' not in s:
+              assert old in s
+              s = s.replace(old, new, 1)
+
+          old = '    private boolean titleEditedByUser;\n'
+          new = old + '    private ReminderScheduler.PaymentReminder editReminder;\n'
+          if 'private ReminderScheduler.PaymentReminder editReminder;' not in s:
+              assert old in s
+              s = s.replace(old, new, 1)
+
+          old = '''        WindowCompat.setDecorFitsSystemWindows(getWindow(), false);\n        getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);\n        setContentView(buildContent());'''
+          new = '''        WindowCompat.setDecorFitsSystemWindows(getWindow(), false);\n        getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);\n        long editId = getIntent().getLongExtra(EXTRA_EDIT_ID, -1L);\n        if (editId > 0) editReminder = ReminderScheduler.findById(this, editId);\n        setContentView(buildContent());'''
+          if old in s:
+              s = s.replace(old, new, 1)
+
+          old = '        barTitle.setText(AppPreferences.tr(this, "Новое напоминание", "New reminder"));'
+          new = '        barTitle.setText(editReminder == null ? AppPreferences.tr(this, "Новое напоминание", "New reminder") : AppPreferences.tr(this, "Редактировать запись", "Edit item"));'
+          if old in s:
+              s = s.replace(old, new, 1)
+
+          pattern = r'    private void applySuggestions\(\) \{.*?\n    \}\n\n    private double financedPrincipal\(\)'
+          replacement = r'''    private void applySuggestions() {
+        if (editReminder != null) {
+            String chosenType = ReminderScheduler.normalizeType(editReminder.type);
+            typeSpinner.setSelection(FormatUtils.typePosition(chosenType));
+            updateFieldsForType(false);
+
+            updatingTitle = true;
+            titleInput.setText(editReminder.title);
+            titleInput.setSelection(titleInput.length());
+            updatingTitle = false;
+            titleEditedByUser = true;
+
+            if (editReminder.baseAmount > 0) principalInput.setText(formatInput(editReminder.baseAmount));
+            if (editReminder.downPayment > 0) downPaymentInput.setText(formatInput(editReminder.downPayment));
+            if (editReminder.insurance > 0) insuranceInput.setText(formatInput(editReminder.insurance));
+            rateInput.setText(trimNumber(editReminder.annualRate));
+
+            if (editReminder.months > 0 && editReminder.months % 12 == 0) {
+                termInput.setText(String.valueOf(editReminder.months / 12));
+                termUnitSpinner.setSelection(1);
+            } else {
+                termInput.setText(String.valueOf(Math.max(1, editReminder.months)));
+                termUnitSpinner.setSelection(0);
+            }
+            updateTermUnitLabels();
+
+            selectedDate = Calendar.getInstance();
+            selectedDate.setTimeInMillis(editReminder.firstPaymentMillis);
+            dateInput.setText(FormatUtils.date(this, editReminder.firstPaymentMillis));
+            daysSpinner.setSelection(Math.max(0, Math.min(6, editReminder.daysBefore - 1)));
+
+            if (!ReminderScheduler.TYPE_DEPOSIT.equals(chosenType) && editReminder.amount > 0) {
+                updatingPayment = true;
+                paymentInput.setText(formatInput(editReminder.amount));
+                paymentInput.setSelection(paymentInput.length());
+                updatingPayment = false;
+            }
+            updateFieldsForType(false);
+            return;
+        }
+
+        String type = getIntent().getStringExtra(EXTRA_TYPE);
+        if (type != null) typeSpinner.setSelection(FormatUtils.typePosition(type));
+        String chosenType = FormatUtils.typeCodeByPosition(typeSpinner.getSelectedItemPosition());
+        updateFieldsForType(false);
+        titleEditedByUser = false;
+        setDefaultTitle(chosenType);
+
+        double legacyPrincipal = getIntent().getDoubleExtra(EXTRA_PRINCIPAL, 0.0);
+        double baseAmount = getIntent().getDoubleExtra(EXTRA_BASE_AMOUNT, legacyPrincipal);
+        double downPayment = getIntent().getDoubleExtra(EXTRA_DOWN_PAYMENT, 0.0);
+        double insurance = getIntent().getDoubleExtra(EXTRA_INSURANCE, 0.0);
+        double rate = getIntent().getDoubleExtra(EXTRA_RATE, 0.0);
+        int months = getIntent().getIntExtra(EXTRA_MONTHS, 0);
+        double payment = getIntent().getDoubleExtra(EXTRA_PAYMENT, 0.0);
+
+        if (baseAmount > 0) principalInput.setText(formatInput(baseAmount));
+        if (downPayment > 0) downPaymentInput.setText(formatInput(downPayment));
+        if (insurance > 0) insuranceInput.setText(formatInput(insurance));
+        if (rate >= 0 && (baseAmount > 0 || rate > 0)) rateInput.setText(trimNumber(rate));
+
+        if (months > 0 && months % 12 == 0) {
+            termInput.setText(String.valueOf(months / 12));
+            termUnitSpinner.setSelection(1);
+        } else if (months > 0) {
+            termInput.setText(String.valueOf(months));
+            termUnitSpinner.setSelection(0);
+        } else {
+            termUnitSpinner.setSelection(0);
+        }
+        updateTermUnitLabels();
+
+        if (!ReminderScheduler.TYPE_DEPOSIT.equals(chosenType) && payment > 0) {
+            updatingPayment = true;
+            paymentInput.setText(formatInput(payment));
+            updatingPayment = false;
+        } else {
+            updateAutoPayment();
+        }
+        updateFieldsForType(false);
+    }
+
+    private double financedPrincipal()'''
+          s2, n = re.subn(pattern, replacement, s, count=1, flags=re.S)
+          assert n == 1, 'applySuggestions patch failed'
+          s = s2
+
+          s = s.replace('        picker.getDatePicker().setMinDate(System.currentTimeMillis() - 86400000L);\n', '')
+
+          expired_pattern = r'''\n            Calendar lastPayment = ReminderScheduler\.buildDueDate\(selectedDate\.getTimeInMillis\(\), months - 1\);\n            if \(lastPayment\.getTimeInMillis\(\) < System\.currentTimeMillis\(\)\) \{\n                Toast\.makeText\(this, AppPreferences\.tr\(this,\n                        "Срок уже закончился", "The term has already ended"\), Toast\.LENGTH_SHORT\)\.show\(\);\n                return;\n            \}\n'''
+          s, n = re.subn(expired_pattern, '\n', s, count=1)
+          assert n == 1, 'expired validation patch failed'
+
+          old = '''            ReminderScheduler.PaymentReminder reminder = new ReminderScheduler.PaymentReminder(
+                    System.currentTimeMillis(), type, title,
+                    baseAmount, downPayment, insurance, principal,
+                    annualRate, payment, selectedDate.getTimeInMillis(), months, daysBefore);
+            ReminderScheduler.add(this, reminder);
+            requestNotificationPermissionIfNeeded();
+            Toast.makeText(this, AppPreferences.tr(this, "Запись сохранена", "Saved"), Toast.LENGTH_LONG).show();
+            setResult(RESULT_OK);
+            finish();'''
+          new = '''            long reminderId = editReminder == null ? System.currentTimeMillis() : editReminder.id;
+            ReminderScheduler.PaymentReminder reminder = new ReminderScheduler.PaymentReminder(
+                    reminderId, type, title,
+                    baseAmount, downPayment, insurance, principal,
+                    annualRate, payment, selectedDate.getTimeInMillis(), months, daysBefore);
+            if (editReminder == null) ReminderScheduler.add(this, reminder);
+            else ReminderScheduler.updateEdited(this, reminder);
+            requestNotificationPermissionIfNeeded();
+            Toast.makeText(this, editReminder == null
+                    ? AppPreferences.tr(this, "Запись сохранена", "Saved")
+                    : AppPreferences.tr(this, "Изменения сохранены", "Changes saved"), Toast.LENGTH_LONG).show();
+            setResult(RESULT_OK);
+            finish();'''
+          assert old in s, 'save block patch failed'
+          s = s.replace(old, new, 1)
+          add_path.write_text(s)
+
+          main_path = Path('app/src/main/java/com/example/creditcalculator/MainActivity.java')
+          m = main_path.read_text()
+          pattern = r'''        TextView about = drawerItem\("ⓘ   " \+ AppPreferences\.tr\(this, "О приложении", "About"\)\);\n        about\.setOnClickListener\(v -> \{.*?\n        \}\);\n        drawer\.addView\(about\);'''
+          replacement = '''        TextView about = drawerItem("ⓘ   " + AppPreferences.tr(this, "О приложении", "About"));
+        about.setOnClickListener(v -> openDrawerPage(AboutActivity.class));
+        drawer.addView(about);'''
+          m2, n = re.subn(pattern, replacement, m, count=1, flags=re.S)
+          assert n == 1, 'about patch failed'
+          main_path.write_text(m2)
+          PY
+
+      - name: Commit patches
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/src/main/java/com/example/creditcalculator/AddReminderActivity.java app/src/main/java/com/example/creditcalculator/MainActivity.java
+          git commit -m "Finish v1.8 editing past dates and about screen"
+          git push
