@@ -7,7 +7,6 @@ import android.media.Ringtone;
 import android.media.RingtoneManager;
 import android.net.Uri;
 import android.os.Bundle;
-import android.provider.Settings;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.ArrayAdapter;
@@ -273,7 +272,7 @@ public class SettingsActivity extends AppCompatActivity {
     private MaterialButton outlineButton(String text) {
         MaterialButton button = new MaterialButton(this);
         button.setText(text);
-        button.setTextAllCaps(false);
+        button.setAllCaps(false);
         button.setTextColor(ContextCompat.getColor(this, R.color.primary));
         button.setBackgroundTintList(android.content.res.ColorStateList.valueOf(Color.WHITE));
         button.setStrokeColor(android.content.res.ColorStateList.valueOf(ContextCompat.getColor(this, R.color.primary)));
