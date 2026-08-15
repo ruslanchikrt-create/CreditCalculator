@@ -24,16 +24,23 @@ public final class ReminderScheduler {
 
     public static class PaymentReminder {
         public long id;
+        public String type;
         public String title;
+        public double principal;
+        public double annualRate;
         public double amount;
         public long firstPaymentMillis;
         public int months;
         public int daysBefore;
 
-        public PaymentReminder(long id, String title, double amount, long firstPaymentMillis,
+        public PaymentReminder(long id, String type, String title, double principal,
+                               double annualRate, double amount, long firstPaymentMillis,
                                int months, int daysBefore) {
             this.id = id;
+            this.type = type;
             this.title = title;
+            this.principal = principal;
+            this.annualRate = annualRate;
             this.amount = amount;
             this.firstPaymentMillis = firstPaymentMillis;
             this.months = months;
@@ -50,18 +57,35 @@ public final class ReminderScheduler {
             JSONArray array = new JSONArray(json);
             for (int i = 0; i < array.length(); i++) {
                 JSONObject object = array.getJSONObject(i);
+                double amount = object.optDouble("amount", 0.0);
+                int months = object.optInt("months", 1);
+                double principal = object.has("principal")
+                        ? object.optDouble("principal", 0.0)
+                        : amount * Math.max(1, months);
                 result.add(new PaymentReminder(
                         object.getLong("id"),
-                        object.getString("title"),
-                        object.getDouble("amount"),
+                        object.optString("type", "Кредит"),
+                        object.optString("title", "Кредит"),
+                        principal,
+                        object.optDouble("annualRate", 0.0),
+                        amount,
                         object.getLong("firstPaymentMillis"),
-                        object.getInt("months"),
-                        object.getInt("daysBefore")
+                        Math.max(1, months),
+                        Math.max(1, Math.min(7, object.optInt("daysBefore", 3)))
                 ));
             }
         } catch (Exception ignored) {
         }
         return result;
+    }
+
+    public static PaymentReminder findById(Context context, long id) {
+        for (PaymentReminder reminder : load(context)) {
+            if (reminder.id == id) {
+                return reminder;
+            }
+        }
+        return null;
     }
 
     private static void save(Context context, List<PaymentReminder> reminders) {
@@ -70,7 +94,10 @@ public final class ReminderScheduler {
             for (PaymentReminder reminder : reminders) {
                 JSONObject object = new JSONObject();
                 object.put("id", reminder.id);
+                object.put("type", reminder.type);
                 object.put("title", reminder.title);
+                object.put("principal", reminder.principal);
+                object.put("annualRate", reminder.annualRate);
                 object.put("amount", reminder.amount);
                 object.put("firstPaymentMillis", reminder.firstPaymentMillis);
                 object.put("months", reminder.months);
@@ -156,7 +183,9 @@ public final class ReminderScheduler {
                                                      int index, Calendar dueDate, boolean noCreate) {
         Intent intent = new Intent(context, ReminderReceiver.class);
         intent.setAction("com.example.creditcalculator.PAYMENT_" + reminder.id + "_" + index);
+        intent.putExtra("reminder_id", reminder.id);
         intent.putExtra("title", reminder.title);
+        intent.putExtra("type", reminder.type);
         intent.putExtra("amount", reminder.amount);
         intent.putExtra("due_date", dueDate.getTimeInMillis());
         intent.putExtra("days_before", reminder.daysBefore);
@@ -189,6 +218,21 @@ public final class ReminderScheduler {
         due.add(Calendar.MONTH, monthIndex);
         due.set(Calendar.DAY_OF_MONTH, Math.min(preferredDay, due.getActualMaximum(Calendar.DAY_OF_MONTH)));
         return due;
+    }
+
+    public static int nextPaymentIndex(PaymentReminder reminder) {
+        long now = System.currentTimeMillis();
+        for (int i = 0; i < reminder.months; i++) {
+            Calendar due = buildDueDate(reminder.firstPaymentMillis, i);
+            Calendar endOfDay = (Calendar) due.clone();
+            endOfDay.set(Calendar.HOUR_OF_DAY, 23);
+            endOfDay.set(Calendar.MINUTE, 59);
+            endOfDay.set(Calendar.SECOND, 59);
+            if (endOfDay.getTimeInMillis() >= now) {
+                return i;
+            }
+        }
+        return -1;
     }
 
     private static int requestCode(long id, int index) {
