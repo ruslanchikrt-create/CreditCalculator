@@ -49,7 +49,7 @@ public class AboutActivity extends AppCompatActivity {
 
         MaterialCardView info = card();
         LinearLayout box = new LinearLayout(this); box.setOrientation(LinearLayout.VERTICAL); box.setPadding(dp(18), dp(16), dp(18), dp(16)); info.addView(box);
-        addLine(box, AppPreferences.tr(this, "Версия приложения", "App version"), BuildConfig.VERSION_NAME);
+        addLine(box, AppPreferences.tr(this, "Версия приложения", "App version"), versionName());
         addLine(box, AppPreferences.tr(this, "Разработчик", "Developer"), "SKRYTON");
         content.addView(info);
 
@@ -65,6 +65,15 @@ public class AboutActivity extends AppCompatActivity {
         ViewCompat.setOnApplyWindowInsetsListener(root, (view, insets) -> { Insets bars = insets.getInsets(WindowInsetsCompat.Type.systemBars()); view.setPadding(0, bars.top, 0, 0); scroll.setPadding(0, 0, 0, bars.bottom + dp(8)); return insets; });
         ViewCompat.requestApplyInsets(root);
         return root;
+    }
+
+    private String versionName() {
+        try {
+            String value = getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
+            return value == null || value.trim().isEmpty() ? "1.8" : value;
+        } catch (Exception ignored) {
+            return "1.8";
+        }
     }
 
     private MaterialCardView card() { MaterialCardView c = new MaterialCardView(this); c.setCardBackgroundColor(ContextCompat.getColor(this, R.color.card_background)); c.setRadius(dp(18)); c.setStrokeColor(ContextCompat.getColor(this, R.color.border)); c.setStrokeWidth(dp(1)); return c; }
