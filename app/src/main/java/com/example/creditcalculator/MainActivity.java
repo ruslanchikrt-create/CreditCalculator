@@ -437,7 +437,9 @@ public class MainActivity extends AppCompatActivity {
 
     private ArrayAdapter<String> createTermAdapter(int value) {
         return new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item,
-                new String[]{UiUtils.termUnit(this, value, false), UiUtils.termUnit(this, value, true)});
+        new java.util.ArrayList<>(java.util.Arrays.asList(
+                UiUtils.termUnit(this, value, false),
+                UiUtils.termUnit(this, value, true))));
     }
 
     private void updateTermAdapter(ArrayAdapter<String> adapter, Spinner spinner, TextInputEditText input) {

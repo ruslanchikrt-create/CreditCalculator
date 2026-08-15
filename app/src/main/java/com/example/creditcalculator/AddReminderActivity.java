@@ -215,7 +215,9 @@ public class AddReminderActivity extends AppCompatActivity {
         typeSpinner.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, types));
 
         termUnitAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item,
-                new String[]{UiUtils.termUnit(this, 1, false), UiUtils.termUnit(this, 1, true)});
+        new java.util.ArrayList<>(java.util.Arrays.asList(
+                UiUtils.termUnit(this, 1, false),
+                UiUtils.termUnit(this, 1, true))));
         termUnitSpinner.setAdapter(termUnitAdapter);
 
         String[] days = new String[7];
