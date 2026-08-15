@@ -18,6 +18,10 @@ import android.widget.TextView;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowCompat;
+import androidx.core.view.WindowInsetsCompat;
 
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.card.MaterialCardView;
@@ -44,6 +48,7 @@ public class SettingsActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
         setContentView(buildContent());
         bindValues();
     }
@@ -56,29 +61,32 @@ public class SettingsActivity extends AppCompatActivity {
         LinearLayout bar = new LinearLayout(this);
         bar.setOrientation(LinearLayout.HORIZONTAL);
         bar.setGravity(Gravity.CENTER_VERTICAL);
-        bar.setPadding(dp(8), 0, dp(16), 0);
+        bar.setPadding(dp(4), 0, dp(12), 0);
         bar.setBackgroundColor(ContextCompat.getColor(this, R.color.primary));
-        root.addView(bar, new LinearLayout.LayoutParams(-1, dp(64)));
+        root.addView(bar, new LinearLayout.LayoutParams(-1, dp(56)));
 
-        MaterialButton back = new MaterialButton(this);
+        TextView back = new TextView(this);
         back.setText("‹");
-        back.setTextSize(32);
+        back.setTextSize(34);
         back.setTextColor(Color.WHITE);
-        back.setBackgroundTintList(android.content.res.ColorStateList.valueOf(Color.TRANSPARENT));
-        back.setMinWidth(0);
-        back.setPadding(0, 0, 0, 0);
+        back.setGravity(Gravity.CENTER);
+        back.setClickable(true);
+        back.setFocusable(true);
+        back.setBackgroundResource(android.R.drawable.list_selector_background);
         back.setOnClickListener(v -> finish());
-        bar.addView(back, new LinearLayout.LayoutParams(dp(54), dp(54)));
+        bar.addView(back, new LinearLayout.LayoutParams(dp(56), dp(56)));
 
         TextView barTitle = new TextView(this);
         barTitle.setText(AppPreferences.tr(this, "Настройки", "Settings"));
         barTitle.setTextColor(Color.WHITE);
         barTitle.setTextSize(20);
         barTitle.setTypeface(null, android.graphics.Typeface.BOLD);
-        bar.addView(barTitle, new LinearLayout.LayoutParams(0, -2, 1f));
+        barTitle.setGravity(Gravity.CENTER_VERTICAL);
+        bar.addView(barTitle, new LinearLayout.LayoutParams(0, -1, 1f));
 
         ScrollView scroll = new ScrollView(this);
         scroll.setFillViewport(true);
+        scroll.setClipToPadding(false);
         root.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1f));
 
         LinearLayout content = new LinearLayout(this);
@@ -86,8 +94,7 @@ public class SettingsActivity extends AppCompatActivity {
         content.setPadding(dp(20), dp(22), dp(20), dp(32));
         scroll.addView(content, new ScrollView.LayoutParams(-1, -2));
 
-        TextView heading = heading(AppPreferences.tr(this, "Настройки", "Settings"), 28);
-        content.addView(heading);
+        content.addView(heading(AppPreferences.tr(this, "Настройки", "Settings"), 28));
 
         TextView languageTitle = heading(AppPreferences.tr(this, "Язык приложения", "App language"), 18);
         LinearLayout.LayoutParams languageTitleParams = new LinearLayout.LayoutParams(-1, -2);
@@ -115,9 +122,7 @@ public class SettingsActivity extends AppCompatActivity {
         box.setOrientation(LinearLayout.VERTICAL);
         box.setPadding(dp(18), dp(16), dp(18), dp(18));
         notificationsCard.addView(box);
-
-        TextView notificationsTitle = heading(AppPreferences.tr(this, "Оповещения", "Notifications"), 20);
-        box.addView(notificationsTitle);
+        box.addView(heading(AppPreferences.tr(this, "Оповещения", "Notifications"), 20));
 
         soundSwitch = new SwitchMaterial(this);
         soundSwitch.setText(AppPreferences.tr(this, "Звук уведомления", "Notification sound"));
@@ -133,11 +138,13 @@ public class SettingsActivity extends AppCompatActivity {
         selectedParams.setMargins(0, 0, 0, dp(12));
         box.addView(selectedSoundText, selectedParams);
 
-        systemSoundButton = outlineButton(AppPreferences.tr(this, "Выбрать стандартный звук телефона", "Choose phone notification sound"));
+        systemSoundButton = outlineButton(AppPreferences.tr(this,
+                "Выбрать стандартный звук телефона", "Choose phone notification sound"));
         systemSoundButton.setOnClickListener(v -> chooseSystemSound());
         box.addView(systemSoundButton, buttonParams());
 
-        customSoundButton = outlineButton(AppPreferences.tr(this, "Выбрать свой звуковой файл", "Choose custom audio file"));
+        customSoundButton = outlineButton(AppPreferences.tr(this,
+                "Выбрать свой звуковой файл", "Choose custom audio file"));
         customSoundButton.setOnClickListener(v -> chooseCustomSound());
         box.addView(customSoundButton, buttonParams());
 
@@ -158,6 +165,13 @@ public class SettingsActivity extends AppCompatActivity {
         noteParams.setMargins(0, dp(18), 0, 0);
         content.addView(note, noteParams);
 
+        ViewCompat.setOnApplyWindowInsetsListener(root, (view, insets) -> {
+            Insets bars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
+            view.setPadding(0, bars.top, 0, 0);
+            scroll.setPadding(0, 0, 0, bars.bottom);
+            return insets;
+        });
+        ViewCompat.requestApplyInsets(root);
         return root;
     }
 
@@ -180,18 +194,15 @@ public class SettingsActivity extends AppCompatActivity {
                     recreate();
                 }
             }
-
-            @Override
-            public void onNothingSelected(android.widget.AdapterView<?> parent) {
-            }
+            @Override public void onNothingSelected(android.widget.AdapterView<?> parent) {}
         });
 
-        soundSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
-            AppPreferences.setSoundEnabled(this, isChecked);
+        soundSwitch.setOnCheckedChangeListener((buttonView, checked) -> {
+            AppPreferences.setSoundEnabled(this, checked);
             updateSoundControls();
         });
-        vibrationSwitch.setOnCheckedChangeListener((buttonView, isChecked) ->
-                AppPreferences.setVibrationEnabled(this, isChecked));
+        vibrationSwitch.setOnCheckedChangeListener((buttonView, checked) ->
+                AppPreferences.setVibrationEnabled(this, checked));
     }
 
     private void chooseSystemSound() {
@@ -200,7 +211,9 @@ public class SettingsActivity extends AppCompatActivity {
         intent.putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_DEFAULT, true);
         intent.putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_SILENT, false);
         String saved = AppPreferences.getSoundUri(this);
-        Uri existing = saved.isEmpty() ? RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION) : Uri.parse(saved);
+        Uri existing = saved.isEmpty()
+                ? RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+                : Uri.parse(saved);
         intent.putExtra(RingtoneManager.EXTRA_RINGTONE_EXISTING_URI, existing);
         startActivityForResult(intent, REQUEST_SYSTEM_SOUND);
     }
@@ -217,7 +230,6 @@ public class SettingsActivity extends AppCompatActivity {
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         if (resultCode != RESULT_OK || data == null) return;
-
         Uri uri = null;
         if (requestCode == REQUEST_SYSTEM_SOUND) {
             uri = data.getParcelableExtra(RingtoneManager.EXTRA_RINGTONE_PICKED_URI);
@@ -226,11 +238,9 @@ public class SettingsActivity extends AppCompatActivity {
             if (uri != null) {
                 try {
                     getContentResolver().takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION);
-                } catch (Exception ignored) {
-                }
+                } catch (Exception ignored) {}
             }
         }
-
         if (uri != null) {
             AppPreferences.setSoundUri(this, uri.toString());
             AppPreferences.setSoundEnabled(this, true);
@@ -241,15 +251,14 @@ public class SettingsActivity extends AppCompatActivity {
 
     private void updateSelectedSoundLabel() {
         String saved = AppPreferences.getSoundUri(this);
-        Uri uri = saved.isEmpty() ? RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION) : Uri.parse(saved);
+        Uri uri = saved.isEmpty()
+                ? RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+                : Uri.parse(saved);
         String title = AppPreferences.tr(this, "Звук по умолчанию", "Default notification sound");
         try {
             Ringtone ringtone = RingtoneManager.getRingtone(this, uri);
-            if (ringtone != null) {
-                title = ringtone.getTitle(this);
-            }
-        } catch (Exception ignored) {
-        }
+            if (ringtone != null) title = ringtone.getTitle(this);
+        } catch (Exception ignored) {}
         selectedSoundText.setText(AppPreferences.tr(this, "Выбрано: ", "Selected: ") + title);
     }
 
