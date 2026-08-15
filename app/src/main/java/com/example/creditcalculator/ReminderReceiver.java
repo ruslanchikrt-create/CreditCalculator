@@ -32,7 +32,16 @@ public class ReminderReceiver extends BroadcastReceiver {
         long dueDate = intent.getLongExtra("due_date", 0L);
         int daysBefore = intent.getIntExtra("days_before", 1);
         long reminderId = intent.getLongExtra("reminder_id", -1L);
-        boolean itemSoundEnabled = intent.getBooleanExtra("item_sound_enabled", true);
+
+        boolean itemSoundEnabled = true;
+        if (reminderId > 0) {
+            ReminderScheduler.PaymentReminder saved = ReminderScheduler.findById(context, reminderId);
+            if (saved == null || !ReminderScheduler.STATUS_ACTIVE.equals(saved.status)) return;
+            itemSoundEnabled = saved.soundEnabled;
+            title = saved.title;
+            amount = saved.amount;
+            daysBefore = saved.daysBefore;
+        }
 
         boolean soundEnabled = AppPreferences.isSoundEnabled(context) && itemSoundEnabled;
         boolean vibrationEnabled = AppPreferences.isVibrationEnabled(context);
