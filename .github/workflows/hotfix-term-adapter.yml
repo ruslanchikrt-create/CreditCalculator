@@ -1,0 +1,63 @@
+name: Hotfix Term Adapter Crash
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - '.github/workflows/hotfix-term-adapter.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  hotfix:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Apply crash fix
+        shell: python
+        run: |
+          from pathlib import Path
+
+          add_path = Path('app/src/main/java/com/example/creditcalculator/AddReminderActivity.java')
+          add = add_path.read_text(encoding='utf-8')
+          old_add = '''termUnitAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item,
+                  new String[]{UiUtils.termUnit(this, 1, false), UiUtils.termUnit(this, 1, true)});'''
+          new_add = '''termUnitAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item,
+                  new java.util.ArrayList<>(java.util.Arrays.asList(
+                          UiUtils.termUnit(this, 1, false),
+                          UiUtils.termUnit(this, 1, true))));'''
+          if old_add not in add:
+              raise SystemExit('AddReminderActivity term adapter pattern not found')
+          add_path.write_text(add.replace(old_add, new_add), encoding='utf-8')
+
+          main_path = Path('app/src/main/java/com/example/creditcalculator/MainActivity.java')
+          main = main_path.read_text(encoding='utf-8')
+          old_main = '''return new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item,
+                  new String[]{UiUtils.termUnit(this, value, false), UiUtils.termUnit(this, value, true)});'''
+          new_main = '''return new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item,
+                  new java.util.ArrayList<>(java.util.Arrays.asList(
+                          UiUtils.termUnit(this, value, false),
+                          UiUtils.termUnit(this, value, true))));'''
+          if old_main not in main:
+              raise SystemExit('MainActivity term adapter pattern not found')
+          main_path.write_text(main.replace(old_main, new_main), encoding='utf-8')
+
+          gradle_path = Path('app/build.gradle')
+          gradle = gradle_path.read_text(encoding='utf-8')
+          gradle = gradle.replace('versionCode 6', 'versionCode 7')
+          gradle = gradle.replace('versionName "1.5"', 'versionName "1.6"')
+          gradle_path.write_text(gradle, encoding='utf-8')
+
+      - name: Commit hotfix
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/src/main/java/com/example/creditcalculator/AddReminderActivity.java app/src/main/java/com/example/creditcalculator/MainActivity.java app/build.gradle
+          git diff --cached --check
+          git commit -m "Fix term selector runtime crash"
+          git push
