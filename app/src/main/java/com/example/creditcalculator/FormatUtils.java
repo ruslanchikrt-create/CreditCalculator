@@ -20,8 +20,7 @@ public final class FormatUtils {
         NumberFormat format = NumberFormat.getNumberInstance(locale(context));
         format.setMaximumFractionDigits(2);
         format.setMinimumFractionDigits(0);
-        String suffix = AppPreferences.isEnglish(context) ? " ₽" : " ₽";
-        return format.format(value).replace('\u00A0', ' ').replace('\u202F', ' ') + suffix;
+        return format.format(value).replace('\u00A0', ' ').replace('\u202F', ' ') + " ₽";
     }
 
     public static String date(Context context, long millis) {
@@ -40,8 +39,6 @@ public final class FormatUtils {
                 return en ? "Installment" : "Рассрочка";
             case ReminderScheduler.TYPE_DEPOSIT:
                 return en ? "Deposit" : "Вклад";
-            case ReminderScheduler.TYPE_OTHER:
-                return en ? "Other" : "Другое";
             case ReminderScheduler.TYPE_CREDIT:
             default:
                 return en ? "Loan" : "Кредит";
@@ -58,8 +55,6 @@ public final class FormatUtils {
                 return ReminderScheduler.TYPE_INSTALLMENT;
             case 4:
                 return ReminderScheduler.TYPE_DEPOSIT;
-            case 5:
-                return ReminderScheduler.TYPE_OTHER;
             case 0:
             default:
                 return ReminderScheduler.TYPE_CREDIT;
@@ -76,8 +71,6 @@ public final class FormatUtils {
                 return 3;
             case ReminderScheduler.TYPE_DEPOSIT:
                 return 4;
-            case ReminderScheduler.TYPE_OTHER:
-                return 5;
             default:
                 return 0;
         }
