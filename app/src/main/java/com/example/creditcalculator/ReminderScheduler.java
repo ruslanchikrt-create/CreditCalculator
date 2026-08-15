@@ -16,6 +16,13 @@ import java.util.List;
 
 public final class ReminderScheduler {
 
+    public static final String TYPE_CREDIT = "credit";
+    public static final String TYPE_MORTGAGE = "mortgage";
+    public static final String TYPE_AUTO = "auto";
+    public static final String TYPE_INSTALLMENT = "installment";
+    public static final String TYPE_DEPOSIT = "deposit";
+    public static final String TYPE_OTHER = "other";
+
     private static final String PREFS = "payment_reminders";
     private static final String KEY_ITEMS = "items";
 
@@ -37,7 +44,7 @@ public final class ReminderScheduler {
                                double annualRate, double amount, long firstPaymentMillis,
                                int months, int daysBefore) {
             this.id = id;
-            this.type = type;
+            this.type = normalizeType(type);
             this.title = title;
             this.principal = principal;
             this.annualRate = annualRate;
@@ -64,7 +71,7 @@ public final class ReminderScheduler {
                         : amount * Math.max(1, months);
                 result.add(new PaymentReminder(
                         object.getLong("id"),
-                        object.optString("type", "Кредит"),
+                        object.optString("type", TYPE_CREDIT),
                         object.optString("title", "Кредит"),
                         principal,
                         object.optDouble("annualRate", 0.0),
@@ -94,7 +101,7 @@ public final class ReminderScheduler {
             for (PaymentReminder reminder : reminders) {
                 JSONObject object = new JSONObject();
                 object.put("id", reminder.id);
-                object.put("type", reminder.type);
+                object.put("type", normalizeType(reminder.type));
                 object.put("title", reminder.title);
                 object.put("principal", reminder.principal);
                 object.put("annualRate", reminder.annualRate);
@@ -185,7 +192,7 @@ public final class ReminderScheduler {
         intent.setAction("com.example.creditcalculator.PAYMENT_" + reminder.id + "_" + index);
         intent.putExtra("reminder_id", reminder.id);
         intent.putExtra("title", reminder.title);
-        intent.putExtra("type", reminder.type);
+        intent.putExtra("type", normalizeType(reminder.type));
         intent.putExtra("amount", reminder.amount);
         intent.putExtra("due_date", dueDate.getTimeInMillis());
         intent.putExtra("days_before", reminder.daysBefore);
@@ -233,6 +240,32 @@ public final class ReminderScheduler {
             }
         }
         return -1;
+    }
+
+    public static String normalizeType(String type) {
+        if (type == null) {
+            return TYPE_CREDIT;
+        }
+        String value = type.trim().toLowerCase();
+        if (value.equals(TYPE_CREDIT) || value.contains("кредит") && !value.contains("авто")) {
+            return TYPE_CREDIT;
+        }
+        if (value.equals(TYPE_MORTGAGE) || value.contains("ипот")) {
+            return TYPE_MORTGAGE;
+        }
+        if (value.equals(TYPE_AUTO) || value.contains("авто")) {
+            return TYPE_AUTO;
+        }
+        if (value.equals(TYPE_INSTALLMENT) || value.contains("расср")) {
+            return TYPE_INSTALLMENT;
+        }
+        if (value.equals(TYPE_DEPOSIT) || value.contains("вклад")) {
+            return TYPE_DEPOSIT;
+        }
+        if (value.equals(TYPE_OTHER)) {
+            return TYPE_OTHER;
+        }
+        return TYPE_CREDIT;
     }
 
     private static int requestCode(long id, int index) {
