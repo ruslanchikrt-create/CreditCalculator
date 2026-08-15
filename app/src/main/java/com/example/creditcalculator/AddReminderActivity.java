@@ -23,6 +23,9 @@ import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
 
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.textfield.TextInputEditText;
@@ -30,7 +33,6 @@ import com.google.android.material.textfield.TextInputLayout;
 
 import java.text.NumberFormat;
 import java.util.Calendar;
-import java.util.Locale;
 
 public class AddReminderActivity extends AppCompatActivity {
 
@@ -43,13 +45,16 @@ public class AddReminderActivity extends AppCompatActivity {
     private static final int NOTIFICATION_PERMISSION_REQUEST = 3010;
 
     private Spinner typeSpinner;
-    private Spinner yearsSpinner;
+    private Spinner termUnitSpinner;
     private Spinner daysSpinner;
+
     private TextInputEditText titleInput;
     private TextInputEditText principalInput;
     private TextInputEditText rateInput;
+    private TextInputEditText termInput;
     private TextInputEditText paymentInput;
     private TextInputEditText dateInput;
+
     private Calendar selectedDate;
     private boolean updatingPayment;
 
@@ -74,6 +79,13 @@ public class AddReminderActivity extends AppCompatActivity {
         root.setOrientation(LinearLayout.VERTICAL);
         root.setBackgroundColor(ContextCompat.getColor(this, R.color.background));
 
+        ViewCompat.setOnApplyWindowInsetsListener(root, (view, insets) -> {
+            Insets bars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
+            view.setPadding(0, bars.top, 0, bars.bottom);
+            return insets;
+        });
+        ViewCompat.requestApplyInsets(root);
+
         LinearLayout bar = new LinearLayout(this);
         bar.setOrientation(LinearLayout.HORIZONTAL);
         bar.setGravity(Gravity.CENTER_VERTICAL);
@@ -81,13 +93,13 @@ public class AddReminderActivity extends AppCompatActivity {
         bar.setBackgroundColor(ContextCompat.getColor(this, R.color.primary));
         root.addView(bar, new LinearLayout.LayoutParams(-1, dp(64)));
 
-        MaterialButton back = new MaterialButton(this);
+        TextView back = new TextView(this);
         back.setText("‹");
-        back.setTextSize(32);
+        back.setTextSize(34);
         back.setTextColor(Color.WHITE);
-        back.setBackgroundTintList(android.content.res.ColorStateList.valueOf(Color.TRANSPARENT));
-        back.setMinWidth(0);
-        back.setPadding(0, 0, 0, 0);
+        back.setGravity(Gravity.CENTER);
+        back.setClickable(true);
+        back.setFocusable(true);
         back.setOnClickListener(v -> finish());
         bar.addView(back, new LinearLayout.LayoutParams(dp(54), dp(54)));
 
@@ -128,19 +140,33 @@ public class AddReminderActivity extends AppCompatActivity {
         typeSpinner = createSpinner();
         content.addView(typeSpinner, spinnerParams());
 
-        titleInput = addField(content, AppPreferences.tr(this, "Название", "Name"), InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_CAP_SENTENCES);
-        principalInput = addField(content, AppPreferences.tr(this, "Сумма, которую взяли, ₽", "Amount borrowed, ₽"), InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_DECIMAL);
-        rateInput = addField(content, AppPreferences.tr(this, "Процентная ставка, % годовых", "Interest rate, % per year"), InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_DECIMAL);
+        titleInput = addField(content,
+                AppPreferences.tr(this, "Название", "Name"),
+                InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_CAP_SENTENCES);
 
-        addLabel(content, AppPreferences.tr(this, "Срок по годам", "Term in years"));
-        yearsSpinner = createSpinner();
-        content.addView(yearsSpinner, spinnerParams());
+        principalInput = addField(content,
+                AppPreferences.tr(this, "Сумма, которую взяли, ₽", "Amount borrowed, ₽"),
+                InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_DECIMAL);
+
+        rateInput = addField(content,
+                AppPreferences.tr(this, "Процентная ставка, % годовых", "Interest rate, % per year"),
+                InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_DECIMAL);
+
+        termInput = addField(content,
+                AppPreferences.tr(this, "Срок", "Term"),
+                InputType.TYPE_CLASS_NUMBER);
+
+        addLabel(content, AppPreferences.tr(this, "Срок считать в", "Calculate term in"));
+        termUnitSpinner = createSpinner();
+        content.addView(termUnitSpinner, spinnerParams());
 
         paymentInput = addField(content,
                 AppPreferences.tr(this, "Ежемесячный платёж, ₽ (можно изменить)", "Monthly payment, ₽ (editable)"),
                 InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_DECIMAL);
 
-        dateInput = addField(content, AppPreferences.tr(this, "Дата первого платежа", "First payment date"), InputType.TYPE_NULL);
+        dateInput = addField(content,
+                AppPreferences.tr(this, "Дата первого платежа", "First payment date"),
+                InputType.TYPE_NULL);
         dateInput.setFocusable(false);
         dateInput.setClickable(true);
         dateInput.setCompoundDrawablesWithIntrinsicBounds(0, 0, android.R.drawable.ic_menu_my_calendar, 0);
@@ -152,6 +178,7 @@ public class AddReminderActivity extends AppCompatActivity {
 
         MaterialButton save = new MaterialButton(this);
         save.setText(AppPreferences.tr(this, "Сохранить", "Save"));
+        save.setAllCaps(false);
         save.setTextSize(17);
         save.setTextColor(Color.WHITE);
         save.setBackgroundTintList(android.content.res.ColorStateList.valueOf(ContextCompat.getColor(this, R.color.primary)));
@@ -175,14 +202,11 @@ public class AddReminderActivity extends AppCompatActivity {
         };
         typeSpinner.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, types));
 
-        String[] years = new String[30];
-        for (int i = 0; i < years.length; i++) {
-            int value = i + 1;
-            years[i] = AppPreferences.isEnglish(this)
-                    ? value + (value == 1 ? " year" : " years")
-                    : value + " " + russianYears(value);
-        }
-        yearsSpinner.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, years));
+        termUnitSpinner.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item,
+                new String[]{
+                        AppPreferences.tr(this, "Месяцы", "Months"),
+                        AppPreferences.tr(this, "Годы", "Years")
+                }));
 
         String[] days = new String[7];
         for (int i = 0; i < days.length; i++) {
@@ -196,13 +220,11 @@ public class AddReminderActivity extends AppCompatActivity {
     }
 
     private void setupInputs() {
-        MoneyWatcher principalWatcher = new MoneyWatcher(principalInput, this::updateAutoPayment);
-        MoneyWatcher paymentWatcher = new MoneyWatcher(paymentInput, null);
-        principalInput.addTextChangedListener(principalWatcher);
-        paymentInput.addTextChangedListener(paymentWatcher);
-
+        principalInput.addTextChangedListener(new MoneyWatcher(principalInput, this::updateAutoPayment));
+        paymentInput.addTextChangedListener(new MoneyWatcher(paymentInput, null));
         rateInput.addTextChangedListener(new SimpleWatcher(this::updateAutoPayment));
-        yearsSpinner.setOnItemSelectedListener(new SimpleItemSelectedListener(this::updateAutoPayment));
+        termInput.addTextChangedListener(new SimpleWatcher(this::updateAutoPayment));
+        termUnitSpinner.setOnItemSelectedListener(new SimpleItemSelectedListener(this::updateAutoPayment));
         typeSpinner.setOnItemSelectedListener(new SimpleItemSelectedListener(() -> {
             updateRateAvailability();
             updateAutoPayment();
@@ -211,9 +233,7 @@ public class AddReminderActivity extends AppCompatActivity {
 
     private void applySuggestions() {
         String type = getIntent().getStringExtra(EXTRA_TYPE);
-        if (type != null) {
-            typeSpinner.setSelection(FormatUtils.typePosition(type));
-        }
+        if (type != null) typeSpinner.setSelection(FormatUtils.typePosition(type));
 
         double principal = getIntent().getDoubleExtra(EXTRA_PRINCIPAL, 0.0);
         double rate = getIntent().getDoubleExtra(EXTRA_RATE, 0.0);
@@ -222,16 +242,22 @@ public class AddReminderActivity extends AppCompatActivity {
 
         String chosenType = FormatUtils.typeCodeByPosition(typeSpinner.getSelectedItemPosition());
         titleInput.setText(FormatUtils.typeLabel(this, chosenType));
-        if (principal > 0) {
-            principalInput.setText(formatInput(principal));
-        }
-        if (rate >= 0 && (principal > 0 || rate > 0)) {
-            rateInput.setText(trimNumber(rate));
-        }
+
+        if (principal > 0) principalInput.setText(formatInput(principal));
+        if (rate >= 0 && (principal > 0 || rate > 0)) rateInput.setText(trimNumber(rate));
+
         if (months > 0) {
-            int years = Math.max(1, Math.min(30, (months + 11) / 12));
-            yearsSpinner.setSelection(years - 1);
+            if (months % 12 == 0) {
+                termUnitSpinner.setSelection(1);
+                termInput.setText(String.valueOf(months / 12));
+            } else {
+                termUnitSpinner.setSelection(0);
+                termInput.setText(String.valueOf(months));
+            }
+        } else {
+            termUnitSpinner.setSelection(0);
         }
+
         if (payment > 0) {
             updatingPayment = true;
             paymentInput.setText(formatInput(payment));
@@ -239,6 +265,8 @@ public class AddReminderActivity extends AppCompatActivity {
         } else {
             updateAutoPayment();
         }
+
+        updateRateAvailability();
     }
 
     private void updateRateAvailability() {
@@ -246,20 +274,16 @@ public class AddReminderActivity extends AppCompatActivity {
         boolean installment = ReminderScheduler.TYPE_INSTALLMENT.equals(type);
         boolean depositOrOther = ReminderScheduler.TYPE_DEPOSIT.equals(type) || ReminderScheduler.TYPE_OTHER.equals(type);
         rateInput.setEnabled(!installment && !depositOrOther);
-        if (installment) {
-            rateInput.setText("0");
-        } else if (depositOrOther) {
-            rateInput.setText("");
-        }
+        if (installment) rateInput.setText("0");
+        else if (depositOrOther) rateInput.setText("");
     }
 
     private void updateAutoPayment() {
-        if (updatingPayment || principalInput == null || yearsSpinner == null || typeSpinner == null) {
-            return;
-        }
+        if (updatingPayment || principalInput == null || termInput == null || termUnitSpinner == null || typeSpinner == null) return;
+
         try {
             double principal = parsePositive(principalInput);
-            int months = (yearsSpinner.getSelectedItemPosition() + 1) * 12;
+            int months = termMonths();
             String type = FormatUtils.typeCodeByPosition(typeSpinner.getSelectedItemPosition());
 
             double payment;
@@ -279,6 +303,16 @@ public class AddReminderActivity extends AppCompatActivity {
             updatingPayment = false;
         } catch (Exception ignored) {
         }
+    }
+
+    private int termMonths() {
+        int value = Integer.parseInt(text(termInput).trim());
+        if (value <= 0) throw new IllegalArgumentException();
+        if (termUnitSpinner.getSelectedItemPosition() == 1) {
+            if (value > Integer.MAX_VALUE / 12) throw new IllegalArgumentException();
+            return value * 12;
+        }
+        return value;
     }
 
     private void showDatePicker() {
@@ -304,9 +338,8 @@ public class AddReminderActivity extends AppCompatActivity {
         try {
             String type = FormatUtils.typeCodeByPosition(typeSpinner.getSelectedItemPosition());
             String title = text(titleInput).trim();
-            if (title.isEmpty()) {
-                title = FormatUtils.typeLabel(this, type);
-            }
+            if (title.isEmpty()) title = FormatUtils.typeLabel(this, type);
+
             double principal = parsePositive(principalInput);
             double annualRate = ReminderScheduler.TYPE_INSTALLMENT.equals(type)
                     || ReminderScheduler.TYPE_DEPOSIT.equals(type)
@@ -314,7 +347,7 @@ public class AddReminderActivity extends AppCompatActivity {
                     ? 0.0
                     : parseNonNegative(rateInput);
             double payment = parsePositive(paymentInput);
-            int months = (yearsSpinner.getSelectedItemPosition() + 1) * 12;
+            int months = termMonths();
             int daysBefore = daysSpinner.getSelectedItemPosition() + 1;
 
             if (selectedDate == null) {
@@ -343,6 +376,7 @@ public class AddReminderActivity extends AppCompatActivity {
                     months,
                     daysBefore
             );
+
             ReminderScheduler.add(this, reminder);
             requestNotificationPermissionIfNeeded();
             Toast.makeText(this,
@@ -369,9 +403,7 @@ public class AddReminderActivity extends AppCompatActivity {
 
     private double annuity(double principal, int months, double annualRate) {
         double monthlyRate = annualRate / 100.0 / 12.0;
-        if (monthlyRate == 0.0) {
-            return principal / months;
-        }
+        if (monthlyRate == 0.0) return principal / months;
         double factor = Math.pow(1.0 + monthlyRate, months);
         return principal * monthlyRate * factor / (factor - 1.0);
     }
@@ -381,9 +413,9 @@ public class AddReminderActivity extends AppCompatActivity {
         layout.setHint(hint);
         layout.setBoxBackgroundMode(TextInputLayout.BOX_BACKGROUND_OUTLINE);
         layout.setBoxCornerRadii(dp(14), dp(14), dp(14), dp(14));
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-1, -2);
-        lp.setMargins(0, 0, 0, dp(12));
-        parent.addView(layout, lp);
+        LinearLayout.LayoutParams layoutParams = new LinearLayout.LayoutParams(-1, -2);
+        layoutParams.setMargins(0, 0, 0, dp(12));
+        parent.addView(layout, layoutParams);
 
         TextInputEditText input = new TextInputEditText(this);
         input.setInputType(inputType);
@@ -401,9 +433,9 @@ public class AddReminderActivity extends AppCompatActivity {
     }
 
     private LinearLayout.LayoutParams spinnerParams() {
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-1, dp(56));
-        lp.setMargins(0, 0, 0, dp(14));
-        return lp;
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(-1, dp(56));
+        params.setMargins(0, 0, 0, dp(14));
+        return params;
     }
 
     private void addLabel(LinearLayout parent, String text) {
@@ -411,25 +443,21 @@ public class AddReminderActivity extends AppCompatActivity {
         label.setText(text);
         label.setTextColor(ContextCompat.getColor(this, R.color.text_secondary));
         label.setTextSize(14);
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-1, -2);
-        lp.setMargins(0, 0, 0, dp(6));
-        parent.addView(label, lp);
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(-1, -2);
+        params.setMargins(0, 0, 0, dp(6));
+        parent.addView(label, params);
     }
 
     private double parsePositive(TextInputEditText input) {
         double value = Double.parseDouble(cleanNumber(text(input)));
-        if (value <= 0 || Double.isNaN(value) || Double.isInfinite(value)) {
-            throw new IllegalArgumentException();
-        }
+        if (value <= 0 || Double.isNaN(value) || Double.isInfinite(value)) throw new IllegalArgumentException();
         return value;
     }
 
     private double parseNonNegative(TextInputEditText input) {
         String source = cleanNumber(text(input));
         double value = source.isEmpty() ? 0.0 : Double.parseDouble(source);
-        if (value < 0 || Double.isNaN(value) || Double.isInfinite(value)) {
-            throw new IllegalArgumentException();
-        }
+        if (value < 0 || Double.isNaN(value) || Double.isInfinite(value)) throw new IllegalArgumentException();
         return value;
     }
 
@@ -449,24 +477,16 @@ public class AddReminderActivity extends AppCompatActivity {
     }
 
     private String trimNumber(double value) {
-        if (value == Math.floor(value)) {
-            return String.valueOf((long) value);
-        }
+        if (value == Math.floor(value)) return String.valueOf((long) value);
         return String.valueOf(value).replace('.', ',');
     }
 
-    private String russianYears(int value) {
+    private String russianDays(int value) {
         int mod100 = value % 100;
         int mod10 = value % 10;
-        if (mod100 >= 11 && mod100 <= 14) return "лет";
-        if (mod10 == 1) return "год";
-        if (mod10 >= 2 && mod10 <= 4) return "года";
-        return "лет";
-    }
-
-    private String russianDays(int value) {
-        if (value == 1) return "день";
-        if (value >= 2 && value <= 4) return "дня";
+        if (mod100 >= 11 && mod100 <= 14) return "дней";
+        if (mod10 == 1) return "день";
+        if (mod10 >= 2 && mod10 <= 4) return "дня";
         return "дней";
     }
 
@@ -475,11 +495,11 @@ public class AddReminderActivity extends AppCompatActivity {
     }
 
     private static class SimpleWatcher implements TextWatcher {
-        private final Runnable runnable;
-        SimpleWatcher(Runnable runnable) { this.runnable = runnable; }
-        @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) { }
-        @Override public void onTextChanged(CharSequence s, int start, int before, int count) { }
-        @Override public void afterTextChanged(Editable s) { runnable.run(); }
+        private final Runnable callback;
+        SimpleWatcher(Runnable callback) { this.callback = callback; }
+        @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+        @Override public void onTextChanged(CharSequence s, int start, int before, int count) {}
+        @Override public void afterTextChanged(Editable s) { if (callback != null) callback.run(); }
     }
 
     private static class MoneyWatcher implements TextWatcher {
@@ -492,43 +512,54 @@ public class AddReminderActivity extends AppCompatActivity {
             this.callback = callback;
         }
 
-        @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) { }
-        @Override public void onTextChanged(CharSequence s, int start, int before, int count) { }
+        @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+        @Override public void onTextChanged(CharSequence s, int start, int before, int count) {}
 
         @Override
-        public void afterTextChanged(Editable s) {
-            if (editing) return;
-            String source = s.toString().replace(" ", "").replace("\u00A0", "").replace("\u202F", "");
-            if (!source.isEmpty()) {
-                int separator = Math.max(source.indexOf(','), source.indexOf('.'));
-                String integerPart = separator >= 0 ? source.substring(0, separator) : source;
-                String fraction = separator >= 0 ? source.substring(separator + 1) : "";
-                integerPart = integerPart.replaceAll("[^0-9]", "");
-                fraction = fraction.replaceAll("[^0-9]", "");
-                if (!integerPart.isEmpty()) {
-                    StringBuilder grouped = new StringBuilder();
-                    for (int i = 0; i < integerPart.length(); i++) {
-                        if (i > 0 && (integerPart.length() - i) % 3 == 0) grouped.append(' ');
-                        grouped.append(integerPart.charAt(i));
-                    }
-                    if (separator >= 0) grouped.append(',').append(fraction);
-                    String formatted = grouped.toString();
-                    if (!formatted.equals(s.toString())) {
-                        editing = true;
-                        input.setText(formatted);
-                        input.setSelection(formatted.length());
-                        editing = false;
-                    }
+        public void afterTextChanged(Editable editable) {
+            if (!editing) {
+                String formatted = group(editable.toString());
+                if (!formatted.equals(editable.toString())) {
+                    editing = true;
+                    input.setText(formatted);
+                    input.setSelection(formatted.length());
+                    editing = false;
                 }
             }
             if (callback != null) callback.run();
         }
+
+        private String group(String source) {
+            String clean = source.replace(" ", "").replace("\u00A0", "").replace("\u202F", "");
+            if (clean.isEmpty()) return "";
+            int comma = clean.indexOf(',');
+            int dot = clean.indexOf('.');
+            int separator = comma >= 0 && dot >= 0 ? Math.min(comma, dot) : Math.max(comma, dot);
+            String integerPart = separator >= 0 ? clean.substring(0, separator) : clean;
+            String fractionPart = separator >= 0 ? clean.substring(separator + 1) : "";
+            integerPart = integerPart.replaceAll("[^0-9]", "");
+            fractionPart = fractionPart.replaceAll("[^0-9]", "");
+            if (integerPart.isEmpty()) integerPart = "0";
+            StringBuilder grouped = new StringBuilder();
+            int length = integerPart.length();
+            for (int i = 0; i < length; i++) {
+                if (i > 0 && (length - i) % 3 == 0) grouped.append(' ');
+                grouped.append(integerPart.charAt(i));
+            }
+            if (separator >= 0) {
+                grouped.append(',');
+                grouped.append(fractionPart);
+            }
+            return grouped.toString();
+        }
     }
 
     private static class SimpleItemSelectedListener implements android.widget.AdapterView.OnItemSelectedListener {
-        private final Runnable runnable;
-        SimpleItemSelectedListener(Runnable runnable) { this.runnable = runnable; }
-        @Override public void onItemSelected(android.widget.AdapterView<?> parent, View view, int position, long id) { runnable.run(); }
-        @Override public void onNothingSelected(android.widget.AdapterView<?> parent) { }
+        private final Runnable callback;
+        SimpleItemSelectedListener(Runnable callback) { this.callback = callback; }
+        @Override public void onItemSelected(android.widget.AdapterView<?> parent, View view, int position, long id) {
+            if (callback != null) callback.run();
+        }
+        @Override public void onNothingSelected(android.widget.AdapterView<?> parent) {}
     }
 }
