@@ -35,6 +35,7 @@ public class PaymentDetailsActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        AppPreferences.applyNightMode(this);
         super.onCreate(savedInstanceState);
         WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
         long id = getIntent().getLongExtra(EXTRA_REMINDER_ID, -1L);
@@ -50,7 +51,7 @@ public class PaymentDetailsActivity extends AppCompatActivity {
     private View buildContent() {
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setBackgroundColor(ContextCompat.getColor(this, R.color.background));
+        UiUtils.applyBackground(this, root);
 
         LinearLayout bar = new LinearLayout(this);
         bar.setOrientation(LinearLayout.HORIZONTAL);
@@ -82,6 +83,7 @@ public class PaymentDetailsActivity extends AppCompatActivity {
         ScrollView scroll = new ScrollView(this);
         scroll.setFillViewport(true);
         scroll.setClipToPadding(false);
+        scroll.setBackgroundColor(Color.TRANSPARENT);
         root.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1f));
 
         LinearLayout content = new LinearLayout(this);
@@ -89,9 +91,7 @@ public class PaymentDetailsActivity extends AppCompatActivity {
         content.setPadding(dp(20), dp(22), dp(20), dp(32));
         scroll.addView(content, new ScrollView.LayoutParams(-1, -2));
 
-        TextView type = text(FormatUtils.typeLabel(this, reminder.type), 14, R.color.primary, true);
-        content.addView(type);
-
+        content.addView(text(FormatUtils.typeLabel(this, reminder.type), 14, R.color.primary, true));
         TextView title = text(reminder.title, 28, R.color.text_main, true);
         LinearLayout.LayoutParams titleParams = new LinearLayout.LayoutParams(-1, -2);
         titleParams.setMargins(0, dp(3), 0, dp(16));
@@ -105,27 +105,27 @@ public class PaymentDetailsActivity extends AppCompatActivity {
         content.addView(scheduleTitle, scheduleTitleParams);
 
         int nextIndex = ReminderScheduler.nextPaymentIndex(reminder);
-        for (int i = 0; i < reminder.months; i++) {
-            content.addView(buildScheduleRow(i, nextIndex));
-        }
+        for (int i = 0; i < reminder.months; i++) content.addView(buildScheduleRow(i, nextIndex));
 
-        MaterialButton delete = new MaterialButton(this);
-        delete.setText(AppPreferences.tr(this, "Удалить из моих платежей", "Delete payment plan"));
-        delete.setAllCaps(false);
-        delete.setTextColor(ContextCompat.getColor(this, R.color.danger));
-        delete.setBackgroundTintList(android.content.res.ColorStateList.valueOf(Color.WHITE));
-        delete.setStrokeColor(android.content.res.ColorStateList.valueOf(ContextCompat.getColor(this, R.color.danger)));
-        delete.setStrokeWidth(dp(1));
-        delete.setCornerRadius(dp(14));
-        delete.setOnClickListener(v -> confirmDelete());
-        LinearLayout.LayoutParams deleteParams = new LinearLayout.LayoutParams(-1, dp(54));
-        deleteParams.setMargins(0, dp(20), 0, 0);
-        content.addView(delete, deleteParams);
+        if (!ReminderScheduler.STATUS_TRASH.equals(reminder.status)) {
+            MaterialButton delete = new MaterialButton(this);
+            delete.setText(AppPreferences.tr(this, "Удалить в корзину", "Move to trash"));
+            delete.setAllCaps(false);
+            delete.setTextColor(ContextCompat.getColor(this, R.color.danger));
+            delete.setBackgroundTintList(android.content.res.ColorStateList.valueOf(ContextCompat.getColor(this, R.color.card_background)));
+            delete.setStrokeColor(android.content.res.ColorStateList.valueOf(ContextCompat.getColor(this, R.color.danger)));
+            delete.setStrokeWidth(dp(1));
+            delete.setCornerRadius(dp(14));
+            delete.setOnClickListener(v -> confirmDelete());
+            LinearLayout.LayoutParams deleteParams = new LinearLayout.LayoutParams(-1, dp(54));
+            deleteParams.setMargins(0, dp(20), 0, 0);
+            content.addView(delete, deleteParams);
+        }
 
         ViewCompat.setOnApplyWindowInsetsListener(root, (view, insets) -> {
             Insets bars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
             view.setPadding(0, bars.top, 0, 0);
-            scroll.setPadding(0, 0, 0, bars.bottom);
+            scroll.setPadding(0, 0, 0, bars.bottom + dp(8));
             return insets;
         });
         ViewCompat.requestApplyInsets(root);
@@ -148,21 +148,14 @@ public class PaymentDetailsActivity extends AppCompatActivity {
         if (reminder.annualRate > 0) {
             addSummaryLine(box, AppPreferences.tr(this, "Ставка", "Interest rate"), trimRate(reminder.annualRate) + "%");
         }
-        addSummaryLine(box, AppPreferences.tr(this, "Срок", "Term"), formatTerm(reminder.months));
+        addSummaryLine(box, AppPreferences.tr(this, "Срок", "Term"), UiUtils.termText(this, reminder.months));
         addSummaryLine(box, AppPreferences.tr(this, "Первый платёж", "First payment"), FormatUtils.date(this, reminder.firstPaymentMillis));
         addSummaryLine(box, AppPreferences.tr(this, "Напоминание", "Reminder"),
                 AppPreferences.isEnglish(this) ? reminder.daysBefore + " days before" : "за " + reminder.daysBefore + " дн.");
-        return card;
-    }
-
-    private String formatTerm(int months) {
-        if (months >= 12 && months % 12 == 0) {
-            int years = months / 12;
-            if (AppPreferences.isEnglish(this)) return years + (years == 1 ? " year" : " years");
-            return years + " " + russianYears(years);
+        if (!reminder.soundEnabled) {
+            addSummaryLine(box, AppPreferences.tr(this, "Звук", "Sound"), AppPreferences.tr(this, "Без звука", "Muted"));
         }
-        if (AppPreferences.isEnglish(this)) return months + (months == 1 ? " month" : " months");
-        return months + " " + russianMonths(months);
+        return card;
     }
 
     private void addSummaryLine(LinearLayout parent, String label, String value) {
@@ -183,7 +176,7 @@ public class PaymentDetailsActivity extends AppCompatActivity {
         card.setCardElevation(0);
         card.setStrokeWidth(dp(1));
         card.setStrokeColor(next ? ContextCompat.getColor(this, R.color.primary) : ContextCompat.getColor(this, R.color.border));
-        card.setCardBackgroundColor(Color.WHITE);
+        card.setCardBackgroundColor(ContextCompat.getColor(this, R.color.card_background));
 
         LinearLayout row = new LinearLayout(this);
         row.setOrientation(LinearLayout.HORIZONTAL);
@@ -219,13 +212,13 @@ public class PaymentDetailsActivity extends AppCompatActivity {
 
     private void confirmDelete() {
         new AlertDialog.Builder(this)
-                .setTitle(AppPreferences.tr(this, "Удалить платёж?", "Delete payment plan?"))
+                .setTitle(AppPreferences.tr(this, "Переместить в корзину?", "Move to trash?"))
                 .setMessage(AppPreferences.tr(this,
-                        "Будут удалены график и все будущие напоминания.",
-                        "The schedule and all future reminders will be removed."))
+                        "Запись можно будет восстановить в течение 30 дней.",
+                        "You can restore this item for 30 days."))
                 .setNegativeButton(AppPreferences.tr(this, "Отмена", "Cancel"), null)
                 .setPositiveButton(AppPreferences.tr(this, "Удалить", "Delete"), (dialog, which) -> {
-                    ReminderScheduler.delete(this, reminder.id);
+                    ReminderScheduler.moveToTrash(this, reminder.id);
                     finish();
                 })
                 .show();
@@ -242,24 +235,6 @@ public class PaymentDetailsActivity extends AppCompatActivity {
 
     private String trimRate(double value) {
         return value == Math.floor(value) ? String.valueOf((long) value) : String.valueOf(value).replace('.', ',');
-    }
-
-    private String russianYears(int value) {
-        int mod100 = value % 100;
-        int mod10 = value % 10;
-        if (mod100 >= 11 && mod100 <= 14) return "лет";
-        if (mod10 == 1) return "год";
-        if (mod10 >= 2 && mod10 <= 4) return "года";
-        return "лет";
-    }
-
-    private String russianMonths(int value) {
-        int mod100 = value % 100;
-        int mod10 = value % 10;
-        if (mod100 >= 11 && mod100 <= 14) return "месяцев";
-        if (mod10 == 1) return "месяц";
-        if (mod10 >= 2 && mod10 <= 4) return "месяца";
-        return "месяцев";
     }
 
     private int dp(int value) {
