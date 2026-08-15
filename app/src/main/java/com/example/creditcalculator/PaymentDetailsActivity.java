@@ -13,6 +13,10 @@ import android.widget.Toast;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowCompat;
+import androidx.core.view.WindowInsetsCompat;
 
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.card.MaterialCardView;
@@ -32,6 +36,7 @@ public class PaymentDetailsActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
         long id = getIntent().getLongExtra(EXTRA_REMINDER_ID, -1L);
         reminder = ReminderScheduler.findById(this, id);
         if (reminder == null) {
@@ -50,14 +55,20 @@ public class PaymentDetailsActivity extends AppCompatActivity {
         LinearLayout bar = new LinearLayout(this);
         bar.setOrientation(LinearLayout.HORIZONTAL);
         bar.setGravity(Gravity.CENTER_VERTICAL);
-        bar.setPadding(dp(8), 0, dp(10), 0);
+        bar.setPadding(dp(4), 0, dp(10), 0);
         bar.setBackgroundColor(ContextCompat.getColor(this, R.color.primary));
-        root.addView(bar, new LinearLayout.LayoutParams(-1, dp(64)));
+        root.addView(bar, new LinearLayout.LayoutParams(-1, dp(56)));
 
-        MaterialButton back = topButton("‹");
-        back.setTextSize(32);
+        TextView back = new TextView(this);
+        back.setText("‹");
+        back.setTextSize(34);
+        back.setTextColor(Color.WHITE);
+        back.setGravity(Gravity.CENTER);
+        back.setClickable(true);
+        back.setFocusable(true);
+        back.setBackgroundResource(android.R.drawable.list_selector_background);
         back.setOnClickListener(v -> finish());
-        bar.addView(back, new LinearLayout.LayoutParams(dp(54), dp(54)));
+        bar.addView(back, new LinearLayout.LayoutParams(dp(56), dp(56)));
 
         TextView barTitle = new TextView(this);
         barTitle.setText(reminder.title);
@@ -65,10 +76,12 @@ public class PaymentDetailsActivity extends AppCompatActivity {
         barTitle.setTextColor(Color.WHITE);
         barTitle.setTextSize(20);
         barTitle.setTypeface(null, android.graphics.Typeface.BOLD);
-        bar.addView(barTitle, new LinearLayout.LayoutParams(0, -2, 1f));
+        barTitle.setGravity(Gravity.CENTER_VERTICAL);
+        bar.addView(barTitle, new LinearLayout.LayoutParams(0, -1, 1f));
 
         ScrollView scroll = new ScrollView(this);
         scroll.setFillViewport(true);
+        scroll.setClipToPadding(false);
         root.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1f));
 
         LinearLayout content = new LinearLayout(this);
@@ -76,29 +89,17 @@ public class PaymentDetailsActivity extends AppCompatActivity {
         content.setPadding(dp(20), dp(22), dp(20), dp(32));
         scroll.addView(content, new ScrollView.LayoutParams(-1, -2));
 
-        TextView type = new TextView(this);
-        type.setText(FormatUtils.typeLabel(this, reminder.type));
-        type.setTextColor(ContextCompat.getColor(this, R.color.primary));
-        type.setTextSize(14);
-        type.setTypeface(null, android.graphics.Typeface.BOLD);
+        TextView type = text(FormatUtils.typeLabel(this, reminder.type), 14, R.color.primary, true);
         content.addView(type);
 
-        TextView title = new TextView(this);
-        title.setText(reminder.title);
-        title.setTextColor(ContextCompat.getColor(this, R.color.text_main));
-        title.setTextSize(28);
-        title.setTypeface(null, android.graphics.Typeface.BOLD);
+        TextView title = text(reminder.title, 28, R.color.text_main, true);
         LinearLayout.LayoutParams titleParams = new LinearLayout.LayoutParams(-1, -2);
         titleParams.setMargins(0, dp(3), 0, dp(16));
         content.addView(title, titleParams);
 
         content.addView(buildSummaryCard());
 
-        TextView scheduleTitle = new TextView(this);
-        scheduleTitle.setText(AppPreferences.tr(this, "График платежей", "Payment schedule"));
-        scheduleTitle.setTextColor(ContextCompat.getColor(this, R.color.text_main));
-        scheduleTitle.setTextSize(22);
-        scheduleTitle.setTypeface(null, android.graphics.Typeface.BOLD);
+        TextView scheduleTitle = text(AppPreferences.tr(this, "График платежей", "Payment schedule"), 22, R.color.text_main, true);
         LinearLayout.LayoutParams scheduleTitleParams = new LinearLayout.LayoutParams(-1, -2);
         scheduleTitleParams.setMargins(0, dp(24), 0, dp(10));
         content.addView(scheduleTitle, scheduleTitleParams);
@@ -110,6 +111,7 @@ public class PaymentDetailsActivity extends AppCompatActivity {
 
         MaterialButton delete = new MaterialButton(this);
         delete.setText(AppPreferences.tr(this, "Удалить из моих платежей", "Delete payment plan"));
+        delete.setAllCaps(false);
         delete.setTextColor(ContextCompat.getColor(this, R.color.danger));
         delete.setBackgroundTintList(android.content.res.ColorStateList.valueOf(Color.WHITE));
         delete.setStrokeColor(android.content.res.ColorStateList.valueOf(ContextCompat.getColor(this, R.color.danger)));
@@ -120,6 +122,13 @@ public class PaymentDetailsActivity extends AppCompatActivity {
         deleteParams.setMargins(0, dp(20), 0, 0);
         content.addView(delete, deleteParams);
 
+        ViewCompat.setOnApplyWindowInsetsListener(root, (view, insets) -> {
+            Insets bars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
+            view.setPadding(0, bars.top, 0, 0);
+            scroll.setPadding(0, 0, 0, bars.bottom);
+            return insets;
+        });
+        ViewCompat.requestApplyInsets(root);
         return root;
     }
 
@@ -139,28 +148,26 @@ public class PaymentDetailsActivity extends AppCompatActivity {
         if (reminder.annualRate > 0) {
             addSummaryLine(box, AppPreferences.tr(this, "Ставка", "Interest rate"), trimRate(reminder.annualRate) + "%");
         }
-        int years = reminder.months / 12;
-        addSummaryLine(box, AppPreferences.tr(this, "Срок", "Term"),
-                AppPreferences.isEnglish(this) ? years + (years == 1 ? " year" : " years") : years + " " + russianYears(years));
+        addSummaryLine(box, AppPreferences.tr(this, "Срок", "Term"), formatTerm(reminder.months));
         addSummaryLine(box, AppPreferences.tr(this, "Первый платёж", "First payment"), FormatUtils.date(this, reminder.firstPaymentMillis));
         addSummaryLine(box, AppPreferences.tr(this, "Напоминание", "Reminder"),
                 AppPreferences.isEnglish(this) ? reminder.daysBefore + " days before" : "за " + reminder.daysBefore + " дн.");
-
         return card;
     }
 
-    private void addSummaryLine(LinearLayout parent, String label, String value) {
-        TextView labelView = new TextView(this);
-        labelView.setText(label);
-        labelView.setTextColor(ContextCompat.getColor(this, R.color.result_secondary));
-        labelView.setTextSize(13);
-        parent.addView(labelView);
+    private String formatTerm(int months) {
+        if (months >= 12 && months % 12 == 0) {
+            int years = months / 12;
+            if (AppPreferences.isEnglish(this)) return years + (years == 1 ? " year" : " years");
+            return years + " " + russianYears(years);
+        }
+        if (AppPreferences.isEnglish(this)) return months + (months == 1 ? " month" : " months");
+        return months + " " + russianMonths(months);
+    }
 
-        TextView valueView = new TextView(this);
-        valueView.setText(value);
-        valueView.setTextColor(Color.WHITE);
-        valueView.setTextSize(19);
-        valueView.setTypeface(null, android.graphics.Typeface.BOLD);
+    private void addSummaryLine(LinearLayout parent, String label, String value) {
+        parent.addView(text(label, 13, R.color.result_secondary, false));
+        TextView valueView = text(value, 19, R.color.white, true);
         LinearLayout.LayoutParams valueParams = new LinearLayout.LayoutParams(-1, -2);
         valueParams.setMargins(0, dp(2), 0, dp(12));
         parent.addView(valueView, valueParams);
@@ -175,9 +182,7 @@ public class PaymentDetailsActivity extends AppCompatActivity {
         card.setRadius(dp(13));
         card.setCardElevation(0);
         card.setStrokeWidth(dp(1));
-        card.setStrokeColor(next
-                ? ContextCompat.getColor(this, R.color.primary)
-                : ContextCompat.getColor(this, R.color.border));
+        card.setStrokeColor(next ? ContextCompat.getColor(this, R.color.primary) : ContextCompat.getColor(this, R.color.border));
         card.setCardBackgroundColor(Color.WHITE);
 
         LinearLayout row = new LinearLayout(this);
@@ -186,12 +191,8 @@ public class PaymentDetailsActivity extends AppCompatActivity {
         row.setPadding(dp(14), dp(12), dp(14), dp(12));
         card.addView(row);
 
-        TextView number = new TextView(this);
-        number.setText(String.valueOf(index + 1));
+        TextView number = text(String.valueOf(index + 1), 15, next ? R.color.white : R.color.primary, true);
         number.setGravity(Gravity.CENTER);
-        number.setTextColor(next ? Color.WHITE : ContextCompat.getColor(this, R.color.primary));
-        number.setTextSize(15);
-        number.setTypeface(null, android.graphics.Typeface.BOLD);
         number.setBackgroundResource(next ? R.drawable.circle_primary : R.drawable.circle_soft);
         row.addView(number, new LinearLayout.LayoutParams(dp(38), dp(38)));
 
@@ -201,29 +202,14 @@ public class PaymentDetailsActivity extends AppCompatActivity {
         middleParams.setMargins(dp(12), 0, dp(8), 0);
         row.addView(middle, middleParams);
 
-        TextView date = new TextView(this);
-        date.setText(FormatUtils.date(this, due.getTimeInMillis()));
-        date.setTextColor(ContextCompat.getColor(this, R.color.text_main));
-        date.setTextSize(16);
-        date.setTypeface(null, android.graphics.Typeface.BOLD);
-        middle.addView(date);
-
-        TextView status = new TextView(this);
-        status.setText(next
+        middle.addView(text(FormatUtils.date(this, due.getTimeInMillis()), 16, R.color.text_main, true));
+        String status = next
                 ? AppPreferences.tr(this, "Ближайший платёж", "Next payment")
                 : paid
                 ? AppPreferences.tr(this, "Дата прошла", "Date passed")
-                : AppPreferences.tr(this, "Предстоящий", "Upcoming"));
-        status.setTextColor(ContextCompat.getColor(this, R.color.text_secondary));
-        status.setTextSize(12);
-        middle.addView(status);
-
-        TextView amount = new TextView(this);
-        amount.setText(FormatUtils.money(this, reminder.amount));
-        amount.setTextColor(ContextCompat.getColor(this, R.color.text_main));
-        amount.setTextSize(15);
-        amount.setTypeface(null, android.graphics.Typeface.BOLD);
-        row.addView(amount);
+                : AppPreferences.tr(this, "Предстоящий", "Upcoming");
+        middle.addView(text(status, 12, R.color.text_secondary, false));
+        row.addView(text(FormatUtils.money(this, reminder.amount), 15, R.color.text_main, true));
 
         LinearLayout.LayoutParams cardParams = new LinearLayout.LayoutParams(-1, -2);
         cardParams.setMargins(0, 0, 0, dp(8));
@@ -245,14 +231,13 @@ public class PaymentDetailsActivity extends AppCompatActivity {
                 .show();
     }
 
-    private MaterialButton topButton(String text) {
-        MaterialButton button = new MaterialButton(this);
-        button.setText(text);
-        button.setTextColor(Color.WHITE);
-        button.setBackgroundTintList(android.content.res.ColorStateList.valueOf(Color.TRANSPARENT));
-        button.setMinWidth(0);
-        button.setPadding(0, 0, 0, 0);
-        return button;
+    private TextView text(String value, int size, int color, boolean bold) {
+        TextView view = new TextView(this);
+        view.setText(value);
+        view.setTextSize(size);
+        view.setTextColor(ContextCompat.getColor(this, color));
+        if (bold) view.setTypeface(null, android.graphics.Typeface.BOLD);
+        return view;
     }
 
     private String trimRate(double value) {
@@ -266,6 +251,15 @@ public class PaymentDetailsActivity extends AppCompatActivity {
         if (mod10 == 1) return "год";
         if (mod10 >= 2 && mod10 <= 4) return "года";
         return "лет";
+    }
+
+    private String russianMonths(int value) {
+        int mod100 = value % 100;
+        int mod10 = value % 10;
+        if (mod100 >= 11 && mod100 <= 14) return "месяцев";
+        if (mod10 == 1) return "месяц";
+        if (mod10 >= 2 && mod10 <= 4) return "месяца";
+        return "месяцев";
     }
 
     private int dp(int value) {
