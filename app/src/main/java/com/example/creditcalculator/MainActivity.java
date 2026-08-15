@@ -5,6 +5,7 @@ import android.content.Intent;
 import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.graphics.Rect;
+import android.net.Uri;
 import android.os.Bundle;
 import android.text.Editable;
 import android.text.InputType;
@@ -14,6 +15,7 @@ import android.view.View;
 import android.view.WindowManager;
 import android.widget.ArrayAdapter;
 import android.widget.FrameLayout;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.Spinner;
@@ -43,6 +45,7 @@ public class MainActivity extends AppCompatActivity {
     private DrawerLayout drawerLayout;
     private FrameLayout mainFrame;
     private LinearLayout drawerView;
+    private LinearLayout mainColumn;
     private ScrollView mainScroll;
     private MaterialCardView formCard;
     private MaterialCardView resultCard;
@@ -58,6 +61,8 @@ public class MainActivity extends AppCompatActivity {
 
     private Spinner secondTermSpinner;
     private Spinner thirdTermSpinner;
+    private ArrayAdapter<String> secondTermAdapter;
+    private ArrayAdapter<String> thirdTermAdapter;
     private SwitchMaterial capitalizationSwitch;
 
     private TextView calculatorTitle;
@@ -68,6 +73,10 @@ public class MainActivity extends AppCompatActivity {
     private TextView resultValue1;
     private TextView resultValue2;
     private TextView resultValue3;
+
+    private ImageView drawerAvatar;
+    private TextView drawerAvatarFallback;
+    private TextView drawerName;
 
     private MaterialButton creditButton;
     private MaterialButton mortgageButton;
@@ -92,6 +101,7 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        AppPreferences.applyNightMode(this);
         super.onCreate(savedInstanceState);
         loadedLanguage = AppPreferences.getLanguage(this);
         WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
@@ -101,12 +111,18 @@ public class MainActivity extends AppCompatActivity {
         setupListeners();
         formCard.setVisibility(View.GONE);
         resultCard.setVisibility(View.GONE);
+        refreshProfile();
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-        if (loadedLanguage != null && !loadedLanguage.equals(AppPreferences.getLanguage(this))) recreate();
+        if (loadedLanguage != null && !loadedLanguage.equals(AppPreferences.getLanguage(this))) {
+            recreate();
+            return;
+        }
+        if (mainColumn != null) UiUtils.applyBackground(this, mainColumn);
+        refreshProfile();
     }
 
     private View buildScreen() {
@@ -117,17 +133,18 @@ public class MainActivity extends AppCompatActivity {
         mainFrame = new FrameLayout(this);
         drawerLayout.addView(mainFrame, new DrawerLayout.LayoutParams(-1, -1));
 
-        LinearLayout column = new LinearLayout(this);
-        column.setOrientation(LinearLayout.VERTICAL);
-        column.setBackgroundResource(R.drawable.app_background);
-        mainFrame.addView(column, new FrameLayout.LayoutParams(-1, -1));
+        mainColumn = new LinearLayout(this);
+        mainColumn.setOrientation(LinearLayout.VERTICAL);
+        UiUtils.applyBackground(this, mainColumn);
+        mainFrame.addView(mainColumn, new FrameLayout.LayoutParams(-1, -1));
 
-        column.addView(buildTopBar(), new LinearLayout.LayoutParams(-1, dp(56)));
+        mainColumn.addView(buildTopBar(), new LinearLayout.LayoutParams(-1, dp(56)));
 
         mainScroll = new ScrollView(this);
         mainScroll.setFillViewport(true);
         mainScroll.setClipToPadding(false);
-        column.addView(mainScroll, new LinearLayout.LayoutParams(-1, 0, 1f));
+        mainScroll.setBackgroundColor(Color.TRANSPARENT);
+        mainColumn.addView(mainScroll, new LinearLayout.LayoutParams(-1, 0, 1f));
 
         LinearLayout content = new LinearLayout(this);
         content.setOrientation(LinearLayout.VERTICAL);
@@ -193,7 +210,8 @@ public class MainActivity extends AppCompatActivity {
             int bottom = Math.max(dp(88), ime.bottom + dp(16));
             mainScroll.setPadding(0, 0, 0, bottom);
             if (insets.isVisible(WindowInsetsCompat.Type.ime())) {
-                mainScroll.postDelayed(this::scrollCurrentFocusIntoView, 120);
+                mainScroll.postDelayed(this::scrollCurrentFocusIntoView, 100);
+                mainScroll.postDelayed(this::scrollCurrentFocusIntoView, 320);
             }
             return insets;
         });
@@ -224,24 +242,43 @@ public class MainActivity extends AppCompatActivity {
     private View buildDrawer() {
         LinearLayout drawer = new LinearLayout(this);
         drawer.setOrientation(LinearLayout.VERTICAL);
-        drawer.setBackgroundColor(Color.WHITE);
+        drawer.setBackgroundColor(ContextCompat.getColor(this, R.color.card_background));
 
         LinearLayout header = new LinearLayout(this);
         header.setOrientation(LinearLayout.HORIZONTAL);
         header.setGravity(Gravity.CENTER_VERTICAL);
-        header.setPadding(dp(20), dp(20), dp(20), dp(20));
+        header.setPadding(dp(20), dp(20), dp(12), dp(20));
         header.setBackgroundColor(ContextCompat.getColor(this, R.color.primary));
         drawer.addView(header, new LinearLayout.LayoutParams(-1, dp(168)));
 
-        TextView icon = label("%", 40, R.color.white, true);
-        icon.setGravity(Gravity.CENTER);
-        icon.setBackgroundColor(ContextCompat.getColor(this, R.color.primary_dark));
-        header.addView(icon, new LinearLayout.LayoutParams(dp(72), dp(72)));
+        FrameLayout avatarBox = new FrameLayout(this);
+        header.addView(avatarBox, new LinearLayout.LayoutParams(dp(72), dp(72)));
 
-        TextView name = label(AppPreferences.tr(this, "Финансовый\nкалькулятор", "Financial\ncalculator"), 22, R.color.white, false);
+        drawerAvatarFallback = label("%", 40, R.color.white, true);
+        drawerAvatarFallback.setGravity(Gravity.CENTER);
+        drawerAvatarFallback.setBackgroundColor(ContextCompat.getColor(this, R.color.primary_dark));
+        avatarBox.addView(drawerAvatarFallback, new FrameLayout.LayoutParams(-1, -1));
+
+        drawerAvatar = new ImageView(this);
+        drawerAvatar.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        drawerAvatar.setVisibility(View.GONE);
+        avatarBox.addView(drawerAvatar, new FrameLayout.LayoutParams(-1, -1));
+
+        drawerName = label(AppPreferences.tr(this, "Финансовый\nкалькулятор", "Financial\ncalculator"), 22, R.color.white, false);
         LinearLayout.LayoutParams nameParams = new LinearLayout.LayoutParams(0, -2, 1f);
-        nameParams.setMargins(dp(16), 0, 0, 0);
-        header.addView(name, nameParams);
+        nameParams.setMargins(dp(16), 0, dp(4), 0);
+        header.addView(drawerName, nameParams);
+
+        TextView edit = label("✎", 25, R.color.white, false);
+        edit.setGravity(Gravity.CENTER);
+        edit.setClickable(true);
+        edit.setFocusable(true);
+        edit.setBackgroundResource(android.R.drawable.list_selector_background);
+        edit.setOnClickListener(v -> {
+            drawerLayout.closeDrawer(GravityCompat.START);
+            startActivity(new Intent(this, ProfileActivity.class));
+        });
+        header.addView(edit, new LinearLayout.LayoutParams(dp(48), dp(48)));
 
         TextView calculators = drawerItem("▶   " + AppPreferences.tr(this, "Калькуляторы", "Calculators"));
         calculators.setOnClickListener(v -> {
@@ -251,17 +288,19 @@ public class MainActivity extends AppCompatActivity {
         drawer.addView(calculators);
 
         TextView payments = drawerItem("☷   " + AppPreferences.tr(this, "Мои платежи", "My payments"));
-        payments.setOnClickListener(v -> {
-            drawerLayout.closeDrawer(GravityCompat.START);
-            startActivity(new Intent(this, PaymentsActivity.class));
-        });
+        payments.setOnClickListener(v -> openDrawerPage(PaymentsActivity.class));
         drawer.addView(payments);
 
+        TextView archive = drawerItem("▣   " + AppPreferences.tr(this, "Архив", "Archive"));
+        archive.setOnClickListener(v -> openDrawerPage(ArchiveActivity.class));
+        drawer.addView(archive);
+
+        TextView trash = drawerItem("⌫   " + AppPreferences.tr(this, "Корзина", "Trash"));
+        trash.setOnClickListener(v -> openDrawerPage(TrashActivity.class));
+        drawer.addView(trash);
+
         TextView settings = drawerItem("⚙   " + AppPreferences.tr(this, "Настройки", "Settings"));
-        settings.setOnClickListener(v -> {
-            drawerLayout.closeDrawer(GravityCompat.START);
-            startActivity(new Intent(this, SettingsActivity.class));
-        });
+        settings.setOnClickListener(v -> openDrawerPage(SettingsActivity.class));
         drawer.addView(settings);
 
         View divider = new View(this);
@@ -274,8 +313,8 @@ public class MainActivity extends AppCompatActivity {
             new AlertDialog.Builder(this)
                     .setTitle(AppPreferences.tr(this, "Финансовый калькулятор", "Financial calculator"))
                     .setMessage(AppPreferences.tr(this,
-                            "Кредит, ипотека, автокредит, рассрочка и вклад. Сохраняйте платежи, смотрите полный график и получайте уведомления заранее.",
-                            "Loan, mortgage, auto loan, installment and deposit calculators. Save payments, view full schedules and receive reminders in advance."))
+                            "Кредит, ипотека, автокредит, рассрочка и вклад. Сохраняйте платежи, смотрите полный график, архив и получайте уведомления заранее.",
+                            "Loan, mortgage, auto loan, installment and deposit calculators. Save payments, view schedules and archive, and receive reminders."))
                     .setPositiveButton("OK", null).show();
         });
         drawer.addView(about);
@@ -286,9 +325,37 @@ public class MainActivity extends AppCompatActivity {
         return drawer;
     }
 
+    private void openDrawerPage(Class<?> page) {
+        drawerLayout.closeDrawer(GravityCompat.START);
+        startActivity(new Intent(this, page));
+    }
+
+    private void refreshProfile() {
+        if (drawerName == null || drawerAvatar == null || drawerAvatarFallback == null) return;
+        String profileName = AppPreferences.getProfileName(this);
+        drawerName.setText(profileName.isEmpty()
+                ? AppPreferences.tr(this, "Финансовый\nкалькулятор", "Financial\ncalculator")
+                : profileName);
+        String avatar = AppPreferences.getAvatarUri(this);
+        if (avatar == null || avatar.trim().isEmpty()) {
+            drawerAvatar.setImageDrawable(null);
+            drawerAvatar.setVisibility(View.GONE);
+            drawerAvatarFallback.setVisibility(View.VISIBLE);
+            return;
+        }
+        try {
+            drawerAvatar.setImageURI(Uri.parse(avatar));
+            drawerAvatar.setVisibility(View.VISIBLE);
+            drawerAvatarFallback.setVisibility(View.GONE);
+        } catch (Exception e) {
+            drawerAvatar.setVisibility(View.GONE);
+            drawerAvatarFallback.setVisibility(View.VISIBLE);
+        }
+    }
+
     private MaterialCardView buildFormCard() {
         MaterialCardView card = new MaterialCardView(this);
-        card.setCardBackgroundColor(Color.WHITE);
+        card.setCardBackgroundColor(ContextCompat.getColor(this, R.color.card_background));
         card.setRadius(dp(20));
         card.setStrokeColor(ContextCompat.getColor(this, R.color.border));
         card.setStrokeWidth(dp(1));
@@ -314,6 +381,8 @@ public class MainActivity extends AppCompatActivity {
         secondRow.addView(secondLayout, new LinearLayout.LayoutParams(0, -2, 1f));
         secondInput = addInput(secondLayout);
         secondTermSpinner = createTermSpinner();
+        secondTermAdapter = createTermAdapter(1);
+        secondTermSpinner.setAdapter(secondTermAdapter);
         secondRow.addView(secondTermSpinner, unitParams());
 
         LinearLayout thirdRow = createFieldRow(box);
@@ -321,6 +390,8 @@ public class MainActivity extends AppCompatActivity {
         thirdRow.addView(thirdLayout, new LinearLayout.LayoutParams(0, -2, 1f));
         thirdInput = addInput(thirdLayout);
         thirdTermSpinner = createTermSpinner();
+        thirdTermAdapter = createTermAdapter(1);
+        thirdTermSpinner.setAdapter(thirdTermAdapter);
         thirdRow.addView(thirdTermSpinner, unitParams());
 
         fourthLayout = addFullInput(box);
@@ -360,14 +431,33 @@ public class MainActivity extends AppCompatActivity {
         Spinner spinner = new Spinner(this);
         spinner.setBackgroundResource(android.R.drawable.editbox_background);
         spinner.setPadding(dp(8), 0, dp(8), 0);
-        spinner.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item,
-                new String[]{AppPreferences.tr(this, "мес.", "mo."), AppPreferences.tr(this, "лет", "yr.")}));
         spinner.setVisibility(View.GONE);
         return spinner;
     }
 
+    private ArrayAdapter<String> createTermAdapter(int value) {
+        return new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item,
+                new String[]{UiUtils.termUnit(this, value, false), UiUtils.termUnit(this, value, true)});
+    }
+
+    private void updateTermAdapter(ArrayAdapter<String> adapter, Spinner spinner, TextInputEditText input) {
+        if (adapter == null || spinner == null || input == null) return;
+        int value = 1;
+        try {
+            String raw = clean(text(input));
+            double parsed = Double.parseDouble(raw);
+            if (parsed > 0 && parsed <= Integer.MAX_VALUE) value = Math.max(1, (int) parsed);
+        } catch (Exception ignored) {}
+        int selected = spinner.getSelectedItemPosition();
+        adapter.clear();
+        adapter.add(UiUtils.termUnit(this, value, false));
+        adapter.add(UiUtils.termUnit(this, value, true));
+        adapter.notifyDataSetChanged();
+        spinner.setSelection(Math.max(0, selected));
+    }
+
     private LinearLayout.LayoutParams unitParams() {
-        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(dp(112), dp(58));
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(dp(128), dp(58));
         params.setMargins(dp(8), 0, 0, 0);
         return params;
     }
@@ -409,6 +499,8 @@ public class MainActivity extends AppCompatActivity {
         secondWatcher.setEnabled(false);
         amountInput.addTextChangedListener(amountWatcher);
         secondInput.addTextChangedListener(secondWatcher);
+        secondInput.addTextChangedListener(new SimpleWatcher(() -> updateTermAdapter(secondTermAdapter, secondTermSpinner, secondInput)));
+        thirdInput.addTextChangedListener(new SimpleWatcher(() -> updateTermAdapter(thirdTermAdapter, thirdTermSpinner, thirdInput)));
     }
 
     private void setupListeners() {
@@ -426,8 +518,8 @@ public class MainActivity extends AppCompatActivity {
     private void setupAutoScroll(View field) {
         field.setOnFocusChangeListener((view, focused) -> {
             if (focused) {
-                mainScroll.postDelayed(() -> scrollFieldIntoView(view), 220);
-                mainScroll.postDelayed(() -> scrollFieldIntoView(view), 480);
+                mainScroll.postDelayed(() -> scrollFieldIntoView(view), 180);
+                mainScroll.postDelayed(() -> scrollFieldIntoView(view), 420);
             }
         });
     }
@@ -505,6 +597,8 @@ public class MainActivity extends AppCompatActivity {
             secondTermSpinner.setVisibility(View.VISIBLE);
             secondTermSpinner.setSelection(0);
         }
+        updateTermAdapter(secondTermAdapter, secondTermSpinner, secondInput);
+        updateTermAdapter(thirdTermAdapter, thirdTermSpinner, thirdInput);
         updateButtonStyles();
         formCard.setVisibility(View.VISIBLE);
         formCard.post(() -> mainScroll.smoothScrollTo(0, formCard.getTop()));
@@ -692,7 +786,8 @@ public class MainActivity extends AppCompatActivity {
 
     private void styleCalculator(MaterialButton button, boolean selected) {
         int primary = ContextCompat.getColor(this, R.color.primary);
-        button.setBackgroundTintList(ColorStateList.valueOf(selected ? primary : Color.WHITE));
+        int card = ContextCompat.getColor(this, R.color.card_background);
+        button.setBackgroundTintList(ColorStateList.valueOf(selected ? primary : card));
         button.setTextColor(selected ? Color.WHITE : primary);
         button.setStrokeColor(ColorStateList.valueOf(primary));
         button.setStrokeWidth(dp(1));
@@ -704,7 +799,7 @@ public class MainActivity extends AppCompatActivity {
         button.setAllCaps(false);
         button.setTextSize(17);
         button.setTextColor(ContextCompat.getColor(this, R.color.primary));
-        button.setBackgroundTintList(ColorStateList.valueOf(Color.WHITE));
+        button.setBackgroundTintList(ColorStateList.valueOf(ContextCompat.getColor(this, R.color.card_background)));
         button.setStrokeColor(ColorStateList.valueOf(ContextCompat.getColor(this, R.color.primary)));
         button.setStrokeWidth(dp(1));
         button.setCornerRadius(dp(15));
@@ -748,12 +843,13 @@ public class MainActivity extends AppCompatActivity {
         item.setClickable(true);
         item.setFocusable(true);
         item.setBackgroundResource(android.R.drawable.list_selector_background);
-        item.setLayoutParams(new LinearLayout.LayoutParams(-1, dp(64)));
+        item.setLayoutParams(new LinearLayout.LayoutParams(-1, dp(58)));
         return item;
     }
 
     private TextView resultLabel() { return label("", 14, R.color.result_secondary, false); }
     private TextView resultValue(int size) { return label("", size, R.color.white, true); }
+
     private LinearLayout.LayoutParams resultSpacing() {
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(-1, -2);
         params.setMargins(0, 0, 0, dp(14));
@@ -804,6 +900,14 @@ public class MainActivity extends AppCompatActivity {
     public void onBackPressed() {
         if (drawerLayout != null && drawerLayout.isDrawerOpen(GravityCompat.START)) drawerLayout.closeDrawer(GravityCompat.START);
         else super.onBackPressed();
+    }
+
+    private static class SimpleWatcher implements TextWatcher {
+        private final Runnable callback;
+        SimpleWatcher(Runnable callback) { this.callback = callback; }
+        @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+        @Override public void onTextChanged(CharSequence s, int start, int before, int count) {}
+        @Override public void afterTextChanged(Editable s) { if (callback != null) callback.run(); }
     }
 
     private static class MoneyWatcher implements TextWatcher {
