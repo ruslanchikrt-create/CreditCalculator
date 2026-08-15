@@ -239,8 +239,13 @@ public class MainActivity extends AppCompatActivity {
             throw new IllegalArgumentException();
         }
 
+        long monthsLong = years * 12L;
+        if (monthsLong > Integer.MAX_VALUE) {
+            throw new IllegalArgumentException();
+        }
+
         double principal = propertyPrice - downPayment;
-        int months = Math.multiplyExact(years, 12);
+        int months = (int) monthsLong;
         double[] result = annuity(principal, months, annualRate);
 
         showMoneyResult(
@@ -360,7 +365,7 @@ public class MainActivity extends AppCompatActivity {
 
     private double positiveDouble(TextInputEditText editText) {
         double number = Double.parseDouble(value(editText));
-        if (!Double.isFinite(number) || number <= 0.0) {
+        if (Double.isNaN(number) || Double.isInfinite(number) || number <= 0.0) {
             throw new IllegalArgumentException();
         }
         return number;
@@ -368,7 +373,7 @@ public class MainActivity extends AppCompatActivity {
 
     private double nonNegativeDouble(TextInputEditText editText) {
         double number = Double.parseDouble(value(editText));
-        if (!Double.isFinite(number) || number < 0.0) {
+        if (Double.isNaN(number) || Double.isInfinite(number) || number < 0.0) {
             throw new IllegalArgumentException();
         }
         return number;
@@ -376,7 +381,11 @@ public class MainActivity extends AppCompatActivity {
 
     private int positiveInt(TextInputEditText editText) {
         double raw = Double.parseDouble(value(editText));
-        if (!Double.isFinite(raw) || raw <= 0.0 || raw != Math.floor(raw) || raw > Integer.MAX_VALUE) {
+        if (Double.isNaN(raw)
+                || Double.isInfinite(raw)
+                || raw <= 0.0
+                || raw != Math.floor(raw)
+                || raw > Integer.MAX_VALUE) {
             throw new IllegalArgumentException();
         }
         return (int) raw;
