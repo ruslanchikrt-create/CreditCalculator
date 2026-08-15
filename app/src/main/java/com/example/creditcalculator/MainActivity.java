@@ -12,16 +12,21 @@ import android.text.TextWatcher;
 import android.view.Gravity;
 import android.view.View;
 import android.view.WindowManager;
+import android.widget.ArrayAdapter;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
+import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
+import androidx.core.graphics.Insets;
 import androidx.core.view.GravityCompat;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
 import androidx.drawerlayout.widget.DrawerLayout;
 
 import com.google.android.material.button.MaterialButton;
@@ -35,9 +40,12 @@ public class MainActivity extends AppCompatActivity {
     private enum CalculatorMode { CREDIT, MORTGAGE, AUTO, INSTALLMENT, DEPOSIT }
 
     private DrawerLayout drawerLayout;
+    private FrameLayout mainFrame;
+    private LinearLayout drawerView;
     private ScrollView mainScroll;
     private MaterialCardView formCard;
     private MaterialCardView resultCard;
+
     private TextInputLayout amountLayout;
     private TextInputLayout secondLayout;
     private TextInputLayout thirdLayout;
@@ -46,6 +54,7 @@ public class MainActivity extends AppCompatActivity {
     private TextInputEditText secondInput;
     private TextInputEditText thirdInput;
     private TextInputEditText fourthInput;
+
     private TextView calculatorTitle;
     private TextView calculatorSubtitle;
     private TextView resultLabel1;
@@ -54,14 +63,19 @@ public class MainActivity extends AppCompatActivity {
     private TextView resultValue1;
     private TextView resultValue2;
     private TextView resultValue3;
+
+    private Spinner termUnitSpinner;
     private SwitchMaterial capitalizationSwitch;
+
     private MaterialButton creditButton;
     private MaterialButton mortgageButton;
     private MaterialButton autoButton;
     private MaterialButton installmentButton;
     private MaterialButton depositButton;
+
     private MoneyWatcher amountWatcher;
     private MoneyWatcher secondWatcher;
+
     private CalculatorMode currentMode;
     private String loadedLanguage;
 
@@ -97,15 +111,16 @@ public class MainActivity extends AppCompatActivity {
 
     private View buildScreen() {
         drawerLayout = new DrawerLayout(this);
-        drawerLayout.setFitsSystemWindows(true);
+        drawerLayout.setFitsSystemWindows(false);
+        drawerLayout.setBackgroundColor(ContextCompat.getColor(this, R.color.background));
 
-        FrameLayout main = new FrameLayout(this);
-        drawerLayout.addView(main, new DrawerLayout.LayoutParams(-1, -1));
+        mainFrame = new FrameLayout(this);
+        drawerLayout.addView(mainFrame, new DrawerLayout.LayoutParams(-1, -1));
 
         LinearLayout column = new LinearLayout(this);
         column.setOrientation(LinearLayout.VERTICAL);
         column.setBackgroundResource(R.drawable.app_background);
-        main.addView(column, new FrameLayout.LayoutParams(-1, -1));
+        mainFrame.addView(column, new FrameLayout.LayoutParams(-1, -1));
 
         column.addView(buildTopBar(), new LinearLayout.LayoutParams(-1, dp(64)));
 
@@ -131,6 +146,7 @@ public class MainActivity extends AppCompatActivity {
         autoButton = calculatorButton(AppPreferences.tr(this, "Автокредит", "Auto loan"));
         installmentButton = calculatorButton(AppPreferences.tr(this, "Рассрочка", "Installment"));
         depositButton = calculatorButton(AppPreferences.tr(this, "Вклад", "Deposit"));
+
         content.addView(creditButton, calculatorButtonParams());
         content.addView(mortgageButton, calculatorButtonParams());
         content.addView(autoButton, calculatorButtonParams());
@@ -149,6 +165,7 @@ public class MainActivity extends AppCompatActivity {
 
         MaterialButton plus = new MaterialButton(this);
         plus.setText("+");
+        plus.setAllCaps(false);
         plus.setTextSize(30);
         plus.setTextColor(Color.WHITE);
         plus.setMinWidth(0);
@@ -158,30 +175,41 @@ public class MainActivity extends AppCompatActivity {
         plus.setOnClickListener(v -> openAddReminder());
         FrameLayout.LayoutParams plusParams = new FrameLayout.LayoutParams(dp(60), dp(60), Gravity.BOTTOM | Gravity.END);
         plusParams.setMargins(0, 0, dp(20), dp(20));
-        main.addView(plus, plusParams);
+        mainFrame.addView(plus, plusParams);
 
+        drawerView = (LinearLayout) buildDrawer();
         DrawerLayout.LayoutParams drawerParams = new DrawerLayout.LayoutParams(dp(310), -1);
         drawerParams.gravity = GravityCompat.START;
-        drawerLayout.addView(buildDrawer(), drawerParams);
+        drawerLayout.addView(drawerView, drawerParams);
+
+        applySystemBarInsets();
         return drawerLayout;
+    }
+
+    private void applySystemBarInsets() {
+        ViewCompat.setOnApplyWindowInsetsListener(drawerLayout, (view, insets) -> {
+            Insets bars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
+            mainFrame.setPadding(0, bars.top, 0, bars.bottom);
+            drawerView.setPadding(0, bars.top, 0, bars.bottom);
+            return insets;
+        });
+        ViewCompat.requestApplyInsets(drawerLayout);
     }
 
     private View buildTopBar() {
         LinearLayout bar = new LinearLayout(this);
         bar.setOrientation(LinearLayout.HORIZONTAL);
         bar.setGravity(Gravity.CENTER_VERTICAL);
-        bar.setPadding(dp(8), 0, dp(16), 0);
+        bar.setPadding(dp(4), 0, dp(16), 0);
         bar.setBackgroundColor(ContextCompat.getColor(this, R.color.primary));
 
-        MaterialButton menu = new MaterialButton(this);
-        menu.setText("☰");
-        menu.setTextSize(28);
-        menu.setTextColor(Color.WHITE);
-        menu.setMinWidth(0);
-        menu.setPadding(0, 0, 0, 0);
-        menu.setBackgroundTintList(ColorStateList.valueOf(Color.TRANSPARENT));
+        TextView menu = label("☰", 32, R.color.white, false);
+        menu.setGravity(Gravity.CENTER);
+        menu.setClickable(true);
+        menu.setFocusable(true);
+        menu.setContentDescription(AppPreferences.tr(this, "Открыть меню", "Open menu"));
         menu.setOnClickListener(v -> drawerLayout.openDrawer(GravityCompat.START));
-        bar.addView(menu, new LinearLayout.LayoutParams(dp(56), dp(56)));
+        bar.addView(menu, new LinearLayout.LayoutParams(dp(64), dp(64)));
 
         TextView title = label(AppPreferences.tr(this, "Финансовый калькулятор", "Financial calculator"), 20, R.color.white, true);
         bar.addView(title, new LinearLayout.LayoutParams(0, -2, 1f));
@@ -283,6 +311,20 @@ public class MainActivity extends AppCompatActivity {
         fourthLayout = addInputLayout(box);
         fourthInput = addInput(fourthLayout);
 
+        TextView unitLabel = label(AppPreferences.tr(this, "Срок считать в", "Calculate term in"), 14, R.color.text_secondary, false);
+        LinearLayout.LayoutParams unitLabelParams = new LinearLayout.LayoutParams(-1, -2);
+        unitLabelParams.setMargins(0, 0, 0, dp(6));
+        box.addView(unitLabel, unitLabelParams);
+
+        termUnitSpinner = new Spinner(this);
+        termUnitSpinner.setBackgroundResource(android.R.drawable.editbox_background);
+        termUnitSpinner.setPadding(dp(12), 0, dp(12), 0);
+        termUnitSpinner.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item,
+                new String[]{AppPreferences.tr(this, "Месяцы", "Months"), AppPreferences.tr(this, "Годы", "Years")}));
+        LinearLayout.LayoutParams unitParams = new LinearLayout.LayoutParams(-1, dp(54));
+        unitParams.setMargins(0, 0, 0, dp(12));
+        box.addView(termUnitSpinner, unitParams);
+
         capitalizationSwitch = new SwitchMaterial(this);
         capitalizationSwitch.setText(AppPreferences.tr(this, "Ежемесячная капитализация процентов", "Monthly interest capitalization"));
         capitalizationSwitch.setTextColor(ContextCompat.getColor(this, R.color.text_main));
@@ -372,37 +414,42 @@ public class MainActivity extends AppCompatActivity {
             calculatorTitle.setText(AppPreferences.tr(this, "Кредит", "Loan"));
             calculatorSubtitle.setText(AppPreferences.tr(this, "Рассчитайте ежемесячный платёж и переплату", "Calculate monthly payment and overpayment"));
             amountLayout.setHint(AppPreferences.tr(this, "Сумма кредита, ₽", "Loan amount, ₽"));
-            secondLayout.setHint(AppPreferences.tr(this, "Срок, месяцев", "Term, months"));
+            secondLayout.setHint(AppPreferences.tr(this, "Срок", "Term"));
             thirdLayout.setHint(AppPreferences.tr(this, "Процентная ставка, % годовых", "Interest rate, % per year"));
+            termUnitSpinner.setSelection(0);
         } else if (mode == CalculatorMode.MORTGAGE) {
             calculatorTitle.setText(AppPreferences.tr(this, "Ипотека", "Mortgage"));
             calculatorSubtitle.setText(AppPreferences.tr(this, "Укажите стоимость жилья, первый взнос, срок и ставку", "Enter property price, down payment, term and rate"));
             amountLayout.setHint(AppPreferences.tr(this, "Стоимость жилья, ₽", "Property price, ₽"));
             secondLayout.setHint(AppPreferences.tr(this, "Первоначальный взнос, ₽", "Down payment, ₽"));
-            thirdLayout.setHint(AppPreferences.tr(this, "Срок ипотеки, лет", "Mortgage term, years"));
+            thirdLayout.setHint(AppPreferences.tr(this, "Срок ипотеки", "Mortgage term"));
             fourthLayout.setHint(AppPreferences.tr(this, "Ставка, % годовых", "Interest rate, % per year"));
             fourthLayout.setVisibility(View.VISIBLE);
+            termUnitSpinner.setSelection(1);
         } else if (mode == CalculatorMode.AUTO) {
             calculatorTitle.setText(AppPreferences.tr(this, "Автокредит", "Auto loan"));
             calculatorSubtitle.setText(AppPreferences.tr(this, "Рассчитайте платёж по кредиту на автомобиль", "Calculate your auto loan payment"));
             amountLayout.setHint(AppPreferences.tr(this, "Стоимость автомобиля, ₽", "Car price, ₽"));
             secondLayout.setHint(AppPreferences.tr(this, "Первоначальный взнос, ₽", "Down payment, ₽"));
-            thirdLayout.setHint(AppPreferences.tr(this, "Срок кредита, месяцев", "Loan term, months"));
+            thirdLayout.setHint(AppPreferences.tr(this, "Срок кредита", "Loan term"));
             fourthLayout.setHint(AppPreferences.tr(this, "Ставка, % годовых", "Interest rate, % per year"));
             fourthLayout.setVisibility(View.VISIBLE);
+            termUnitSpinner.setSelection(0);
         } else if (mode == CalculatorMode.INSTALLMENT) {
             calculatorTitle.setText(AppPreferences.tr(this, "Рассрочка", "Installment"));
             calculatorSubtitle.setText(AppPreferences.tr(this, "Рассчитайте платёж без процентов", "Calculate an interest-free installment"));
             amountLayout.setHint(AppPreferences.tr(this, "Стоимость покупки, ₽", "Purchase price, ₽"));
             secondLayout.setHint(AppPreferences.tr(this, "Первоначальный взнос, ₽", "Down payment, ₽"));
-            thirdLayout.setHint(AppPreferences.tr(this, "Срок рассрочки, месяцев", "Installment term, months"));
+            thirdLayout.setHint(AppPreferences.tr(this, "Срок рассрочки", "Installment term"));
+            termUnitSpinner.setSelection(0);
         } else {
             calculatorTitle.setText(AppPreferences.tr(this, "Вклад", "Deposit"));
             calculatorSubtitle.setText(AppPreferences.tr(this, "Рассчитайте доход и итоговую сумму вклада", "Calculate deposit income and final amount"));
             amountLayout.setHint(AppPreferences.tr(this, "Сумма вклада, ₽", "Deposit amount, ₽"));
-            secondLayout.setHint(AppPreferences.tr(this, "Срок вклада, месяцев", "Deposit term, months"));
+            secondLayout.setHint(AppPreferences.tr(this, "Срок вклада", "Deposit term"));
             thirdLayout.setHint(AppPreferences.tr(this, "Ставка, % годовых", "Interest rate, % per year"));
             capitalizationSwitch.setVisibility(View.VISIBLE);
+            termUnitSpinner.setSelection(0);
         }
 
         updateButtonStyles();
@@ -429,12 +476,11 @@ public class MainActivity extends AppCompatActivity {
 
     private void calculateCredit() {
         double principal = positive(amountInput);
-        int months = positiveInt(secondInput);
+        int months = termMonths(secondInput);
         double rate = nonNegative(thirdInput);
         double[] values = annuity(principal, months, rate);
         remember(principal, rate, months, values[0]);
-        showMoneyResult(
-                AppPreferences.tr(this, "Ежемесячный платёж", "Monthly payment"), values[0],
+        showMoneyResult(AppPreferences.tr(this, "Ежемесячный платёж", "Monthly payment"), values[0],
                 AppPreferences.tr(this, "Общая сумма выплат", "Total payments"), values[1],
                 AppPreferences.tr(this, "Переплата", "Overpayment"), values[2]);
     }
@@ -442,15 +488,13 @@ public class MainActivity extends AppCompatActivity {
     private void calculateMortgage() {
         double propertyPrice = positive(amountInput);
         double down = nonNegative(secondInput);
-        int years = positiveInt(thirdInput);
+        int months = termMonths(thirdInput);
         double rate = nonNegative(fourthInput);
-        if (down >= propertyPrice || years > Integer.MAX_VALUE / 12) throw new IllegalArgumentException();
-        int months = years * 12;
+        if (down >= propertyPrice) throw new IllegalArgumentException();
         double principal = propertyPrice - down;
         double[] values = annuity(principal, months, rate);
         remember(principal, rate, months, values[0]);
-        showMoneyResult(
-                AppPreferences.tr(this, "Ежемесячный платёж", "Monthly payment"), values[0],
+        showMoneyResult(AppPreferences.tr(this, "Ежемесячный платёж", "Monthly payment"), values[0],
                 AppPreferences.tr(this, "Всего выплат банку", "Total paid to bank"), values[1],
                 AppPreferences.tr(this, "Переплата по процентам", "Interest overpayment"), values[2]);
     }
@@ -458,14 +502,13 @@ public class MainActivity extends AppCompatActivity {
     private void calculateAuto() {
         double carPrice = positive(amountInput);
         double down = nonNegative(secondInput);
-        int months = positiveInt(thirdInput);
+        int months = termMonths(thirdInput);
         double rate = nonNegative(fourthInput);
         if (down >= carPrice) throw new IllegalArgumentException();
         double principal = carPrice - down;
         double[] values = annuity(principal, months, rate);
         remember(principal, rate, months, values[0]);
-        showMoneyResult(
-                AppPreferences.tr(this, "Ежемесячный платёж", "Monthly payment"), values[0],
+        showMoneyResult(AppPreferences.tr(this, "Ежемесячный платёж", "Monthly payment"), values[0],
                 AppPreferences.tr(this, "Всего выплат банку", "Total paid to bank"), values[1],
                 AppPreferences.tr(this, "Переплата по процентам", "Interest overpayment"), values[2]);
     }
@@ -473,20 +516,19 @@ public class MainActivity extends AppCompatActivity {
     private void calculateInstallment() {
         double price = positive(amountInput);
         double down = nonNegative(secondInput);
-        int months = positiveInt(thirdInput);
+        int months = termMonths(thirdInput);
         if (down >= price) throw new IllegalArgumentException();
         double principal = price - down;
         double payment = principal / months;
         remember(principal, 0, months, payment);
-        showMoneyResult(
-                AppPreferences.tr(this, "Ежемесячный платёж", "Monthly payment"), payment,
+        showMoneyResult(AppPreferences.tr(this, "Ежемесячный платёж", "Monthly payment"), payment,
                 AppPreferences.tr(this, "Сумма в рассрочку", "Installment amount"), principal,
                 AppPreferences.tr(this, "Общая стоимость", "Total purchase price"), price);
     }
 
     private void calculateDeposit() {
         double principal = positive(amountInput);
-        int months = positiveInt(secondInput);
+        int months = termMonths(secondInput);
         double rate = nonNegative(thirdInput);
         double finalAmount;
         if (capitalizationSwitch.isChecked()) {
@@ -508,12 +550,20 @@ public class MainActivity extends AppCompatActivity {
         showResultCard();
     }
 
+    private int termMonths(TextInputEditText input) {
+        int value = positiveInt(input);
+        if (termUnitSpinner.getSelectedItemPosition() == 1) {
+            if (value > Integer.MAX_VALUE / 12) throw new IllegalArgumentException();
+            return value * 12;
+        }
+        return value;
+    }
+
     private double[] annuity(double principal, int months, double annualRate) {
         double monthlyRate = annualRate / 100.0 / 12.0;
         double payment;
-        if (monthlyRate == 0) {
-            payment = principal / months;
-        } else {
+        if (monthlyRate == 0) payment = principal / months;
+        else {
             double factor = Math.pow(1 + monthlyRate, months);
             payment = principal * monthlyRate * factor / (factor - 1);
         }
@@ -546,8 +596,10 @@ public class MainActivity extends AppCompatActivity {
     private void openAddReminder() {
         Intent intent = new Intent(this, AddReminderActivity.class);
         if (currentMode != null) intent.putExtra(AddReminderActivity.EXTRA_TYPE, typeForMode(currentMode));
-        if (lastPrincipal > 0) intent.putExtra(AddReminderActivity.EXTRA_PRINCIPAL, lastPrincipal);
-        if (lastPrincipal > 0) intent.putExtra(AddReminderActivity.EXTRA_RATE, lastRate);
+        if (lastPrincipal > 0) {
+            intent.putExtra(AddReminderActivity.EXTRA_PRINCIPAL, lastPrincipal);
+            intent.putExtra(AddReminderActivity.EXTRA_RATE, lastRate);
+        }
         if (lastMonths > 0) intent.putExtra(AddReminderActivity.EXTRA_MONTHS, lastMonths);
         if (lastPayment > 0) intent.putExtra(AddReminderActivity.EXTRA_PAYMENT, lastPayment);
         startActivity(intent);
@@ -579,6 +631,10 @@ public class MainActivity extends AppCompatActivity {
         secondInput.setText("");
         thirdInput.setText("");
         fourthInput.setText("");
+        amountInput.clearFocus();
+        secondInput.clearFocus();
+        thirdInput.clearFocus();
+        fourthInput.clearFocus();
     }
 
     private void updateButtonStyles() {
@@ -606,13 +662,13 @@ public class MainActivity extends AppCompatActivity {
         button.setBackgroundTintList(ColorStateList.valueOf(Color.WHITE));
         button.setStrokeColor(ColorStateList.valueOf(ContextCompat.getColor(this, R.color.primary)));
         button.setStrokeWidth(dp(1));
-        button.setCornerRadius(dp(14));
+        button.setCornerRadius(dp(15));
         return button;
     }
 
     private LinearLayout.LayoutParams calculatorButtonParams() {
-        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(-1, dp(54));
-        params.setMargins(0, 0, 0, dp(10));
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(-1, dp(58));
+        params.setMargins(0, 0, 0, dp(14));
         return params;
     }
 
@@ -630,29 +686,20 @@ public class MainActivity extends AppCompatActivity {
         TextInputEditText input = new TextInputEditText(this);
         input.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_DECIMAL);
         input.setSingleLine(true);
-        input.setTextSize(18);
         input.setMinHeight(dp(58));
-        layout.addView(input, new LinearLayout.LayoutParams(-1, -2));
+        layout.addView(input, new TextInputLayout.LayoutParams(-1, -2));
         return input;
     }
 
-    private TextView drawerItem(String value) {
-        TextView item = label(value, 18, R.color.text_main, false);
+    private TextView drawerItem(String text) {
+        TextView item = label(text, 18, R.color.text_main, false);
         item.setGravity(Gravity.CENTER_VERTICAL);
         item.setPadding(dp(24), 0, dp(16), 0);
         item.setClickable(true);
+        item.setFocusable(true);
         item.setBackgroundResource(android.R.drawable.list_selector_background);
         item.setLayoutParams(new LinearLayout.LayoutParams(-1, dp(64)));
         return item;
-    }
-
-    private TextView label(String value, int size, int colorRes, boolean bold) {
-        TextView text = new TextView(this);
-        text.setText(value);
-        text.setTextSize(size);
-        text.setTextColor(ContextCompat.getColor(this, colorRes));
-        if (bold) text.setTypeface(null, android.graphics.Typeface.BOLD);
-        return text;
     }
 
     private TextView resultLabel() {
@@ -665,30 +712,44 @@ public class MainActivity extends AppCompatActivity {
 
     private LinearLayout.LayoutParams resultSpacing() {
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(-1, -2);
-        params.setMargins(0, dp(2), 0, dp(12));
+        params.setMargins(0, 0, 0, dp(14));
         return params;
     }
 
+    private TextView label(String text, int size, int colorRes, boolean bold) {
+        TextView view = new TextView(this);
+        view.setText(text);
+        view.setTextSize(size);
+        view.setTextColor(ContextCompat.getColor(this, colorRes));
+        if (bold) view.setTypeface(null, android.graphics.Typeface.BOLD);
+        return view;
+    }
+
     private double positive(TextInputEditText input) {
-        double value = Double.parseDouble(clean(input));
+        double value = Double.parseDouble(clean(text(input)));
         if (value <= 0 || Double.isNaN(value) || Double.isInfinite(value)) throw new IllegalArgumentException();
         return value;
     }
 
     private double nonNegative(TextInputEditText input) {
-        double value = Double.parseDouble(clean(input));
+        double value = Double.parseDouble(clean(text(input)));
         if (value < 0 || Double.isNaN(value) || Double.isInfinite(value)) throw new IllegalArgumentException();
         return value;
     }
 
     private int positiveInt(TextInputEditText input) {
-        double value = Double.parseDouble(clean(input));
-        if (value <= 0 || value != Math.floor(value) || value > Integer.MAX_VALUE) throw new IllegalArgumentException();
-        return (int) value;
+        double raw = Double.parseDouble(clean(text(input)));
+        if (raw <= 0 || raw != Math.floor(raw) || raw > Integer.MAX_VALUE || Double.isNaN(raw) || Double.isInfinite(raw)) {
+            throw new IllegalArgumentException();
+        }
+        return (int) raw;
     }
 
-    private String clean(TextInputEditText input) {
-        String value = input.getText() == null ? "" : input.getText().toString();
+    private String text(TextInputEditText input) {
+        return input.getText() == null ? "" : input.getText().toString();
+    }
+
+    private String clean(String value) {
         return value.trim().replace(" ", "").replace("\u00A0", "").replace("\u202F", "").replace(',', '.');
     }
 
@@ -716,43 +777,45 @@ public class MainActivity extends AppCompatActivity {
 
         void setEnabled(boolean enabled) {
             this.enabled = enabled;
+            if (enabled && input.getText() != null && input.getText().length() > 0) afterTextChanged(input.getText());
         }
 
-        @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) { }
-        @Override public void onTextChanged(CharSequence s, int start, int before, int count) { }
+        @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+        @Override public void onTextChanged(CharSequence s, int start, int before, int count) {}
 
         @Override
         public void afterTextChanged(Editable editable) {
             if (!enabled || editing) return;
-            String source = editable.toString().replace(" ", "").replace("\u00A0", "").replace("\u202F", "");
-            if (source.isEmpty()) return;
+            String formatted = group(editable.toString());
+            if (formatted.equals(editable.toString())) return;
+            editing = true;
+            input.setText(formatted);
+            input.setSelection(formatted.length());
+            editing = false;
+        }
 
-            int comma = source.indexOf(',');
-            int dot = source.indexOf('.');
-            int separator;
-            if (comma >= 0 && dot >= 0) separator = Math.min(comma, dot);
-            else separator = Math.max(comma, dot);
-
-            String integerPart = separator >= 0 ? source.substring(0, separator) : source;
-            String fraction = separator >= 0 ? source.substring(separator + 1) : "";
+        private String group(String source) {
+            String clean = source.replace(" ", "").replace("\u00A0", "").replace("\u202F", "");
+            if (clean.isEmpty()) return "";
+            int comma = clean.indexOf(',');
+            int dot = clean.indexOf('.');
+            int separator = comma >= 0 && dot >= 0 ? Math.min(comma, dot) : Math.max(comma, dot);
+            String integerPart = separator >= 0 ? clean.substring(0, separator) : clean;
+            String fractionPart = separator >= 0 ? clean.substring(separator + 1) : "";
             integerPart = integerPart.replaceAll("[^0-9]", "");
-            fraction = fraction.replaceAll("[^0-9]", "");
-            if (integerPart.isEmpty()) return;
-
+            fractionPart = fractionPart.replaceAll("[^0-9]", "");
+            if (integerPart.isEmpty()) integerPart = "0";
             StringBuilder grouped = new StringBuilder();
-            for (int i = 0; i < integerPart.length(); i++) {
-                if (i > 0 && (integerPart.length() - i) % 3 == 0) grouped.append(' ');
+            int length = integerPart.length();
+            for (int i = 0; i < length; i++) {
+                if (i > 0 && (length - i) % 3 == 0) grouped.append(' ');
                 grouped.append(integerPart.charAt(i));
             }
-            if (separator >= 0) grouped.append(',').append(fraction);
-
-            String formatted = grouped.toString();
-            if (!formatted.equals(editable.toString())) {
-                editing = true;
-                input.setText(formatted);
-                input.setSelection(formatted.length());
-                editing = false;
+            if (separator >= 0) {
+                grouped.append(',');
+                grouped.append(fractionPart);
             }
+            return grouped.toString();
         }
     }
 }
