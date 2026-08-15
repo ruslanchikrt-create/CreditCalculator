@@ -41,7 +41,7 @@ public class PaymentDetailsActivity extends AppCompatActivity {
         long id = getIntent().getLongExtra(EXTRA_REMINDER_ID, -1L);
         reminder = ReminderScheduler.findById(this, id);
         if (reminder == null) {
-            Toast.makeText(this, AppPreferences.tr(this, "Платёж не найден", "Payment not found"), Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, AppPreferences.tr(this, "Запись не найдена", "Item not found"), Toast.LENGTH_SHORT).show();
             finish();
             return;
         }
@@ -99,13 +99,21 @@ public class PaymentDetailsActivity extends AppCompatActivity {
 
         content.addView(buildSummaryCard());
 
-        TextView scheduleTitle = text(AppPreferences.tr(this, "График платежей", "Payment schedule"), 22, R.color.text_main, true);
+        boolean deposit = ReminderScheduler.TYPE_DEPOSIT.equals(ReminderScheduler.normalizeType(reminder.type));
+        TextView scheduleTitle = text(deposit
+                ? AppPreferences.tr(this, "Срок вклада", "Deposit term")
+                : AppPreferences.tr(this, "График платежей", "Payment schedule"),
+                22, R.color.text_main, true);
         LinearLayout.LayoutParams scheduleTitleParams = new LinearLayout.LayoutParams(-1, -2);
         scheduleTitleParams.setMargins(0, dp(24), 0, dp(10));
         content.addView(scheduleTitle, scheduleTitleParams);
 
-        int nextIndex = ReminderScheduler.nextPaymentIndex(reminder);
-        for (int i = 0; i < reminder.months; i++) content.addView(buildScheduleRow(i, nextIndex));
+        if (deposit) {
+            content.addView(buildDepositPeriodCard());
+        } else {
+            int nextIndex = ReminderScheduler.nextPaymentIndex(reminder);
+            for (int i = 0; i < reminder.months; i++) content.addView(buildScheduleRow(i, nextIndex));
+        }
 
         if (!ReminderScheduler.STATUS_TRASH.equals(reminder.status)) {
             MaterialButton delete = new MaterialButton(this);
@@ -143,18 +151,66 @@ public class PaymentDetailsActivity extends AppCompatActivity {
         box.setPadding(dp(18), dp(18), dp(18), dp(18));
         card.addView(box);
 
-        addSummaryLine(box, AppPreferences.tr(this, "Сумма, которую взяли", "Amount borrowed"), FormatUtils.money(this, reminder.principal));
-        addSummaryLine(box, AppPreferences.tr(this, "Ежемесячный платёж", "Monthly payment"), FormatUtils.money(this, reminder.amount));
-        if (reminder.annualRate > 0) {
+        boolean deposit = ReminderScheduler.TYPE_DEPOSIT.equals(ReminderScheduler.normalizeType(reminder.type));
+        if (deposit) {
+            addSummaryLine(box, AppPreferences.tr(this, "Сумма вклада", "Deposit amount"), FormatUtils.money(this, reminder.principal));
             addSummaryLine(box, AppPreferences.tr(this, "Ставка", "Interest rate"), trimRate(reminder.annualRate) + "%");
+            addSummaryLine(box, AppPreferences.tr(this, "Ожидаемый доход", "Expected income"),
+                    FormatUtils.money(this, ReminderScheduler.depositExpectedIncome(reminder)));
+            addSummaryLine(box, AppPreferences.tr(this, "Итого к получению", "Expected total"),
+                    FormatUtils.money(this, ReminderScheduler.depositFinalAmount(reminder)));
+            addSummaryLine(box, AppPreferences.tr(this, "Срок", "Term"), UiUtils.termText(this, reminder.months));
+            addSummaryLine(box, AppPreferences.tr(this, "Дата открытия", "Start date"), FormatUtils.date(this, reminder.firstPaymentMillis));
+        } else {
+            addSummaryLine(box, AppPreferences.tr(this, "Исходная сумма", "Original amount"), FormatUtils.money(this, reminder.baseAmount));
+            if (reminder.downPayment > 0) {
+                addSummaryLine(box, AppPreferences.tr(this, "Первоначальный взнос", "Down payment"),
+                        FormatUtils.money(this, reminder.downPayment));
+            }
+            if (reminder.insurance > 0) {
+                addSummaryLine(box, AppPreferences.tr(this, "Страховка", "Insurance"),
+                        FormatUtils.money(this, reminder.insurance));
+            }
+            addSummaryLine(box, AppPreferences.tr(this, "Сумма кредита", "Financed amount"), FormatUtils.money(this, reminder.principal));
+            addSummaryLine(box, AppPreferences.tr(this, "Остаток долга", "Remaining debt"),
+                    FormatUtils.money(this, ReminderScheduler.remainingDebt(reminder)));
+            addSummaryLine(box, AppPreferences.tr(this, "Ежемесячный платёж", "Monthly payment"), FormatUtils.money(this, reminder.amount));
+            if (reminder.annualRate > 0) {
+                addSummaryLine(box, AppPreferences.tr(this, "Ставка", "Interest rate"), trimRate(reminder.annualRate) + "%");
+            }
+            addSummaryLine(box, AppPreferences.tr(this, "Срок", "Term"), UiUtils.termText(this, reminder.months));
+            addSummaryLine(box, AppPreferences.tr(this, "Первый платёж", "First payment"), FormatUtils.date(this, reminder.firstPaymentMillis));
         }
-        addSummaryLine(box, AppPreferences.tr(this, "Срок", "Term"), UiUtils.termText(this, reminder.months));
-        addSummaryLine(box, AppPreferences.tr(this, "Первый платёж", "First payment"), FormatUtils.date(this, reminder.firstPaymentMillis));
+
         addSummaryLine(box, AppPreferences.tr(this, "Напоминание", "Reminder"),
                 AppPreferences.isEnglish(this) ? reminder.daysBefore + " days before" : "за " + reminder.daysBefore + " дн.");
         if (!reminder.soundEnabled) {
             addSummaryLine(box, AppPreferences.tr(this, "Звук", "Sound"), AppPreferences.tr(this, "Без звука", "Muted"));
         }
+        return card;
+    }
+
+    private View buildDepositPeriodCard() {
+        MaterialCardView card = new MaterialCardView(this);
+        card.setRadius(dp(13));
+        card.setCardElevation(0);
+        card.setStrokeWidth(dp(1));
+        card.setStrokeColor(ContextCompat.getColor(this, R.color.border));
+        card.setCardBackgroundColor(ContextCompat.getColor(this, R.color.card_background));
+
+        LinearLayout box = new LinearLayout(this);
+        box.setOrientation(LinearLayout.VERTICAL);
+        box.setPadding(dp(16), dp(14), dp(16), dp(14));
+        card.addView(box);
+
+        Calendar maturity = ReminderScheduler.buildDueDate(reminder.firstPaymentMillis, reminder.months);
+        box.addView(text(AppPreferences.tr(this, "Дата открытия: ", "Start date: ")
+                + FormatUtils.date(this, reminder.firstPaymentMillis), 15, R.color.text_main, false));
+        TextView end = text(AppPreferences.tr(this, "Ожидаемое окончание: ", "Expected maturity: ")
+                + FormatUtils.date(this, maturity.getTimeInMillis()), 15, R.color.text_main, true);
+        LinearLayout.LayoutParams endParams = new LinearLayout.LayoutParams(-1, -2);
+        endParams.setMargins(0, dp(8), 0, 0);
+        box.addView(end, endParams);
         return card;
     }
 
