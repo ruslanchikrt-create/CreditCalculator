@@ -107,11 +107,8 @@ public class SettingsActivity extends AppCompatActivity {
         content.addView(languageTitle, languageTitleParams);
 
         languageSpinner = new Spinner(this);
-        languageSpinner.setBackgroundResource(android.R.drawable.editbox_background);
-        languageSpinner.setPadding(dp(12), 0, dp(12), 0);
-        languageSpinner.setAdapter(new ArrayAdapter<>(this,
-                android.R.layout.simple_spinner_dropdown_item,
-                new String[]{"Русский", "English"}));
+        UiUtils.styleSpinner(this, languageSpinner);
+        languageSpinner.setAdapter(UiUtils.spinnerAdapter(this, new String[]{"Русский", "English"}));
         content.addView(languageSpinner, new LinearLayout.LayoutParams(-1, dp(56)));
 
         content.addView(buildAppearanceCard(), cardParams());

@@ -90,6 +90,9 @@ public class MainActivity extends AppCompatActivity {
     private String loadedLanguage;
 
     private double lastPrincipal;
+    private double lastBaseAmount;
+    private double lastDownPayment;
+    private double lastInsurance;
     private double lastRate;
     private double lastPayment;
     private int lastMonths;
@@ -429,15 +432,13 @@ public class MainActivity extends AppCompatActivity {
 
     private Spinner createTermSpinner() {
         Spinner spinner = new Spinner(this);
-        spinner.setBackgroundResource(android.R.drawable.editbox_background);
-        spinner.setPadding(dp(8), 0, dp(8), 0);
+        UiUtils.styleSpinner(this, spinner);
         spinner.setVisibility(View.GONE);
         return spinner;
     }
 
     private ArrayAdapter<String> createTermAdapter(int value) {
-        return new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item,
-        new java.util.ArrayList<>(java.util.Arrays.asList(
+        return UiUtils.spinnerAdapter(this, new java.util.ArrayList<>(java.util.Arrays.asList(
                 UiUtils.termUnit(this, value, false),
                 UiUtils.termUnit(this, value, true))));
     }
@@ -549,6 +550,9 @@ public class MainActivity extends AppCompatActivity {
         thirdTermSpinner.setVisibility(View.GONE);
         secondWatcher.setEnabled(mode == CalculatorMode.MORTGAGE || mode == CalculatorMode.AUTO || mode == CalculatorMode.INSTALLMENT);
         lastPrincipal = 0;
+        lastBaseAmount = 0;
+        lastDownPayment = 0;
+        lastInsurance = 0;
         lastRate = 0;
         lastPayment = 0;
         lastMonths = 0;
@@ -633,6 +637,9 @@ public class MainActivity extends AppCompatActivity {
         int months = termMonths(secondInput);
         double rate = nonNegative(thirdInput);
         double[] values = annuity(principal, months, rate);
+        lastBaseAmount = principal;
+        lastDownPayment = 0;
+        lastInsurance = 0;
         remember(principal, rate, months, values[0]);
         showMoneyResult(AppPreferences.tr(this, "Ежемесячный платёж", "Monthly payment"), values[0],
                 AppPreferences.tr(this, "Общая сумма выплат", "Total payments"), values[1],
@@ -647,6 +654,9 @@ public class MainActivity extends AppCompatActivity {
         if (down >= price) throw new IllegalArgumentException();
         double principal = price - down;
         double[] values = annuity(principal, months, rate);
+        lastBaseAmount = price;
+        lastDownPayment = down;
+        lastInsurance = 0;
         remember(principal, rate, months, values[0]);
         showMoneyResult(AppPreferences.tr(this, "Ежемесячный платёж", "Monthly payment"), values[0],
                 AppPreferences.tr(this, "Всего выплат банку", "Total paid to bank"), values[1],
@@ -661,6 +671,9 @@ public class MainActivity extends AppCompatActivity {
         if (down >= price) throw new IllegalArgumentException();
         double principal = price - down;
         double[] values = annuity(principal, months, rate);
+        lastBaseAmount = price;
+        lastDownPayment = down;
+        lastInsurance = 0;
         remember(principal, rate, months, values[0]);
         showMoneyResult(AppPreferences.tr(this, "Ежемесячный платёж", "Monthly payment"), values[0],
                 AppPreferences.tr(this, "Всего выплат банку", "Total paid to bank"), values[1],
@@ -674,6 +687,9 @@ public class MainActivity extends AppCompatActivity {
         if (down >= price) throw new IllegalArgumentException();
         double principal = price - down;
         double payment = principal / months;
+        lastBaseAmount = price;
+        lastDownPayment = down;
+        lastInsurance = 0;
         remember(principal, 0, months, payment);
         showMoneyResult(AppPreferences.tr(this, "Ежемесячный платёж", "Monthly payment"), payment,
                 AppPreferences.tr(this, "Сумма в рассрочку", "Installment amount"), principal,
@@ -692,6 +708,9 @@ public class MainActivity extends AppCompatActivity {
             finalAmount = principal + principal * rate / 100.0 * (months / 12.0);
         }
         double income = finalAmount - principal;
+        lastBaseAmount = principal;
+        lastDownPayment = 0;
+        lastInsurance = 0;
         remember(principal, rate, months, 0);
         resultLabel1.setText(AppPreferences.tr(this, "Доход по вкладу", "Deposit income"));
         resultValue1.setText(FormatUtils.money(this, income));
@@ -752,6 +771,9 @@ public class MainActivity extends AppCompatActivity {
         if (currentMode != null) intent.putExtra(AddReminderActivity.EXTRA_TYPE, typeForMode(currentMode));
         if (lastPrincipal > 0) {
             intent.putExtra(AddReminderActivity.EXTRA_PRINCIPAL, lastPrincipal);
+            intent.putExtra(AddReminderActivity.EXTRA_BASE_AMOUNT, lastBaseAmount > 0 ? lastBaseAmount : lastPrincipal);
+            intent.putExtra(AddReminderActivity.EXTRA_DOWN_PAYMENT, lastDownPayment);
+            intent.putExtra(AddReminderActivity.EXTRA_INSURANCE, lastInsurance);
             intent.putExtra(AddReminderActivity.EXTRA_RATE, lastRate);
         }
         if (lastMonths > 0) intent.putExtra(AddReminderActivity.EXTRA_MONTHS, lastMonths);
@@ -825,6 +847,9 @@ public class MainActivity extends AppCompatActivity {
     private TextInputLayout createInputLayout() {
         TextInputLayout layout = new TextInputLayout(this);
         layout.setBoxBackgroundMode(TextInputLayout.BOX_BACKGROUND_OUTLINE);
+        layout.setBoxBackgroundColor(ContextCompat.getColor(this, R.color.card_background));
+        layout.setBoxStrokeColor(ContextCompat.getColor(this, R.color.primary));
+        layout.setHintTextColor(ColorStateList.valueOf(ContextCompat.getColor(this, R.color.text_secondary)));
         layout.setBoxCornerRadii(dp(14), dp(14), dp(14), dp(14));
         return layout;
     }
@@ -834,6 +859,8 @@ public class MainActivity extends AppCompatActivity {
         input.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_DECIMAL);
         input.setSingleLine(true);
         input.setMinHeight(dp(58));
+        input.setTextColor(ContextCompat.getColor(this, R.color.text_main));
+        input.setHintTextColor(ContextCompat.getColor(this, R.color.text_secondary));
         layout.addView(input, new TextInputLayout.LayoutParams(-1, -2));
         return input;
     }
