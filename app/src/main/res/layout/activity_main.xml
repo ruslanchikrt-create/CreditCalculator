@@ -3,7 +3,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/background"
+    android:background="@drawable/app_background"
     android:fillViewport="true">
 
     <LinearLayout
@@ -15,75 +15,118 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:layout_marginTop="18dp"
+            android:layout_marginBottom="8dp"
             android:text="Калькулятор кредита"
             android:textColor="@color/text_main"
             android:textSize="28sp"
-            android:textStyle="bold"
-            android:layout_marginTop="18dp"
-            android:layout_marginBottom="8dp"/>
+            android:textStyle="bold" />
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Рассчитайте платёж, переплату и общую сумму"
+            android:layout_marginBottom="24dp"
+            android:text="Введите параметры кредита и нажмите «Рассчитать»"
             android:textColor="@color/text_secondary"
-            android:textSize="15sp"
-            android:layout_marginBottom="24dp"/>
+            android:textSize="15sp" />
 
         <com.google.android.material.textfield.TextInputLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:layout_marginBottom="12dp"
             android:hint="Сумма кредита, ₽"
-            android:layout_marginBottom="12dp">
+            app:boxBackgroundColor="@color/white"
+            app:boxBackgroundMode="filled"
+            app:boxCornerRadiusBottomEnd="14dp"
+            app:boxCornerRadiusBottomStart="14dp"
+            app:boxCornerRadiusTopEnd="14dp"
+            app:boxCornerRadiusTopStart="14dp"
+            app:boxStrokeColor="@color/primary"
+            app:hintTextColor="@color/text_secondary">
+
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/amountInput"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:inputType="numberDecimal"
-                android:text="500000"/>
+                android:minHeight="64dp"
+                android:textColor="@color/text_main"
+                android:textColorHint="@color/text_secondary"
+                android:textSize="18sp" />
         </com.google.android.material.textfield.TextInputLayout>
 
         <com.google.android.material.textfield.TextInputLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:layout_marginBottom="12dp"
             android:hint="Срок, месяцев"
-            android:layout_marginBottom="12dp">
+            app:boxBackgroundColor="@color/white"
+            app:boxBackgroundMode="filled"
+            app:boxCornerRadiusBottomEnd="14dp"
+            app:boxCornerRadiusBottomStart="14dp"
+            app:boxCornerRadiusTopEnd="14dp"
+            app:boxCornerRadiusTopStart="14dp"
+            app:boxStrokeColor="@color/primary"
+            app:hintTextColor="@color/text_secondary">
+
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/monthsInput"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:inputType="number"
-                android:text="36"/>
+                android:minHeight="64dp"
+                android:textColor="@color/text_main"
+                android:textColorHint="@color/text_secondary"
+                android:textSize="18sp" />
         </com.google.android.material.textfield.TextInputLayout>
 
         <com.google.android.material.textfield.TextInputLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:layout_marginBottom="18dp"
             android:hint="Процентная ставка, % годовых"
-            android:layout_marginBottom="18dp">
+            app:boxBackgroundColor="@color/white"
+            app:boxBackgroundMode="filled"
+            app:boxCornerRadiusBottomEnd="14dp"
+            app:boxCornerRadiusBottomStart="14dp"
+            app:boxCornerRadiusTopEnd="14dp"
+            app:boxCornerRadiusTopStart="14dp"
+            app:boxStrokeColor="@color/primary"
+            app:hintTextColor="@color/text_secondary">
+
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/rateInput"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:inputType="numberDecimal"
-                android:text="18"/>
+                android:minHeight="64dp"
+                android:textColor="@color/text_main"
+                android:textColorHint="@color/text_secondary"
+                android:textSize="18sp" />
         </com.google.android.material.textfield.TextInputLayout>
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/calcButton"
             android:layout_width="match_parent"
             android:layout_height="56dp"
+            android:layout_marginBottom="20dp"
             android:text="Рассчитать"
+            android:textColor="@color/white"
             android:textSize="17sp"
-            app:cornerRadius="14dp"
-            android:layout_marginBottom="20dp"/>
+            android:textStyle="bold"
+            app:backgroundTint="@color/primary"
+            app:cornerRadius="14dp" />
 
         <com.google.android.material.card.MaterialCardView
+            android:id="@+id/resultCard"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:visibility="gone"
+            app:cardBackgroundColor="@color/result_card"
             app:cardCornerRadius="18dp"
-            app:cardElevation="1dp"
+            app:cardElevation="2dp"
             app:strokeWidth="0dp">
+
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -93,58 +136,58 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
+                    android:layout_marginBottom="16dp"
                     android:text="Результат"
+                    android:textColor="@color/white"
                     android:textSize="18sp"
-                    android:textStyle="bold"
-                    android:textColor="@color/text_main"
-                    android:layout_marginBottom="16dp"/>
+                    android:textStyle="bold" />
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="Ежемесячный платёж"
-                    android:textColor="@color/text_secondary"
-                    android:textSize="14sp"/>
+                    android:textColor="@color/result_secondary"
+                    android:textSize="14sp" />
+
                 <TextView
                     android:id="@+id/monthlyPaymentText"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="—"
+                    android:layout_marginBottom="18dp"
                     android:textSize="27sp"
                     android:textStyle="bold"
-                    android:textColor="@color/primary"
-                    android:layout_marginBottom="18dp"/>
+                    android:textColor="@color/white" />
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="Общая сумма выплат"
-                    android:textColor="@color/text_secondary"
-                    android:textSize="14sp"/>
+                    android:textColor="@color/result_secondary"
+                    android:textSize="14sp" />
+
                 <TextView
                     android:id="@+id/totalPaymentText"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="—"
+                    android:layout_marginBottom="14dp"
+                    android:textColor="@color/white"
                     android:textSize="20sp"
-                    android:textStyle="bold"
-                    android:textColor="@color/text_main"
-                    android:layout_marginBottom="14dp"/>
+                    android:textStyle="bold" />
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="Переплата"
-                    android:textColor="@color/text_secondary"
-                    android:textSize="14sp"/>
+                    android:textColor="@color/result_secondary"
+                    android:textSize="14sp" />
+
                 <TextView
                     android:id="@+id/overpaymentText"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="—"
+                    android:textColor="@color/white"
                     android:textSize="20sp"
-                    android:textStyle="bold"
-                    android:textColor="@color/text_main"/>
+                    android:textStyle="bold" />
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
