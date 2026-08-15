@@ -50,6 +50,7 @@ public class AddReminderActivity extends AppCompatActivity {
     private Spinner typeSpinner;
     private Spinner termUnitSpinner;
     private Spinner daysSpinner;
+    private ArrayAdapter<String> termUnitAdapter;
     private TextInputEditText titleInput;
     private TextInputEditText principalInput;
     private TextInputEditText rateInput;
@@ -66,6 +67,7 @@ public class AddReminderActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        AppPreferences.applyNightMode(this);
         super.onCreate(savedInstanceState);
         WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
         getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
@@ -78,7 +80,7 @@ public class AddReminderActivity extends AppCompatActivity {
     private View buildContent() {
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setBackgroundColor(ContextCompat.getColor(this, R.color.background));
+        UiUtils.applyBackground(this, root);
 
         LinearLayout bar = new LinearLayout(this);
         bar.setOrientation(LinearLayout.HORIZONTAL);
@@ -109,6 +111,7 @@ public class AddReminderActivity extends AppCompatActivity {
         formScroll = new ScrollView(this);
         formScroll.setFillViewport(true);
         formScroll.setClipToPadding(false);
+        formScroll.setBackgroundColor(Color.TRANSPARENT);
         root.addView(formScroll, new LinearLayout.LayoutParams(-1, 0, 1f));
 
         LinearLayout content = new LinearLayout(this);
@@ -171,9 +174,10 @@ public class AddReminderActivity extends AppCompatActivity {
             Insets ime = insets.getInsets(WindowInsetsCompat.Type.ime());
             view.setPadding(0, bars.top, 0, 0);
             int bottom = Math.max(bars.bottom, ime.bottom);
-            formScroll.setPadding(0, 0, 0, bottom + dp(16));
+            formScroll.setPadding(0, 0, 0, bottom + dp(24));
             if (insets.isVisible(WindowInsetsCompat.Type.ime())) {
-                formScroll.postDelayed(this::scrollCurrentFocusIntoView, 120);
+                formScroll.postDelayed(this::scrollCurrentFocusIntoView, 100);
+                formScroll.postDelayed(this::scrollCurrentFocusIntoView, 320);
             }
             return insets;
         });
@@ -190,14 +194,12 @@ public class AddReminderActivity extends AppCompatActivity {
         parent.addView(row, rowParams);
 
         TextInputLayout layout = createInputLayout(AppPreferences.tr(this, "Срок", "Term"));
-        LinearLayout.LayoutParams inputLayoutParams = new LinearLayout.LayoutParams(0, -2, 1f);
-        row.addView(layout, inputLayoutParams);
-
+        row.addView(layout, new LinearLayout.LayoutParams(0, -2, 1f));
         termInput = createInput(InputType.TYPE_CLASS_NUMBER);
         layout.addView(termInput, new TextInputLayout.LayoutParams(-1, -2));
 
         termUnitSpinner = createSpinner();
-        LinearLayout.LayoutParams unitParams = new LinearLayout.LayoutParams(dp(112), dp(58));
+        LinearLayout.LayoutParams unitParams = new LinearLayout.LayoutParams(dp(128), dp(58));
         unitParams.setMargins(dp(8), 0, 0, 0);
         row.addView(termUnitSpinner, unitParams);
     }
@@ -208,13 +210,13 @@ public class AddReminderActivity extends AppCompatActivity {
                 FormatUtils.typeLabel(this, ReminderScheduler.TYPE_MORTGAGE),
                 FormatUtils.typeLabel(this, ReminderScheduler.TYPE_AUTO),
                 FormatUtils.typeLabel(this, ReminderScheduler.TYPE_INSTALLMENT),
-                FormatUtils.typeLabel(this, ReminderScheduler.TYPE_DEPOSIT),
-                FormatUtils.typeLabel(this, ReminderScheduler.TYPE_OTHER)
+                FormatUtils.typeLabel(this, ReminderScheduler.TYPE_DEPOSIT)
         };
         typeSpinner.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, types));
 
-        termUnitSpinner.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item,
-                new String[]{AppPreferences.tr(this, "мес.", "mo."), AppPreferences.tr(this, "лет", "yr.")}));
+        termUnitAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item,
+                new String[]{UiUtils.termUnit(this, 1, false), UiUtils.termUnit(this, 1, true)});
+        termUnitSpinner.setAdapter(termUnitAdapter);
 
         String[] days = new String[7];
         for (int i = 0; i < days.length; i++) {
@@ -231,7 +233,10 @@ public class AddReminderActivity extends AppCompatActivity {
         principalInput.addTextChangedListener(new MoneyWatcher(principalInput, this::updateAutoPayment));
         paymentInput.addTextChangedListener(new MoneyWatcher(paymentInput, null));
         rateInput.addTextChangedListener(new SimpleWatcher(this::updateAutoPayment));
-        termInput.addTextChangedListener(new SimpleWatcher(this::updateAutoPayment));
+        termInput.addTextChangedListener(new SimpleWatcher(() -> {
+            updateTermUnitLabels();
+            updateAutoPayment();
+        }));
         termUnitSpinner.setOnItemSelectedListener(new SimpleItemSelectedListener(this::updateAutoPayment));
         typeSpinner.setOnItemSelectedListener(new SimpleItemSelectedListener(() -> {
             updateRateAvailability();
@@ -245,11 +250,26 @@ public class AddReminderActivity extends AppCompatActivity {
         setupAutoScroll(paymentInput);
     }
 
+    private void updateTermUnitLabels() {
+        if (termUnitAdapter == null || termInput == null) return;
+        int value = 1;
+        try {
+            String raw = text(termInput).trim();
+            if (!raw.isEmpty()) value = Math.max(1, Integer.parseInt(raw));
+        } catch (Exception ignored) {}
+        int selected = termUnitSpinner == null ? 0 : termUnitSpinner.getSelectedItemPosition();
+        termUnitAdapter.clear();
+        termUnitAdapter.add(UiUtils.termUnit(this, value, false));
+        termUnitAdapter.add(UiUtils.termUnit(this, value, true));
+        termUnitAdapter.notifyDataSetChanged();
+        if (termUnitSpinner != null) termUnitSpinner.setSelection(Math.max(0, selected));
+    }
+
     private void setupAutoScroll(View field) {
         field.setOnFocusChangeListener((view, focused) -> {
             if (focused) {
-                formScroll.postDelayed(() -> scrollFieldIntoView(view), 220);
-                formScroll.postDelayed(() -> scrollFieldIntoView(view), 480);
+                formScroll.postDelayed(() -> scrollFieldIntoView(view), 180);
+                formScroll.postDelayed(() -> scrollFieldIntoView(view), 420);
             }
         });
     }
@@ -264,8 +284,7 @@ public class AddReminderActivity extends AppCompatActivity {
         Rect rect = new Rect();
         field.getDrawingRect(rect);
         formScroll.offsetDescendantRectToMyCoords(field, rect);
-        int target = Math.max(0, rect.top - dp(72));
-        formScroll.smoothScrollTo(0, target);
+        formScroll.smoothScrollTo(0, Math.max(0, rect.top - dp(72)));
     }
 
     private void applySuggestions() {
@@ -283,14 +302,15 @@ public class AddReminderActivity extends AppCompatActivity {
         if (rate >= 0 && (principal > 0 || rate > 0)) rateInput.setText(trimNumber(rate));
 
         if (months > 0 && months % 12 == 0) {
-            termUnitSpinner.setSelection(1);
             termInput.setText(String.valueOf(months / 12));
+            termUnitSpinner.setSelection(1);
         } else if (months > 0) {
-            termUnitSpinner.setSelection(0);
             termInput.setText(String.valueOf(months));
+            termUnitSpinner.setSelection(0);
         } else {
             termUnitSpinner.setSelection(0);
         }
+        updateTermUnitLabels();
 
         if (payment > 0) {
             updatingPayment = true;
@@ -305,10 +325,10 @@ public class AddReminderActivity extends AppCompatActivity {
     private void updateRateAvailability() {
         String type = FormatUtils.typeCodeByPosition(typeSpinner.getSelectedItemPosition());
         boolean installment = ReminderScheduler.TYPE_INSTALLMENT.equals(type);
-        boolean depositOrOther = ReminderScheduler.TYPE_DEPOSIT.equals(type) || ReminderScheduler.TYPE_OTHER.equals(type);
-        rateInput.setEnabled(!installment && !depositOrOther);
+        boolean deposit = ReminderScheduler.TYPE_DEPOSIT.equals(type);
+        rateInput.setEnabled(!installment && !deposit);
         if (installment) rateInput.setText("0");
-        else if (depositOrOther) rateInput.setText("");
+        else if (deposit) rateInput.setText("");
     }
 
     private void updateAutoPayment() {
@@ -365,7 +385,6 @@ public class AddReminderActivity extends AppCompatActivity {
             double principal = parsePositive(principalInput);
             double annualRate = ReminderScheduler.TYPE_INSTALLMENT.equals(type)
                     || ReminderScheduler.TYPE_DEPOSIT.equals(type)
-                    || ReminderScheduler.TYPE_OTHER.equals(type)
                     ? 0.0 : parseNonNegative(rateInput);
             double payment = parsePositive(paymentInput);
             int months = termMonths();
