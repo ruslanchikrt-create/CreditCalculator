@@ -5,8 +5,6 @@ import android.graphics.drawable.Drawable;
 import android.net.Uri;
 import android.view.View;
 
-import androidx.core.content.ContextCompat;
-
 import java.io.InputStream;
 
 public final class UiUtils {
@@ -35,7 +33,7 @@ public final class UiUtils {
                 }
             }
         }
-        view.setBackgroundColor(ContextCompat.getColor(context, R.color.background));
+        view.setBackgroundResource(R.drawable.app_background);
     }
 
     public static String termUnit(Context context, int value, boolean years) {
