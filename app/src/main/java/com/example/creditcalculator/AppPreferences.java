@@ -10,7 +10,7 @@ import java.util.Locale;
 
 public final class AppPreferences {
 
-    private static final String PREFS = "app_preferences";
+    public static final String PREFS_NAME = "app_preferences";
     private static final String KEY_LANGUAGE = "language";
     private static final String KEY_SOUND_ENABLED = "sound_enabled";
     private static final String KEY_VIBRATION_ENABLED = "vibration_enabled";
@@ -19,87 +19,43 @@ public final class AppPreferences {
     private static final String KEY_BACKGROUND_URI = "background_uri";
     private static final String KEY_PROFILE_NAME = "profile_name";
     private static final String KEY_AVATAR_URI = "avatar_uri";
+    private static final String KEY_PAYMENTS_FILTER = "payments_filter";
+    private static final String KEY_PAYMENTS_SORT = "payments_sort";
 
-    private AppPreferences() {
-    }
+    private AppPreferences() {}
 
     private static SharedPreferences prefs(Context context) {
-        return context.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+        return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
     }
 
-    public static String getLanguage(Context context) {
-        return prefs(context).getString(KEY_LANGUAGE, "ru");
-    }
+    public static String getLanguage(Context context) { return prefs(context).getString(KEY_LANGUAGE, "ru"); }
+    public static void setLanguage(Context context, String language) { prefs(context).edit().putString(KEY_LANGUAGE, "en".equals(language) ? "en" : "ru").apply(); }
+    public static boolean isEnglish(Context context) { return "en".equals(getLanguage(context)); }
 
-    public static void setLanguage(Context context, String language) {
-        prefs(context).edit().putString(KEY_LANGUAGE, "en".equals(language) ? "en" : "ru").apply();
-    }
+    public static boolean isSoundEnabled(Context context) { return prefs(context).getBoolean(KEY_SOUND_ENABLED, true); }
+    public static void setSoundEnabled(Context context, boolean enabled) { prefs(context).edit().putBoolean(KEY_SOUND_ENABLED, enabled).apply(); }
+    public static boolean isVibrationEnabled(Context context) { return prefs(context).getBoolean(KEY_VIBRATION_ENABLED, true); }
+    public static void setVibrationEnabled(Context context, boolean enabled) { prefs(context).edit().putBoolean(KEY_VIBRATION_ENABLED, enabled).apply(); }
+    public static String getSoundUri(Context context) { return prefs(context).getString(KEY_SOUND_URI, ""); }
+    public static void setSoundUri(Context context, String uri) { prefs(context).edit().putString(KEY_SOUND_URI, uri == null ? "" : uri).apply(); }
 
-    public static boolean isEnglish(Context context) {
-        return "en".equals(getLanguage(context));
-    }
-
-    public static boolean isSoundEnabled(Context context) {
-        return prefs(context).getBoolean(KEY_SOUND_ENABLED, true);
-    }
-
-    public static void setSoundEnabled(Context context, boolean enabled) {
-        prefs(context).edit().putBoolean(KEY_SOUND_ENABLED, enabled).apply();
-    }
-
-    public static boolean isVibrationEnabled(Context context) {
-        return prefs(context).getBoolean(KEY_VIBRATION_ENABLED, true);
-    }
-
-    public static void setVibrationEnabled(Context context, boolean enabled) {
-        prefs(context).edit().putBoolean(KEY_VIBRATION_ENABLED, enabled).apply();
-    }
-
-    public static String getSoundUri(Context context) {
-        return prefs(context).getString(KEY_SOUND_URI, "");
-    }
-
-    public static void setSoundUri(Context context, String uri) {
-        prefs(context).edit().putString(KEY_SOUND_URI, uri == null ? "" : uri).apply();
-    }
-
-    public static boolean isDarkMode(Context context) {
-        return prefs(context).getBoolean(KEY_DARK_MODE, false);
-    }
-
-    public static void setDarkMode(Context context, boolean enabled) {
-        prefs(context).edit().putBoolean(KEY_DARK_MODE, enabled).apply();
-    }
-
+    public static boolean isDarkMode(Context context) { return prefs(context).getBoolean(KEY_DARK_MODE, false); }
+    public static void setDarkMode(Context context, boolean enabled) { prefs(context).edit().putBoolean(KEY_DARK_MODE, enabled).apply(); }
     public static void applyNightMode(Context context) {
-        AppCompatDelegate.setDefaultNightMode(isDarkMode(context)
-                ? AppCompatDelegate.MODE_NIGHT_YES
-                : AppCompatDelegate.MODE_NIGHT_NO);
+        AppCompatDelegate.setDefaultNightMode(isDarkMode(context) ? AppCompatDelegate.MODE_NIGHT_YES : AppCompatDelegate.MODE_NIGHT_NO);
     }
 
-    public static String getBackgroundUri(Context context) {
-        return prefs(context).getString(KEY_BACKGROUND_URI, "");
-    }
+    public static String getBackgroundUri(Context context) { return prefs(context).getString(KEY_BACKGROUND_URI, ""); }
+    public static void setBackgroundUri(Context context, String uri) { prefs(context).edit().putString(KEY_BACKGROUND_URI, uri == null ? "" : uri).apply(); }
+    public static String getProfileName(Context context) { return prefs(context).getString(KEY_PROFILE_NAME, ""); }
+    public static void setProfileName(Context context, String name) { prefs(context).edit().putString(KEY_PROFILE_NAME, name == null ? "" : name.trim()).apply(); }
+    public static String getAvatarUri(Context context) { return prefs(context).getString(KEY_AVATAR_URI, ""); }
+    public static void setAvatarUri(Context context, String uri) { prefs(context).edit().putString(KEY_AVATAR_URI, uri == null ? "" : uri).apply(); }
 
-    public static void setBackgroundUri(Context context, String uri) {
-        prefs(context).edit().putString(KEY_BACKGROUND_URI, uri == null ? "" : uri).apply();
-    }
-
-    public static String getProfileName(Context context) {
-        return prefs(context).getString(KEY_PROFILE_NAME, "");
-    }
-
-    public static void setProfileName(Context context, String name) {
-        prefs(context).edit().putString(KEY_PROFILE_NAME, name == null ? "" : name.trim()).apply();
-    }
-
-    public static String getAvatarUri(Context context) {
-        return prefs(context).getString(KEY_AVATAR_URI, "");
-    }
-
-    public static void setAvatarUri(Context context, String uri) {
-        prefs(context).edit().putString(KEY_AVATAR_URI, uri == null ? "" : uri).apply();
-    }
+    public static String getPaymentsFilter(Context context) { return prefs(context).getString(KEY_PAYMENTS_FILTER, "all"); }
+    public static void setPaymentsFilter(Context context, String value) { prefs(context).edit().putString(KEY_PAYMENTS_FILTER, value == null ? "all" : value).apply(); }
+    public static String getPaymentsSort(Context context) { return prefs(context).getString(KEY_PAYMENTS_SORT, "nearest"); }
+    public static void setPaymentsSort(Context context, String value) { prefs(context).edit().putString(KEY_PAYMENTS_SORT, value == null ? "nearest" : value).apply(); }
 
     public static Context wrapLocale(Context base) {
         String language = getLanguage(base);
@@ -110,7 +66,5 @@ public final class AppPreferences {
         return base.createConfigurationContext(configuration);
     }
 
-    public static String tr(Context context, String ru, String en) {
-        return isEnglish(context) ? en : ru;
-    }
+    public static String tr(Context context, String ru, String en) { return isEnglish(context) ? en : ru; }
 }
