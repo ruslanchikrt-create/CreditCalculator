@@ -42,4 +42,4 @@ jobs:
           name: CreditCalculator-APK
           path: app/build/outputs/apk/debug/app-debug.apk
 
-# v1.17 personal cabinet, archive summary, hints and reliable payments landing build
+# v1.18 personal cabinet, live metrics, left navigation and direct payments launcher build
