@@ -73,7 +73,6 @@ public class ReminderReceiver extends BroadcastReceiver {
                 .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
                 .setAutoCancel(!today)
                 .setOngoing(today)
-                .setOnlyAlertOnce(today)
                 .setContentIntent(contentIntent);
 
         // "Already paid" is deliberately shown only on the actual due date.
