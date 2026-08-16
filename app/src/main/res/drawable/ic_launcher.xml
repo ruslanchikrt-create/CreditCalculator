@@ -2,10 +2,72 @@
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
-    android:viewportWidth="24"
-    android:viewportHeight="24">
-    <path android:fillColor="#2563EB" android:pathData="M0,0H24V24H0Z" />
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Blue finance background -->
     <path
-        android:fillColor="#FFFFFFFF"
-        android:pathData="M7.5,4C5.57,4 4,5.57 4,7.5S5.57,11 7.5,11 11,9.43 11,7.5 9.43,4 7.5,4zM7.5,9C6.67,9 6,8.33 6,7.5S6.67,6 7.5,6 9,6.67 9,7.5 8.33,9 7.5,9zM16.5,13C14.57,13 13,14.57 13,16.5S14.57,20 16.5,20 20,18.43 20,16.5 18.43,13 16.5,13zM16.5,18C15.67,18 15,17.33 15,16.5S15.67,15 16.5,15 18,15.67 18,16.5 17.33,18 16.5,18zM5.41,20L4,18.59 18.59,4 20,5.41 5.41,20z" />
+        android:fillColor="#0A63D8"
+        android:pathData="M0,0H108V108H0Z" />
+
+    <!-- Subtle teal growth accent -->
+    <path
+        android:fillColor="#19C6B3"
+        android:pathData="M70,28 L91,16 L88,38 L82,33 C76,45 69,52 60,57 L56,49 C64,45 70,39 76,29 Z" />
+
+    <!-- Calculator body -->
+    <path
+        android:fillColor="#F7FAFF"
+        android:pathData="M18,17 H68 C73,17 77,21 77,26 V85 C77,90 73,94 68,94 H18 C13,94 9,90 9,85 V26 C9,21 13,17 18,17 Z" />
+
+    <!-- Calculator display -->
+    <path
+        android:fillColor="#123F7A"
+        android:pathData="M17,25 H69 V42 H17 Z" />
+    <path
+        android:fillColor="#2A8FE8"
+        android:pathData="M21,29 H65 V38 H21 Z" />
+
+    <!-- Calculator buttons -->
+    <path
+        android:fillColor="#1765BD"
+        android:pathData="M17,49 H36 V66 H17 Z M43,49 H62 V66 H43 Z M17,72 H36 V89 H17 Z" />
+    <path
+        android:fillColor="#16A98D"
+        android:pathData="M43,72 H62 V89 H43 Z" />
+
+    <!-- Plus -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M24,53 H29 V58 H34 V62 H29 V67 H24 V62 H19 V58 H24 Z" />
+
+    <!-- Minus -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M47,57 H58 V62 H47 Z" />
+
+    <!-- Multiply -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M21,76 L25,72 L35,82 L31,86 Z M31,72 L35,76 L25,86 L21,82 Z" />
+
+    <!-- Equals -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M47,77 H58 V81 H47 Z M47,84 H58 V88 H47 Z" />
+
+    <!-- Green percent badge -->
+    <path
+        android:fillColor="#22C77A"
+        android:pathData="M78,51 C92,51 103,62 103,76 C103,90 92,101 78,101 C64,101 53,90 53,76 C53,62 64,51 78,51 Z" />
+
+    <!-- Percent slash -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M69,88 L65,84 L87,62 L91,66 Z" />
+
+    <!-- Percent dots -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M69,61 C73,61 76,64 76,68 C76,72 73,75 69,75 C65,75 62,72 62,68 C62,64 65,61 69,61 Z M88,78 C92,78 95,81 95,85 C95,89 92,92 88,92 C84,92 81,89 81,85 C81,81 84,78 88,78 Z" />
 </vector>
