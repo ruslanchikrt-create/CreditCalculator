@@ -69,8 +69,8 @@ public class CreditApplication extends Application implements Application.Activi
         if (started == 0) backgroundAt = System.currentTimeMillis();
     }
     @Override public void onActivityCreated(Activity activity, Bundle savedInstanceState) {}
-    @Override public void onActivityResumed(Activity activity) {}
+    @Override public void onActivityResumed(Activity activity) { AdBannerManager.attach(activity); }
     @Override public void onActivityPaused(Activity activity) {}
     @Override public void onActivitySaveInstanceState(Activity activity, Bundle outState) {}
-    @Override public void onActivityDestroyed(Activity activity) {}
+    @Override public void onActivityDestroyed(Activity activity) { AdBannerManager.destroy(activity); }
 }
