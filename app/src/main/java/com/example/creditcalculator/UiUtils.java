@@ -91,6 +91,7 @@ public final class UiUtils {
         if(scroll==null)return;
         View focused=scroll.findFocus();
         if(focused!=null)recheckField(scroll,focused);
+        else scroll.postDelayed(()->{View f=scroll.findFocus();if(f!=null)recheckField(scroll,f);},120);
     }
 
     private static void scrollFieldIntoView(ScrollView scroll,View field){
@@ -99,7 +100,7 @@ public final class UiUtils {
             Rect rect=new Rect();field.getDrawingRect(rect);scroll.offsetDescendantRectToMyCoords(field,rect);
             int margin=dp(scroll.getContext(),120);
             int viewportTop=scroll.getScrollY()+dp(scroll.getContext(),12);
-            int viewportBottom=scroll.getScrollY()+scroll.getHeight()-margin;
+            int viewportBottom=Math.max(viewportTop+Math.max(field.getHeight(),dp(scroll.getContext(),56)),scroll.getScrollY()+scroll.getHeight()-scroll.getPaddingBottom()-margin);
             int target=scroll.getScrollY();
             if(rect.bottom>viewportBottom)target+=rect.bottom-viewportBottom;
             else if(rect.top<viewportTop)target-=viewportTop-rect.top;

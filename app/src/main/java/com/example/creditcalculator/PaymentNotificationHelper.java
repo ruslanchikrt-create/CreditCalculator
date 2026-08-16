@@ -19,8 +19,11 @@ public final class PaymentNotificationHelper {
         return value==Integer.MIN_VALUE?0:Math.abs(value);
     }
 
+    public static int alarmNotificationId(long reminderId,int index){int n=notificationId(reminderId,index)^0x2A6F3B19;return n==Integer.MIN_VALUE?1:Math.abs(n);}
+
     public static void cancel(Context context,long reminderId,int index){
         NotificationManagerCompat.from(context).cancel(notificationId(reminderId,index));
+        NotificationManagerCompat.from(context).cancel(alarmNotificationId(reminderId,index));
         cancelEndOfDay(context,reminderId,index);
     }
 

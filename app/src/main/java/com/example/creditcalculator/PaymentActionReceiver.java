@@ -18,7 +18,7 @@ public class PaymentActionReceiver extends BroadcastReceiver {
         int notificationId = intent.getIntExtra("notification_id", -1);
 
         if(action.startsWith(ACTION_CLEAR_TODAY_NOTIFICATION)){
-            if(notificationId>=0)NotificationManagerCompat.from(context).cancel(notificationId);
+            // Payment-day notices are intentionally persistent and are cleared only after the payment is marked paid.
             return;
         }
         if (!ACTION_MARK_PAID.equals(action)) return;

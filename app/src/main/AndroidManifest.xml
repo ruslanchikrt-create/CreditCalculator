@@ -14,7 +14,7 @@
         android:theme="@style/Theme.CreditCalculator">
 
         <activity android:name=".LanguageSelectionActivity" android:exported="false" />
-        <activity android:name=".LockActivity" android:exported="false" />
+        <activity android:name=".LockActivity" android:exported="false" android:windowSoftInputMode="adjustResize" />
         <activity android:name=".SecurityActivity" android:exported="false" android:windowSoftInputMode="adjustResize" />
         <activity android:name=".SnoozeActivity" android:exported="false" />
         <activity android:name=".EarlyRepaymentActivity" android:exported="false" android:windowSoftInputMode="adjustResize" />

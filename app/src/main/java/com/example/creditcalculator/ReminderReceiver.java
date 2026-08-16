@@ -37,7 +37,9 @@ public class ReminderReceiver extends BroadcastReceiver {
         boolean allowVibration = !silentDay && AppPreferences.isVibrationEnabled(context);
         Uri soundUri = resolveSound(context, allowSound);
         String channel = silentDay ? createSilentDayChannel(context) : createSoundChannel(context, allowSound, allowVibration, soundUri, soundAlarm);
-        int notificationId = PaymentNotificationHelper.notificationId(id,index);
+        int dayNotificationId=PaymentNotificationHelper.notificationId(id,index);
+        int alarmNotificationId=PaymentNotificationHelper.alarmNotificationId(id,index);
+        int notificationId=(soundAlarm||snoozed)?alarmNotificationId:dayNotificationId;
 
         Intent open = new Intent(context, PaymentDetailsActivity.class);
         open.putExtra(PaymentDetailsActivity.EXTRA_REMINDER_ID, id);
@@ -45,7 +47,7 @@ public class ReminderReceiver extends BroadcastReceiver {
         PendingIntent contentIntent = PendingIntent.getActivity(context, notificationId, open, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
 
         Intent snooze = new Intent(context, SnoozeActivity.class);
-        snooze.putExtra("reminder_id", id); snooze.putExtra("payment_index", index); snooze.putExtra("notification_id", notificationId);
+        snooze.putExtra("reminder_id", id); snooze.putExtra("payment_index", index); snooze.putExtra("notification_id", silentDay?alarmNotificationId:notificationId);
         snooze.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
         PendingIntent snoozeIntent = PendingIntent.getActivity(context, notificationId + 200000, snooze, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
 
@@ -71,6 +73,7 @@ public class ReminderReceiver extends BroadcastReceiver {
             content = AppPreferences.tr(context, "Скоро платёж", "Payment coming up") + ": " + FormatUtils.money(context, amount) + " · " + FormatUtils.date(context, dueDate);
         }
 
+        boolean persistentDay=silentDay;
         NotificationCompat.Builder b = new NotificationCompat.Builder(context, channel)
                 .setSmallIcon(R.drawable.ic_notification)
                 .setContentTitle(title)
@@ -79,8 +82,8 @@ public class ReminderReceiver extends BroadcastReceiver {
                 .setPriority(silentDay ? NotificationCompat.PRIORITY_DEFAULT : NotificationCompat.PRIORITY_MAX)
                 .setCategory(silentDay ? NotificationCompat.CATEGORY_REMINDER : (soundAlarm ? NotificationCompat.CATEGORY_ALARM : NotificationCompat.CATEGORY_REMINDER))
                 .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
-                .setAutoCancel(!(today || overdue))
-                .setOngoing(today || overdue)
+                .setAutoCancel(!persistentDay)
+                .setOngoing(persistentDay)
                 .setOnlyAlertOnce(silentDay)
                 .setContentIntent(contentIntent);
 
