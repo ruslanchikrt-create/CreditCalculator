@@ -235,6 +235,17 @@ public final class ReminderScheduler {
 
     public static List<PaymentReminder> load(Context context) { return listByStatus(context, STATUS_ACTIVE); }
 
+    /** Re-read all persisted data and rebuild derived reminder state. Used by pull-to-refresh. */
+    public static void refreshAll(Context context) {
+        synchronized (STORE_LOCK) { cachedJson = null; cachedItems = null; }
+        List<PaymentReminder> all = loadAll(context);
+        for (PaymentReminder r : all) {
+            if (TYPE_DEPOSIT.equals(normalizeType(r.type))) continue;
+            for (int i = 0; i < r.months; i++) if (isPaid(r, i)) PaymentNotificationHelper.cancel(context, r.id, i);
+        }
+        rescheduleAll(context);
+    }
+
     public static List<PaymentReminder> listByStatus(Context context, String status) {
         List<PaymentReminder> result = new ArrayList<>();
         String normalized = normalizeStatus(status);

@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="com.example.creditcalculator.FinanceMathTest" tests="9" skipped="0" failures="0" errors="0" timestamp="2026-08-16T12:38:41" hostname="runnervmzvulz" time="0.027">
+<testsuite name="com.example.creditcalculator.FinanceMathTest" tests="9" skipped="0" failures="0" errors="0" timestamp="2026-08-16T13:16:20" hostname="runnervmzvulz" time="0.011">
   <properties/>
-  <testcase name="differentialKnownCase" classname="com.example.creditcalculator.FinanceMathTest" time="0.008"/>
+  <testcase name="differentialKnownCase" classname="com.example.creditcalculator.FinanceMathTest" time="0.003"/>
   <testcase name="longMortgageLargeSavingIsMathematicallyPossible" classname="com.example.creditcalculator.FinanceMathTest" time="0.001"/>
   <testcase name="fixedPlanAdjustsLastPaymentInsteadOfMultiplyingRegularPayment" classname="com.example.creditcalculator.FinanceMathTest" time="0.0"/>
   <testcase name="refinanceIncludesFeesAndDoesNotTreatCashOutPrincipalAsACost" classname="com.example.creditcalculator.FinanceMathTest" time="0.001"/>
-  <testcase name="reduceTermSavesMoreThanReducePaymentForStandardAnnuity" classname="com.example.creditcalculator.FinanceMathTest" time="0.003"/>
-  <testcase name="annuityKnownCase" classname="com.example.creditcalculator.FinanceMathTest" time="0.003"/>
+  <testcase name="reduceTermSavesMoreThanReducePaymentForStandardAnnuity" classname="com.example.creditcalculator.FinanceMathTest" time="0.0"/>
+  <testcase name="annuityKnownCase" classname="com.example.creditcalculator.FinanceMathTest" time="0.001"/>
   <testcase name="zeroRate" classname="com.example.creditcalculator.FinanceMathTest" time="0.0"/>
   <testcase name="deposits" classname="com.example.creditcalculator.FinanceMathTest" time="0.0"/>
   <testcase name="reportedSameDayCaseHasPositiveSavings" classname="com.example.creditcalculator.FinanceMathTest" time="0.0"/>

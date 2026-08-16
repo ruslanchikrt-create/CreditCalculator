@@ -1,7 +1,7 @@
 {
     "logs": [
         {
-            "outputFile": "com.example.creditcalculator.app-mergeDebugResources-30:/values-night-v8/values-night-v8.xml",
+            "outputFile": "com.example.creditcalculator.app-mergeDebugResources-31:/values-night-v8/values-night-v8.xml",
             "map": [
                 {
                     "source": "/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/res/values-night/colors.xml",

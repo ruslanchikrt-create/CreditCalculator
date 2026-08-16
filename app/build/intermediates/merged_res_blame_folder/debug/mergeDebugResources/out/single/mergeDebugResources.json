@@ -1,30 +1,30 @@
 [
     {
-        "merged": "com.example.creditcalculator.app-debug-32:/drawable_ic_launcher.xml.flat",
-        "source": "com.example.creditcalculator.app-main-34:/drawable/ic_launcher.xml"
+        "merged": "com.example.creditcalculator.app-debug-33:/layout_activity_main.xml.flat",
+        "source": "com.example.creditcalculator.app-main-35:/layout/activity_main.xml"
     },
     {
-        "merged": "com.example.creditcalculator.app-debug-32:/drawable_ic_notification.xml.flat",
-        "source": "com.example.creditcalculator.app-main-34:/drawable/ic_notification.xml"
+        "merged": "com.example.creditcalculator.app-debug-33:/drawable_app_background.xml.flat",
+        "source": "com.example.creditcalculator.app-main-35:/drawable/app_background.xml"
     },
     {
-        "merged": "com.example.creditcalculator.app-debug-32:/layout_dialog_reminder.xml.flat",
-        "source": "com.example.creditcalculator.app-main-34:/layout/dialog_reminder.xml"
+        "merged": "com.example.creditcalculator.app-debug-33:/drawable_ic_notification.xml.flat",
+        "source": "com.example.creditcalculator.app-main-35:/drawable/ic_notification.xml"
     },
     {
-        "merged": "com.example.creditcalculator.app-debug-32:/drawable_circle_soft.xml.flat",
-        "source": "com.example.creditcalculator.app-main-34:/drawable/circle_soft.xml"
+        "merged": "com.example.creditcalculator.app-debug-33:/drawable_circle_soft.xml.flat",
+        "source": "com.example.creditcalculator.app-main-35:/drawable/circle_soft.xml"
     },
     {
-        "merged": "com.example.creditcalculator.app-debug-32:/drawable_circle_primary.xml.flat",
-        "source": "com.example.creditcalculator.app-main-34:/drawable/circle_primary.xml"
+        "merged": "com.example.creditcalculator.app-debug-33:/layout_dialog_reminder.xml.flat",
+        "source": "com.example.creditcalculator.app-main-35:/layout/dialog_reminder.xml"
     },
     {
-        "merged": "com.example.creditcalculator.app-debug-32:/layout_activity_main.xml.flat",
-        "source": "com.example.creditcalculator.app-main-34:/layout/activity_main.xml"
+        "merged": "com.example.creditcalculator.app-debug-33:/drawable_circle_primary.xml.flat",
+        "source": "com.example.creditcalculator.app-main-35:/drawable/circle_primary.xml"
     },
     {
-        "merged": "com.example.creditcalculator.app-debug-32:/drawable_app_background.xml.flat",
-        "source": "com.example.creditcalculator.app-main-34:/drawable/app_background.xml"
+        "merged": "com.example.creditcalculator.app-debug-33:/drawable_ic_launcher.xml.flat",
+        "source": "com.example.creditcalculator.app-main-35:/drawable/ic_launcher.xml"
     }
 ]

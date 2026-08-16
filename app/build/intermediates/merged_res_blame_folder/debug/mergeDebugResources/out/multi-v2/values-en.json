@@ -1,7 +1,7 @@
 {
     "logs": [
         {
-            "outputFile": "com.example.creditcalculator.app-mergeDebugResources-30:/values-en/values-en.xml",
+            "outputFile": "com.example.creditcalculator.app-mergeDebugResources-31:/values-en/values-en.xml",
             "map": [
                 {
                     "source": "/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/res/values-en/strings.xml",

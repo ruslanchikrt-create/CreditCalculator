@@ -10,6 +10,7 @@ MERGED from [androidx.appcompat:appcompat-resources:1.7.0] /home/runner/.gradle/
 MERGED from [androidx.constraintlayout:constraintlayout:2.0.1] /home/runner/.gradle/caches/8.9/transforms/878e6606f0fa93cf854b981722e3b33e/transformed/constraintlayout-2.0.1/AndroidManifest.xml:2:1-11:12
 MERGED from [androidx.appcompat:appcompat:1.7.0] /home/runner/.gradle/caches/8.9/transforms/2e5dede616097980bb091ccafda52a7d/transformed/appcompat-1.7.0/AndroidManifest.xml:2:1-7:12
 MERGED from [androidx.drawerlayout:drawerlayout:1.2.0] /home/runner/.gradle/caches/8.9/transforms/0da61c79e1a214183488d0366ead0b8f/transformed/drawerlayout-1.2.0/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.swiperefreshlayout:swiperefreshlayout:1.1.0] /home/runner/.gradle/caches/8.9/transforms/1015b06be6eb99d97e1b1d7bc3e10351/transformed/swiperefreshlayout-1.1.0/AndroidManifest.xml:17:1-24:12
 MERGED from [androidx.viewpager2:viewpager2:1.0.0] /home/runner/.gradle/caches/8.9/transforms/0b5701b45cefc11dd7228e4e2fe91120/transformed/jetified-viewpager2-1.0.0/AndroidManifest.xml:17:1-24:12
 MERGED from [androidx.fragment:fragment:1.5.4] /home/runner/.gradle/caches/8.9/transforms/4b50fe5564999dba304c37e71048dba5/transformed/fragment-1.5.4/AndroidManifest.xml:17:1-24:12
 MERGED from [androidx.activity:activity:1.8.0] /home/runner/.gradle/caches/8.9/transforms/f28ef43b18d69687fdcd8c18846c9bdc/transformed/jetified-activity-1.8.0/AndroidManifest.xml:17:1-22:12
@@ -36,8 +37,8 @@ MERGED from [androidx.vectordrawable:vectordrawable:1.1.0] /home/runner/.gradle/
 MERGED from [androidx.core:core:1.13.0] /home/runner/.gradle/caches/8.9/transforms/b203f511e6f88234a93304f4ae9934a6/transformed/core-1.13.0/AndroidManifest.xml:17:1-30:12
 MERGED from [androidx.cursoradapter:cursoradapter:1.0.0] /home/runner/.gradle/caches/8.9/transforms/52849f75b5449c36399f371e9d37d576/transformed/cursoradapter-1.0.0/AndroidManifest.xml:17:1-22:12
 MERGED from [androidx.profileinstaller:profileinstaller:1.3.1] /home/runner/.gradle/caches/8.9/transforms/e28e33e85efdc50a2a6e89480e1ee163/transformed/jetified-profileinstaller-1.3.1/AndroidManifest.xml:17:1-55:12
-MERGED from [androidx.cardview:cardview:1.0.0] /home/runner/.gradle/caches/8.9/transforms/6686a20c7c8bc378b96eda11506c15cc/transformed/cardview-1.0.0/AndroidManifest.xml:17:1-22:12
 MERGED from [androidx.interpolator:interpolator:1.0.0] /home/runner/.gradle/caches/8.9/transforms/a8f40d0c746f796fad03a5a879913dd8/transformed/interpolator-1.0.0/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.cardview:cardview:1.0.0] /home/runner/.gradle/caches/8.9/transforms/6686a20c7c8bc378b96eda11506c15cc/transformed/cardview-1.0.0/AndroidManifest.xml:17:1-22:12
 MERGED from [androidx.versionedparcelable:versionedparcelable:1.1.1] /home/runner/.gradle/caches/8.9/transforms/65e6615ddb8c309e28d477697077111c/transformed/versionedparcelable-1.1.1/AndroidManifest.xml:17:1-27:12
 MERGED from [androidx.startup:startup-runtime:1.1.1] /home/runner/.gradle/caches/8.9/transforms/b9cddd0634a7503153c5b3ca0bd32837/transformed/jetified-startup-runtime-1.1.1/AndroidManifest.xml:17:1-33:12
 MERGED from [androidx.tracing:tracing:1.0.0] /home/runner/.gradle/caches/8.9/transforms/8bbd28fde08b915ce37801ce2a136711/transformed/jetified-tracing-1.0.0/AndroidManifest.xml:17:1-24:12
@@ -307,6 +308,8 @@ MERGED from [androidx.appcompat:appcompat:1.7.0] /home/runner/.gradle/caches/8.9
 MERGED from [androidx.appcompat:appcompat:1.7.0] /home/runner/.gradle/caches/8.9/transforms/2e5dede616097980bb091ccafda52a7d/transformed/appcompat-1.7.0/AndroidManifest.xml:5:5-44
 MERGED from [androidx.drawerlayout:drawerlayout:1.2.0] /home/runner/.gradle/caches/8.9/transforms/0da61c79e1a214183488d0366ead0b8f/transformed/drawerlayout-1.2.0/AndroidManifest.xml:20:5-44
 MERGED from [androidx.drawerlayout:drawerlayout:1.2.0] /home/runner/.gradle/caches/8.9/transforms/0da61c79e1a214183488d0366ead0b8f/transformed/drawerlayout-1.2.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.swiperefreshlayout:swiperefreshlayout:1.1.0] /home/runner/.gradle/caches/8.9/transforms/1015b06be6eb99d97e1b1d7bc3e10351/transformed/swiperefreshlayout-1.1.0/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.swiperefreshlayout:swiperefreshlayout:1.1.0] /home/runner/.gradle/caches/8.9/transforms/1015b06be6eb99d97e1b1d7bc3e10351/transformed/swiperefreshlayout-1.1.0/AndroidManifest.xml:20:5-22:41
 MERGED from [androidx.viewpager2:viewpager2:1.0.0] /home/runner/.gradle/caches/8.9/transforms/0b5701b45cefc11dd7228e4e2fe91120/transformed/jetified-viewpager2-1.0.0/AndroidManifest.xml:20:5-22:41
 MERGED from [androidx.viewpager2:viewpager2:1.0.0] /home/runner/.gradle/caches/8.9/transforms/0b5701b45cefc11dd7228e4e2fe91120/transformed/jetified-viewpager2-1.0.0/AndroidManifest.xml:20:5-22:41
 MERGED from [androidx.fragment:fragment:1.5.4] /home/runner/.gradle/caches/8.9/transforms/4b50fe5564999dba304c37e71048dba5/transformed/fragment-1.5.4/AndroidManifest.xml:20:5-22:41
@@ -359,10 +362,10 @@ MERGED from [androidx.cursoradapter:cursoradapter:1.0.0] /home/runner/.gradle/ca
 MERGED from [androidx.cursoradapter:cursoradapter:1.0.0] /home/runner/.gradle/caches/8.9/transforms/52849f75b5449c36399f371e9d37d576/transformed/cursoradapter-1.0.0/AndroidManifest.xml:20:5-44
 MERGED from [androidx.profileinstaller:profileinstaller:1.3.1] /home/runner/.gradle/caches/8.9/transforms/e28e33e85efdc50a2a6e89480e1ee163/transformed/jetified-profileinstaller-1.3.1/AndroidManifest.xml:21:5-44
 MERGED from [androidx.profileinstaller:profileinstaller:1.3.1] /home/runner/.gradle/caches/8.9/transforms/e28e33e85efdc50a2a6e89480e1ee163/transformed/jetified-profileinstaller-1.3.1/AndroidManifest.xml:21:5-44
-MERGED from [androidx.cardview:cardview:1.0.0] /home/runner/.gradle/caches/8.9/transforms/6686a20c7c8bc378b96eda11506c15cc/transformed/cardview-1.0.0/AndroidManifest.xml:20:5-44
-MERGED from [androidx.cardview:cardview:1.0.0] /home/runner/.gradle/caches/8.9/transforms/6686a20c7c8bc378b96eda11506c15cc/transformed/cardview-1.0.0/AndroidManifest.xml:20:5-44
 MERGED from [androidx.interpolator:interpolator:1.0.0] /home/runner/.gradle/caches/8.9/transforms/a8f40d0c746f796fad03a5a879913dd8/transformed/interpolator-1.0.0/AndroidManifest.xml:20:5-44
 MERGED from [androidx.interpolator:interpolator:1.0.0] /home/runner/.gradle/caches/8.9/transforms/a8f40d0c746f796fad03a5a879913dd8/transformed/interpolator-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.cardview:cardview:1.0.0] /home/runner/.gradle/caches/8.9/transforms/6686a20c7c8bc378b96eda11506c15cc/transformed/cardview-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.cardview:cardview:1.0.0] /home/runner/.gradle/caches/8.9/transforms/6686a20c7c8bc378b96eda11506c15cc/transformed/cardview-1.0.0/AndroidManifest.xml:20:5-44
 MERGED from [androidx.versionedparcelable:versionedparcelable:1.1.1] /home/runner/.gradle/caches/8.9/transforms/65e6615ddb8c309e28d477697077111c/transformed/versionedparcelable-1.1.1/AndroidManifest.xml:20:5-22:41
 MERGED from [androidx.versionedparcelable:versionedparcelable:1.1.1] /home/runner/.gradle/caches/8.9/transforms/65e6615ddb8c309e28d477697077111c/transformed/versionedparcelable-1.1.1/AndroidManifest.xml:20:5-22:41
 MERGED from [androidx.startup:startup-runtime:1.1.1] /home/runner/.gradle/caches/8.9/transforms/b9cddd0634a7503153c5b3ca0bd32837/transformed/jetified-startup-runtime-1.1.1/AndroidManifest.xml:21:5-23:41

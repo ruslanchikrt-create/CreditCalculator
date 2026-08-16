@@ -1,7 +1,7 @@
 {
     "logs": [
         {
-            "outputFile": "com.example.creditcalculator.app-mergeDebugResources-30:/values-en-rCA/values-en-rCA.xml",
+            "outputFile": "com.example.creditcalculator.app-mergeDebugResources-31:/values-en-rCA/values-en-rCA.xml",
             "map": [
                 {
                     "source": "/home/runner/.gradle/caches/8.9/transforms/007a1fa5a6ec99e744e97e63217b9e84/transformed/biometric-1.1.0/res/values-en-rCA/values-en-rCA.xml",
