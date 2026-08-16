@@ -1,0 +1,46 @@
+name: Apply v1.9 notification lint fix
+
+on:
+  push:
+    branches:
+      - v1.9-work
+    paths:
+      - .github/v19-notification-fix-trigger.txt
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: v1.9-work
+      - name: Fix notification action routing
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          p=Path('app/src/main/java/com/example/creditcalculator/PaymentActionReceiver.java')
+          s=p.read_text()
+          old='''        // When app protection is enabled, never change financial data from the lock screen.\n        // Open the protected payment page instead; CreditApplication puts LockActivity on top.\n        if (AppPreferences.isSecurityEnabled(context)) {\n            Intent open = new Intent(context, PaymentDetailsActivity.class);\n            open.putExtra(PaymentDetailsActivity.EXTRA_REMINDER_ID, id);\n            open.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);\n            context.startActivity(open);\n            return;\n        }\n        ReminderScheduler.markPaid(context, id, index, System.currentTimeMillis(), ReminderScheduler.paymentAmount(r, index), 0);'''
+          new='''        // With app protection enabled the notification uses a direct Activity PendingIntent,\n        // so this receiver is only reached when it is safe to record the payment immediately.\n        if (AppPreferences.isSecurityEnabled(context)) return;\n        ReminderScheduler.markPaid(context, id, index, System.currentTimeMillis(), ReminderScheduler.paymentAmount(r, index), 0);'''
+          if old not in s: raise SystemExit('PaymentActionReceiver target not found')
+          p.write_text(s.replace(old,new,1))
+
+          p=Path('app/src/main/java/com/example/creditcalculator/ReminderReceiver.java')
+          s=p.read_text()
+          old='''        Intent paid = new Intent(context, PaymentActionReceiver.class);\n        paid.setAction(PaymentActionReceiver.ACTION_MARK_PAID);\n        paid.putExtra("reminder_id", id); paid.putExtra("payment_index", index); paid.putExtra("notification_id", notificationId);\n        PendingIntent paidIntent = PendingIntent.getBroadcast(context, notificationId + 100000, paid, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);'''
+          new='''        PendingIntent paidIntent;\n        if (AppPreferences.isSecurityEnabled(context)) {\n            // Protected apps never mutate financial data from the lock screen.\n            // Open the protected record directly; CreditApplication will present LockActivity first.\n            Intent paidOpen = new Intent(context, PaymentDetailsActivity.class);\n            paidOpen.putExtra(PaymentDetailsActivity.EXTRA_REMINDER_ID, id);\n            paidOpen.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);\n            paidIntent = PendingIntent.getActivity(context, notificationId + 100000, paidOpen, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);\n        } else {\n            Intent paid = new Intent(context, PaymentActionReceiver.class);\n            paid.setAction(PaymentActionReceiver.ACTION_MARK_PAID);\n            paid.putExtra("reminder_id", id); paid.putExtra("payment_index", index); paid.putExtra("notification_id", notificationId);\n            paidIntent = PendingIntent.getBroadcast(context, notificationId + 100000, paid, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);\n        }'''
+          if old not in s: raise SystemExit('ReminderReceiver target not found')
+          p.write_text(s.replace(old,new,1))
+          PY
+      - name: Commit fix
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/src/main/java/com/example/creditcalculator/PaymentActionReceiver.java app/src/main/java/com/example/creditcalculator/ReminderReceiver.java
+          git diff --cached --quiet && exit 0
+          git commit -m "fix: route protected notification actions directly"
+          git push origin HEAD:v1.9-work
