@@ -4,11 +4,13 @@ import android.Manifest;
 import android.app.DatePickerDialog;
 import android.app.TimePickerDialog;
 import android.content.Context;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.os.Build;
 import android.os.Bundle;
+import android.provider.Settings;
 import android.text.Editable;
 import android.text.InputType;
 import android.text.TextWatcher;
@@ -65,7 +67,7 @@ public class AddReminderActivity extends AppCompatActivity {
     private MaterialButton saveButton;
     private Calendar selectedDate;
     private int selectedHour = 9, selectedMinute = 0;
-    private boolean updatingPayment, updatingTitle, titleEditedByUser, saving;
+    private boolean updatingPayment, updatingTitle, titleEditedByUser, saving, waitingNotificationPermission, waitingNotificationSettings;
     private ReminderScheduler.PaymentReminder editReminder;
 
     @Override protected void attachBaseContext(Context newBase) { super.attachBaseContext(AppPreferences.wrapLocale(newBase)); }
@@ -90,16 +92,16 @@ public class AddReminderActivity extends AppCompatActivity {
 
         addLabel(content,AppPreferences.tr(this,"Тип","Type")); typeSpinner=createSpinner(); content.addView(typeSpinner,spinnerParams());
         titleInput=addField(content,AppPreferences.tr(this,"Название","Name"),InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_FLAG_CAP_SENTENCES);
-        principalLayout=addLayout(content,AppPreferences.tr(this,"Сумма кредита, ₽","Loan amount, ₽")); principalInput=addInput(principalLayout,InputType.TYPE_CLASS_NUMBER|InputType.TYPE_NUMBER_FLAG_DECIMAL);UiUtils.attachMoneyFormatting(principalInput);
-        downPaymentLayout=addLayout(content,AppPreferences.tr(this,"Первоначальный взнос, ₽","Down payment, ₽")); downPaymentInput=addInput(downPaymentLayout,InputType.TYPE_CLASS_NUMBER|InputType.TYPE_NUMBER_FLAG_DECIMAL);UiUtils.attachMoneyFormatting(downPaymentInput);
-        insuranceLayout=addLayout(content,AppPreferences.tr(this,"Страховка, ₽","Insurance, ₽")); insuranceInput=addInput(insuranceLayout,InputType.TYPE_CLASS_NUMBER|InputType.TYPE_NUMBER_FLAG_DECIMAL);UiUtils.attachMoneyFormatting(insuranceInput);
+        principalLayout=addLayout(content,AppPreferences.tr(this,"Сумма кредита, ₽","Loan amount, ₽")); attachInfo(principalLayout,AppPreferences.tr(this,"Основная сумма","Main amount"),AppPreferences.tr(this,"Укажите полную сумму кредита или стоимость покупки до вычета первоначального взноса. Для вклада укажите сумму вклада.","Enter the full loan/purchase amount before subtracting the down payment. For a deposit, enter the deposit amount.")); principalInput=addInput(principalLayout,InputType.TYPE_CLASS_NUMBER|InputType.TYPE_NUMBER_FLAG_DECIMAL);UiUtils.attachMoneyFormatting(principalInput);
+        downPaymentLayout=addLayout(content,AppPreferences.tr(this,"Первоначальный взнос, ₽","Down payment, ₽")); attachInfo(downPaymentLayout,AppPreferences.tr(this,"Первоначальный взнос","Down payment"),AppPreferences.tr(this,"Сумма, которую вы вносите сразу. Она должна быть меньше основной суммы.","The amount you pay upfront. It must be less than the main amount.")); downPaymentInput=addInput(downPaymentLayout,InputType.TYPE_CLASS_NUMBER|InputType.TYPE_NUMBER_FLAG_DECIMAL);UiUtils.attachMoneyFormatting(downPaymentInput);
+        insuranceLayout=addLayout(content,AppPreferences.tr(this,"Страховка, ₽","Insurance, ₽")); attachInfo(insuranceLayout,AppPreferences.tr(this,"Страховка","Insurance"),AppPreferences.tr(this,"Введите стоимость страховки. Переключатель ниже определяет, включать ли страховку в финансируемую сумму.","Enter the insurance cost. The switch below controls whether insurance is included in the financed amount.")); insuranceInput=addInput(insuranceLayout,InputType.TYPE_CLASS_NUMBER|InputType.TYPE_NUMBER_FLAG_DECIMAL);UiUtils.attachMoneyFormatting(insuranceInput);
         insuranceFinancedSwitch=new SwitchMaterial(this); insuranceFinancedSwitch.setText(AppPreferences.tr(this,"Включить страховку в сумму кредита","Include insurance in financed amount")); insuranceFinancedSwitch.setTextColor(ContextCompat.getColor(this,R.color.text_main)); insuranceFinancedSwitch.setTextSize(14); insuranceFinancedSwitch.setChecked(true); LinearLayout.LayoutParams isp=new LinearLayout.LayoutParams(-1,-2);isp.setMargins(0,dp(-4),0,dp(10));content.addView(insuranceFinancedSwitch,isp);
-        rateLayout=addLayout(content,AppPreferences.tr(this,"Процентная ставка, % годовых","Interest rate, % per year")); rateInput=addInput(rateLayout,InputType.TYPE_CLASS_NUMBER|InputType.TYPE_NUMBER_FLAG_DECIMAL);
-        addTermRow(content);
+        rateLayout=addLayout(content,AppPreferences.tr(this,"Процентная ставка, % годовых","Interest rate, % per year")); attachInfo(rateLayout,AppPreferences.tr(this,"Процентная ставка","Interest rate"),AppPreferences.tr(this,"Укажите годовую процентную ставку по договору.","Enter the annual interest rate from the agreement.")); rateInput=addInput(rateLayout,InputType.TYPE_CLASS_NUMBER|InputType.TYPE_NUMBER_FLAG_DECIMAL);
+        addTermRow(content); attachInfo(termLayout,AppPreferences.tr(this,"Срок","Term"),AppPreferences.tr(this,"Укажите срок и выберите справа месяцы или годы.","Enter the term and choose months or years on the right."));
         addLabel(content,AppPreferences.tr(this,"Тип платежей","Payment type")); paymentTypeSpinner=createSpinner(); content.addView(paymentTypeSpinner,spinnerParams());
-        paymentLayout=addLayout(content,AppPreferences.tr(this,"Ежемесячный платёж, ₽ (можно изменить)","Monthly payment, ₽ (editable)")); paymentInput=addInput(paymentLayout,InputType.TYPE_CLASS_NUMBER|InputType.TYPE_NUMBER_FLAG_DECIMAL);UiUtils.attachMoneyFormatting(paymentInput);
-        dateLayout=addLayout(content,AppPreferences.tr(this,"Дата первого платежа","First payment date")); dateInput=addInput(dateLayout,InputType.TYPE_NULL); dateInput.setFocusable(false);dateInput.setClickable(true);dateInput.setOnClickListener(v->pickDate());
-        timeLayout=addLayout(content,AppPreferences.tr(this,"Время напоминания","Reminder time")); timeInput=addInput(timeLayout,InputType.TYPE_NULL); timeInput.setFocusable(false);timeInput.setClickable(true);timeInput.setText("09:00");timeInput.setOnClickListener(v->pickTime());
+        paymentLayout=addLayout(content,AppPreferences.tr(this,"Ежемесячный платёж, ₽ (можно изменить)","Monthly payment, ₽ (editable)")); attachInfo(paymentLayout,AppPreferences.tr(this,"Ежемесячный платёж","Monthly payment"),AppPreferences.tr(this,"Приложение рассчитывает платёж автоматически. Если банк указал другую фактическую сумму, её можно ввести вручную.","The app calculates this automatically. If the bank gives a different actual amount, you can enter it manually.")); paymentInput=addInput(paymentLayout,InputType.TYPE_CLASS_NUMBER|InputType.TYPE_NUMBER_FLAG_DECIMAL);UiUtils.attachMoneyFormatting(paymentInput);
+        dateLayout=addLayout(content,AppPreferences.tr(this,"Дата первого платежа","First payment date")); attachInfo(dateLayout,AppPreferences.tr(this,"Дата первого платежа","First payment date"),AppPreferences.tr(this,"Выберите дату первого платежа. От неё строится график следующих платежей.","Choose the first payment date. The following payment schedule is built from it.")); dateInput=addInput(dateLayout,InputType.TYPE_NULL); dateInput.setFocusable(false);dateInput.setClickable(true);dateInput.setOnClickListener(v->pickDate());
+        timeLayout=addLayout(content,AppPreferences.tr(this,"Время напоминания","Reminder time")); attachInfo(timeLayout,AppPreferences.tr(this,"Время напоминания","Reminder time"),AppPreferences.tr(this,"В это время приложение показывает уведомление. Если платёж сегодня, а выбранное время уже прошло, уведомление появится сразу после сохранения.","The app shows the notification at this time. If the payment is today and the selected time has already passed, the notification appears immediately after saving.")); timeInput=addInput(timeLayout,InputType.TYPE_NULL); timeInput.setFocusable(false);timeInput.setClickable(true);timeInput.setText("09:00");timeInput.setOnClickListener(v->pickTime());
         addLabel(content,AppPreferences.tr(this,"Напомнить до платежа","Remind before payment")); daysSpinner=createSpinner(); content.addView(daysSpinner,spinnerParams());
 
         saveButton=new MaterialButton(this);saveButton.setText(AppPreferences.tr(this,"Сохранить","Save"));saveButton.setAllCaps(false);saveButton.setTextSize(17);saveButton.setTextColor(Color.WHITE);saveButton.setBackgroundTintList(ColorStateList.valueOf(ContextCompat.getColor(this,R.color.primary)));saveButton.setCornerRadius(dp(14));saveButton.setOnClickListener(v->save());LinearLayout.LayoutParams sv=new LinearLayout.LayoutParams(-1,dp(56));sv.setMargins(0,dp(8),0,dp(16));content.addView(saveButton,sv);
@@ -158,7 +160,7 @@ public class AddReminderActivity extends AppCompatActivity {
     private void persistReminder(ReminderScheduler.PaymentReminder r,boolean past){
         try{
             if(editReminder==null)ReminderScheduler.add(getApplicationContext(),r);else ReminderScheduler.updateEdited(getApplicationContext(),r);
-            runOnUiThread(()->{if(isFinishing()||isDestroyed())return;saving=false;saveButton.setEnabled(true);saveButton.setText(AppPreferences.tr(this,"Сохранить","Save"));requestNotificationPermissionIfNeeded();if(editReminder==null&&past)showPastDialog(r.id);else finishSaved();});
+            runOnUiThread(()->{if(isFinishing()||isDestroyed())return;saving=false;saveButton.setEnabled(true);saveButton.setText(AppPreferences.tr(this,"Сохранить","Save"));if(editReminder==null&&past)showPastDialog(r.id);else finishSaved();});
         }catch(Throwable error){
             Log.e(TAG,"Unable to save payment",error);
             runOnUiThread(()->{if(isFinishing()||isDestroyed())return;saving=false;saveButton.setEnabled(true);saveButton.setText(AppPreferences.tr(this,"Сохранить","Save"));Toast.makeText(this,AppPreferences.tr(this,"Не удалось сохранить запись. Попробуйте ещё раз.","Could not save the item. Please try again."),Toast.LENGTH_LONG).show();});
@@ -175,8 +177,59 @@ public class AddReminderActivity extends AppCompatActivity {
 
     private boolean hasPastPayments(ReminderScheduler.PaymentReminder r){for(int i=0;i<r.months;i++){Calendar d=ReminderScheduler.buildDueDate(r,i);d.set(Calendar.HOUR_OF_DAY,23);d.set(Calendar.MINUTE,59);if(d.getTimeInMillis()<System.currentTimeMillis())return true;}return false;}
     private void showPastDialog(long id){new AlertDialog.Builder(this).setTitle(AppPreferences.tr(this,"Прошедшие платежи","Past payments")).setMessage(AppPreferences.tr(this,"Прошедшие платежи были оплачены по графику?","Were past payments paid according to schedule?")).setNegativeButton(AppPreferences.tr(this,"Нет, оставить неоплаченными","No, leave unpaid"),(d,w)->finishSaved()).setPositiveButton(AppPreferences.tr(this,"Да, отметить оплаченными","Yes, mark paid"),(d,w)->{new Thread(()->{ReminderScheduler.markPastPaid(getApplicationContext(),id);runOnUiThread(this::finishSaved);},"mark-past-paid").start();}).setCancelable(false).show();}
-    private void finishSaved(){requestNotificationPermissionIfNeeded();Toast.makeText(this,editReminder==null?AppPreferences.tr(this,"Запись сохранена","Saved"):AppPreferences.tr(this,"Изменения сохранены","Changes saved"),Toast.LENGTH_LONG).show();setResult(RESULT_OK);finish();}
-    private void requestNotificationPermissionIfNeeded(){if(Build.VERSION.SDK_INT>=33&&ContextCompat.checkSelfPermission(this,Manifest.permission.POST_NOTIFICATIONS)!=PackageManager.PERMISSION_GRANTED)ActivityCompat.requestPermissions(this,new String[]{Manifest.permission.POST_NOTIFICATIONS},NOTIFICATION_PERMISSION_REQUEST);}
+    private void finishSaved(){
+        if(Build.VERSION.SDK_INT>=33&&ContextCompat.checkSelfPermission(this,Manifest.permission.POST_NOTIFICATIONS)!=PackageManager.PERMISSION_GRANTED){
+            waitingNotificationPermission=true;
+            ActivityCompat.requestPermissions(this,new String[]{Manifest.permission.POST_NOTIFICATIONS},NOTIFICATION_PERMISSION_REQUEST);
+            return;
+        }
+        completeSaved();
+    }
+
+    private void completeSaved(){
+        waitingNotificationPermission=false;waitingNotificationSettings=false;
+        Toast.makeText(this,editReminder==null?AppPreferences.tr(this,"Запись сохранена","Saved"):AppPreferences.tr(this,"Изменения сохранены","Changes saved"),Toast.LENGTH_LONG).show();
+        setResult(RESULT_OK);finish();
+    }
+
+    private void rescheduleAfterPermission(){
+        new Thread(()->{ReminderScheduler.rescheduleAll(getApplicationContext());runOnUiThread(()->{if(!isFinishing()&&!isDestroyed())completeSaved();});},"notification-reschedule").start();
+    }
+
+    @Override public void onRequestPermissionsResult(int requestCode,String[] permissions,int[] grantResults){
+        super.onRequestPermissionsResult(requestCode,permissions,grantResults);
+        if(requestCode!=NOTIFICATION_PERMISSION_REQUEST)return;
+        waitingNotificationPermission=false;
+        if(grantResults.length>0&&grantResults[0]==PackageManager.PERMISSION_GRANTED){rescheduleAfterPermission();return;}
+        new AlertDialog.Builder(this)
+                .setTitle(AppPreferences.tr(this,"Уведомления выключены","Notifications are disabled"))
+                .setMessage(AppPreferences.tr(this,"Чтобы напоминания о платежах появлялись в шторке, разрешите уведомления для приложения в настройках Android.","Allow notifications for the app in Android settings so payment reminders can appear in the notification shade."))
+                .setNegativeButton(AppPreferences.tr(this,"Продолжить без уведомлений","Continue without notifications"),(d,w)->completeSaved())
+                .setPositiveButton(AppPreferences.tr(this,"Открыть настройки","Open settings"),(d,w)->openNotificationSettings())
+                .setCancelable(false).show();
+    }
+
+    private void openNotificationSettings(){
+        waitingNotificationSettings=true;
+        try{Intent i=new Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS);i.putExtra(Settings.EXTRA_APP_PACKAGE,getPackageName());startActivity(i);}
+        catch(Exception e){Intent i=new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,android.net.Uri.parse("package:"+getPackageName()));startActivity(i);}
+    }
+
+    @Override protected void onResume(){
+        super.onResume();
+        if(waitingNotificationSettings&&Build.VERSION.SDK_INT>=33&&ContextCompat.checkSelfPermission(this,Manifest.permission.POST_NOTIFICATIONS)==PackageManager.PERMISSION_GRANTED){
+            waitingNotificationSettings=false;rescheduleAfterPermission();
+        }
+    }
+
+    private void attachInfo(TextInputLayout layout,String title,String message){
+        if(layout==null)return;
+        layout.setEndIconMode(TextInputLayout.END_ICON_CUSTOM);
+        layout.setEndIconDrawable(android.R.drawable.ic_dialog_info);
+        layout.setEndIconTintList(ColorStateList.valueOf(ContextCompat.getColor(this,R.color.primary)));
+        layout.setEndIconContentDescription(AppPreferences.tr(this,"Подсказка","Help"));
+        layout.setEndIconOnClickListener(v->new AlertDialog.Builder(this).setTitle(title).setMessage(message).setPositiveButton(AppPreferences.tr(this,"Понятно","OK"),null).show());
+    }
 
     private TextInputEditText addField(LinearLayout p,String h,int it){TextInputLayout l=addLayout(p,h);return addInput(l,it);} private TextInputLayout addLayout(LinearLayout p,String h){TextInputLayout l=createLayout(h);LinearLayout.LayoutParams x=new LinearLayout.LayoutParams(-1,-2);x.setMargins(0,0,0,dp(12));p.addView(l,x);return l;} private TextInputLayout createLayout(String h){TextInputLayout l=new TextInputLayout(this);l.setHint(h);l.setBoxBackgroundMode(TextInputLayout.BOX_BACKGROUND_OUTLINE);l.setBoxBackgroundColor(ContextCompat.getColor(this,R.color.card_background));l.setBoxStrokeColor(ContextCompat.getColor(this,R.color.primary));l.setHintTextColor(ColorStateList.valueOf(ContextCompat.getColor(this,R.color.text_secondary)));l.setBoxCornerRadii(dp(14),dp(14),dp(14),dp(14));return l;} private TextInputEditText addInput(TextInputLayout l,int type){TextInputEditText e=createInput(type);l.addView(e,new TextInputLayout.LayoutParams(-1,-2));return e;} private TextInputEditText createInput(int type){TextInputEditText e=new TextInputEditText(this);e.setInputType(type);e.setSingleLine(true);e.setMinHeight(dp(58));e.setTextColor(ContextCompat.getColor(this,R.color.text_main));UiUtils.keepFieldVisibleOnFocus(formScroll,e);return e;}
     private Spinner createSpinner(){Spinner s=new Spinner(this);UiUtils.styleSpinner(this,s);return s;} private LinearLayout.LayoutParams spinnerParams(){LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-1,dp(56));p.setMargins(0,0,0,dp(12));return p;} private void addLabel(LinearLayout p,String s){TextView t=text(s,14,R.color.text_secondary,true);LinearLayout.LayoutParams x=new LinearLayout.LayoutParams(-1,-2);x.setMargins(0,0,0,dp(6));p.addView(t,x);}
