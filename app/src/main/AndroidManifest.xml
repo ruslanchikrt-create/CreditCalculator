@@ -2,52 +2,34 @@
 
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.USE_BIOMETRIC" />
+    <uses-permission android:name="android.permission.USE_FINGERPRINT" />
 
     <application
+        android:name=".CreditApplication"
         android:allowBackup="true"
         android:icon="@drawable/ic_launcher"
         android:roundIcon="@drawable/ic_launcher"
         android:label="@string/app_name"
         android:theme="@style/Theme.CreditCalculator">
 
+        <activity android:name=".LanguageSelectionActivity" android:exported="false" />
+        <activity android:name=".LockActivity" android:exported="false" />
+        <activity android:name=".SecurityActivity" android:exported="false" android:windowSoftInputMode="adjustResize" />
+        <activity android:name=".SnoozeActivity" android:exported="false" />
+        <activity android:name=".EarlyRepaymentActivity" android:exported="false" android:windowSoftInputMode="adjustResize" />
+        <activity android:name=".RefinanceActivity" android:exported="false" android:windowSoftInputMode="adjustResize" />
         <activity android:name=".InstructionActivity" android:exported="false" />
         <activity android:name=".AboutActivity" android:exported="false" />
         <activity android:name=".HistoryActivity" android:exported="false" />
 
-        <activity
-            android:name=".ProfileActivity"
-            android:exported="false"
-            android:windowSoftInputMode="adjustResize" />
-
-        <activity
-            android:name=".TrashActivity"
-            android:exported="false"
-            android:windowSoftInputMode="adjustResize" />
-
-        <activity
-            android:name=".ArchiveActivity"
-            android:exported="false"
-            android:windowSoftInputMode="adjustResize" />
-
-        <activity
-            android:name=".PaymentDetailsActivity"
-            android:exported="false"
-            android:windowSoftInputMode="adjustResize" />
-
-        <activity
-            android:name=".PaymentsActivity"
-            android:exported="false"
-            android:windowSoftInputMode="adjustResize" />
-
-        <activity
-            android:name=".SettingsActivity"
-            android:exported="false"
-            android:windowSoftInputMode="adjustResize" />
-
-        <activity
-            android:name=".AddReminderActivity"
-            android:exported="false"
-            android:windowSoftInputMode="adjustResize" />
+        <activity android:name=".ProfileActivity" android:exported="false" android:windowSoftInputMode="adjustResize" />
+        <activity android:name=".TrashActivity" android:exported="false" android:windowSoftInputMode="adjustResize" />
+        <activity android:name=".ArchiveActivity" android:exported="false" android:windowSoftInputMode="adjustResize" />
+        <activity android:name=".PaymentDetailsActivity" android:exported="false" android:windowSoftInputMode="adjustResize" />
+        <activity android:name=".PaymentsActivity" android:exported="false" android:windowSoftInputMode="adjustResize" />
+        <activity android:name=".SettingsActivity" android:exported="false" android:windowSoftInputMode="adjustResize" />
+        <activity android:name=".AddReminderActivity" android:exported="false" android:windowSoftInputMode="adjustResize" />
 
         <activity
             android:name=".MainActivity"
@@ -59,14 +41,9 @@
             </intent-filter>
         </activity>
 
-        <receiver
-            android:name=".ReminderReceiver"
-            android:exported="false" />
-
-        <receiver
-            android:name=".BootReceiver"
-            android:enabled="true"
-            android:exported="false">
+        <receiver android:name=".ReminderReceiver" android:exported="false" />
+        <receiver android:name=".PaymentActionReceiver" android:exported="false" />
+        <receiver android:name=".BootReceiver" android:enabled="true" android:exported="false">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
                 <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
