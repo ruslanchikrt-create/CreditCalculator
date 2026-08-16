@@ -1,12 +1,15 @@
 package com.example.creditcalculator;
 
+import android.app.Dialog;
 import android.content.Context;
 import android.content.Intent;
 import android.content.res.ColorStateList;
 import android.graphics.Color;
+import android.graphics.drawable.ColorDrawable;
 import android.os.Bundle;
 import android.view.Gravity;
 import android.view.View;
+import android.view.Window;
 import android.widget.LinearLayout;
 import android.widget.PopupMenu;
 import android.widget.ScrollView;
@@ -102,18 +105,29 @@ public class PaymentsActivity extends AppCompatActivity {
     }
 
     private void showNavigationMenu(View anchor){
-        PopupMenu m=new PopupMenu(this,anchor);
-        String calculators=AppPreferences.tr(this,"Калькуляторы","Calculators");
-        String early=AppPreferences.tr(this,"Досрочный платёж","Early payment");
-        String cabinet=AppPreferences.tr(this,"Личный кабинет","Personal cabinet");
-        String archive=AppPreferences.tr(this,"Архив","Archive");
-        String trash=AppPreferences.tr(this,"Корзина","Trash");
-        String settings=AppPreferences.tr(this,"Настройки","Settings");
-        String about=AppPreferences.tr(this,"О приложении","About");
-        m.getMenu().add(calculators);m.getMenu().add(early);m.getMenu().add(cabinet);m.getMenu().add(archive);m.getMenu().add(trash);m.getMenu().add(settings);m.getMenu().add(about);
-        m.setOnMenuItemClickListener(x->{String t=x.getTitle().toString();Intent i;if(t.equals(calculators)){i=new Intent(this,MainActivity.class);i.putExtra(MainActivity.EXTRA_SHOW_CALCULATORS,true);}else if(t.equals(early))i=new Intent(this,EarlyPaymentAdvisorActivity.class);else if(t.equals(cabinet))i=new Intent(this,PersonalCabinetActivity.class);else if(t.equals(archive))i=new Intent(this,ArchiveActivity.class);else if(t.equals(trash))i=new Intent(this,TrashActivity.class);else if(t.equals(settings))i=new Intent(this,SettingsActivity.class);else i=new Intent(this,AboutActivity.class);startActivity(i);return true;});
-        m.show();
+        if(isFinishing())return;
+        Dialog dialog=new Dialog(this);dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
+        LinearLayout panel=new LinearLayout(this);panel.setOrientation(LinearLayout.VERTICAL);panel.setBackgroundColor(ContextCompat.getColor(this,R.color.card_background));
+        LinearLayout header=new LinearLayout(this);header.setOrientation(LinearLayout.VERTICAL);header.setGravity(Gravity.CENTER_VERTICAL);header.setPadding(dp(22),dp(24),dp(18),dp(20));header.setBackgroundColor(ContextCompat.getColor(this,R.color.primary));panel.addView(header,new LinearLayout.LayoutParams(-1,dp(154)));
+        String fio=AppPreferences.getCabinetFullName(this);String profile=fio.isEmpty()?AppPreferences.getProfileName(this):fio;if(profile.isEmpty())profile=AppPreferences.tr(this,"Финансовый калькулятор","Financial calculator");
+        TextView app=text(AppPreferences.tr(this,"Финансовый калькулятор","Financial calculator"),14,R.color.white,false);header.addView(app);TextView name=text(profile,22,R.color.white,true);name.setMaxLines(3);LinearLayout.LayoutParams np=new LinearLayout.LayoutParams(-1,-2);np.setMargins(0,dp(8),0,0);header.addView(name,np);
+        panel.addView(navigationItem("☷",AppPreferences.tr(this,"Мои платежи","My payments"),true,dialog,PaymentsActivity.class,false));
+        panel.addView(navigationItem("▶",AppPreferences.tr(this,"Калькуляторы","Calculators"),false,dialog,MainActivity.class,true));
+        panel.addView(navigationItem("↗",AppPreferences.tr(this,"Досрочный платёж","Early payment"),false,dialog,EarlyPaymentAdvisorActivity.class,false));
+        panel.addView(navigationItem("▤",AppPreferences.tr(this,"Личный кабинет","Personal cabinet"),false,dialog,PersonalCabinetActivity.class,false));
+        panel.addView(navigationItem("▣",AppPreferences.tr(this,"Архив","Archive"),false,dialog,ArchiveActivity.class,false));
+        panel.addView(navigationItem("⌫",AppPreferences.tr(this,"Корзина","Trash"),false,dialog,TrashActivity.class,false));
+        panel.addView(navigationItem("⚙",AppPreferences.tr(this,"Настройки","Settings"),false,dialog,SettingsActivity.class,false));
+        View div=new View(this);div.setBackgroundColor(ContextCompat.getColor(this,R.color.border));panel.addView(div,new LinearLayout.LayoutParams(-1,dp(1)));
+        panel.addView(navigationItem("ⓘ",AppPreferences.tr(this,"О приложении","About"),false,dialog,AboutActivity.class,false));
+        TextView exit=navigationText("↪   "+AppPreferences.tr(this,"Выход","Exit"),false);exit.setOnClickListener(v->{dialog.dismiss();finishAffinity();});panel.addView(exit,new LinearLayout.LayoutParams(-1,dp(56)));
+        dialog.setContentView(panel);dialog.setCanceledOnTouchOutside(true);dialog.show();Window w=dialog.getWindow();if(w!=null){w.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));w.setDimAmount(.45f);w.addFlags(android.view.WindowManager.LayoutParams.FLAG_DIM_BEHIND);w.setGravity(Gravity.START);w.setLayout((int)(getResources().getDisplayMetrics().widthPixels*.82f),android.view.WindowManager.LayoutParams.MATCH_PARENT);}
     }
+
+    private TextView navigationItem(String icon,String label,boolean selected,Dialog dialog,Class<?> target,boolean calculators){
+        TextView item=navigationText(icon+"   "+label,selected);item.setOnClickListener(v->{dialog.dismiss();if(target==PaymentsActivity.class)return;Intent i=new Intent(this,target);if(calculators)i.putExtra(MainActivity.EXTRA_SHOW_CALCULATORS,true);startActivity(i);});return item;
+    }
+    private TextView navigationText(String value,boolean selected){TextView t=new TextView(this);t.setText(value);t.setTextSize(17);t.setGravity(Gravity.CENTER_VERTICAL);t.setPadding(dp(22),0,dp(12),0);t.setTextColor(ContextCompat.getColor(this,selected?R.color.primary:R.color.text_main));if(selected){t.setTypeface(null,android.graphics.Typeface.BOLD);t.setBackgroundColor(Color.argb(24,47,111,235));}return t;}
 
     private void showInfo(String title,String message){new AlertDialog.Builder(this).setTitle(title).setMessage(message).setPositiveButton(AppPreferences.tr(this,"Понятно","OK"),null).show();}
     private String infoForText(String source){

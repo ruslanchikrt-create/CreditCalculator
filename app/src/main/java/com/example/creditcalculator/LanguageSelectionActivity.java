@@ -73,7 +73,7 @@ public class LanguageSelectionActivity extends AppCompatActivity {
         cont.setOnClickListener(v -> {
             AppPreferences.setLanguage(this, selected);
             if (getApplication() instanceof CreditApplication) ((CreditApplication) getApplication()).markUnlocked();
-            Intent i = new Intent(this, MainActivity.class); i.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP); startActivity(i); finish();
+            Intent i = new Intent(this, PaymentsActivity.class); i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK); startActivity(i); finish();
         });
         LinearLayout.LayoutParams cp = new LinearLayout.LayoutParams(-1, dp(56)); cp.setMargins(0, dp(12), 0, 0); box.addView(cont, cp);
 

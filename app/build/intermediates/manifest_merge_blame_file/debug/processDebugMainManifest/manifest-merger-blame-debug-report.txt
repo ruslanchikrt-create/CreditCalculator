@@ -1,8 +1,8 @@
 1<?xml version="1.0" encoding="utf-8"?>
 2<manifest xmlns:android="http://schemas.android.com/apk/res/android"
 3    package="com.example.creditcalculator"
-4    android:versionCode="17"
-5    android:versionName="1.17" >
+4    android:versionCode="18"
+5    android:versionName="1.18" >
 6
 7    <uses-sdk
 8        android:minSdkVersion="23"
@@ -33,7 +33,7 @@
 20-->[androidx.core:core:1.13.0] /home/runner/.gradle/caches/8.9/transforms/b203f511e6f88234a93304f4ae9934a6/transformed/core-1.13.0/AndroidManifest.xml:26:22-94
 21
 22    <application
-22-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:8:5-56:19
+22-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:8:5-53:19
 23        android:name="com.example.creditcalculator.CreditApplication"
 23-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:9:9-42
 24        android:allowBackup="true"
@@ -169,77 +169,77 @@
 90            android:windowSoftInputMode="adjustResize" />
 90-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:32:83-125
 91        <activity
-91-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:33:9-122
+91-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:33:9-38:20
 92            android:name="com.example.creditcalculator.PaymentsActivity"
 92-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:33:19-51
-93            android:exported="false"
-93-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:33:52-76
-94            android:windowSoftInputMode="adjustResize" />
-94-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:33:77-119
-95        <activity
-95-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:34:9-122
-96            android:name="com.example.creditcalculator.SettingsActivity"
-96-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:34:19-51
-97            android:exported="false"
-97-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:34:52-76
-98            android:windowSoftInputMode="adjustResize" />
-98-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:34:77-119
-99        <activity
-99-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:35:9-125
-100            android:name="com.example.creditcalculator.AddReminderActivity"
-100-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:35:19-54
-101            android:exported="false"
-101-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:35:55-79
-102            android:windowSoftInputMode="adjustResize" />
-102-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:35:80-122
-103        <activity
-103-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:37:9-45:20
-104            android:name="com.example.creditcalculator.MainActivity"
-104-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:38:13-41
-105            android:exported="true"
-105-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:39:13-36
-106            android:windowSoftInputMode="adjustResize" >
-106-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:40:13-55
-107            <intent-filter>
-107-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:41:13-44:29
-108                <action android:name="android.intent.action.MAIN" />
-108-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:42:17-69
-108-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:42:25-66
-109
-110                <category android:name="android.intent.category.LAUNCHER" />
-110-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:43:17-77
-110-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:43:27-74
-111            </intent-filter>
-112        </activity>
+93            android:exported="true"
+93-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:33:52-75
+94            android:windowSoftInputMode="adjustResize" >
+94-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:33:76-118
+95            <intent-filter>
+95-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:34:13-37:29
+96                <action android:name="android.intent.action.MAIN" />
+96-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:35:17-69
+96-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:35:25-66
+97
+98                <category android:name="android.intent.category.LAUNCHER" />
+98-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:36:17-77
+98-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:36:27-74
+99            </intent-filter>
+100        </activity>
+101        <activity
+101-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:39:9-122
+102            android:name="com.example.creditcalculator.SettingsActivity"
+102-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:39:19-51
+103            android:exported="false"
+103-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:39:52-76
+104            android:windowSoftInputMode="adjustResize" />
+104-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:39:77-119
+105        <activity
+105-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:40:9-125
+106            android:name="com.example.creditcalculator.AddReminderActivity"
+106-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:40:19-54
+107            android:exported="false"
+107-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:40:55-79
+108            android:windowSoftInputMode="adjustResize" />
+108-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:40:80-122
+109        <activity
+109-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:42:9-118
+110            android:name="com.example.creditcalculator.MainActivity"
+110-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:42:19-47
+111            android:exported="false"
+111-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:42:48-72
+112            android:windowSoftInputMode="adjustResize" />
+112-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:42:73-115
 113
 114        <receiver
-114-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:47:9-79
+114-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:44:9-79
 115            android:name="com.example.creditcalculator.ReminderReceiver"
-115-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:47:19-51
+115-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:44:19-51
 116            android:exported="false" />
-116-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:47:52-76
+116-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:44:52-76
 117        <receiver
-117-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:48:9-84
+117-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:45:9-84
 118            android:name="com.example.creditcalculator.PaymentActionReceiver"
-118-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:48:19-56
+118-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:45:19-56
 119            android:exported="false" />
-119-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:48:57-81
+119-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:45:57-81
 120        <receiver
-120-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:49:9-54:20
+120-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:46:9-51:20
 121            android:name="com.example.creditcalculator.BootReceiver"
-121-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:49:19-47
+121-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:46:19-47
 122            android:enabled="true"
-122-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:49:48-70
+122-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:46:48-70
 123            android:exported="false" >
-123-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:49:71-95
+123-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:46:71-95
 124            <intent-filter>
-124-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:50:13-53:29
+124-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:47:13-50:29
 125                <action android:name="android.intent.action.BOOT_COMPLETED" />
-125-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:51:17-79
-125-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:51:25-76
+125-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:48:17-79
+125-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:48:25-76
 126                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
-126-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:52:17-84
-126-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:52:25-81
+126-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:49:17-84
+126-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:49:25-81
 127            </intent-filter>
 128        </receiver>
 129

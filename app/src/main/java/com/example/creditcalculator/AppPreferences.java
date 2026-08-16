@@ -33,6 +33,8 @@ public final class AppPreferences {
     private static final String KEY_BIOMETRIC = "biometric_enabled";
     private static final String KEY_LOCK_TIMEOUT = "lock_timeout_minutes";
     private static final String KEY_PAYMENTS_DISCLAIMER = "payments_disclaimer_accepted";
+    private static final String KEY_CABINET_DISCLAIMER = "cabinet_disclaimer_accepted";
+    private static final String KEY_CABINET_FULL_NAME = "cabinet_full_name";
     private static final String KEY_MONTHLY_INCOME = "monthly_income";
     private static final String KEY_OTHER_OBLIGATIONS = "other_obligations";
     private static final String KEY_OFFICIAL_BKI_RATING = "official_bki_rating";
@@ -86,6 +88,10 @@ public final class AppPreferences {
     public static void setPaymentsFilter(Context context, String value) { prefs(context).edit().putString(KEY_PAYMENTS_FILTER, value == null ? "all" : value).apply(); }
     public static boolean isPaymentsDisclaimerAccepted(Context context) { return prefs(context).getBoolean(KEY_PAYMENTS_DISCLAIMER, false); }
     public static void setPaymentsDisclaimerAccepted(Context context, boolean accepted) { prefs(context).edit().putBoolean(KEY_PAYMENTS_DISCLAIMER, accepted).apply(); }
+    public static boolean isCabinetDisclaimerAccepted(Context context) { return prefs(context).getBoolean(KEY_CABINET_DISCLAIMER, false); }
+    public static void setCabinetDisclaimerAccepted(Context context, boolean accepted) { prefs(context).edit().putBoolean(KEY_CABINET_DISCLAIMER, accepted).apply(); }
+    public static String getCabinetFullName(Context context) { return prefs(context).getString(KEY_CABINET_FULL_NAME, ""); }
+    public static void setCabinetFullName(Context context, String value) { prefs(context).edit().putString(KEY_CABINET_FULL_NAME, value == null ? "" : value.trim()).apply(); }
     private static double getDouble(Context context,String key){try{return Double.parseDouble(prefs(context).getString(key,"0"));}catch(Exception e){return 0;}}
     private static void putDouble(Context context,String key,double value){prefs(context).edit().putString(key,String.valueOf(Math.max(0,value))).apply();}
     public static double getMonthlyIncome(Context context){return getDouble(context,KEY_MONTHLY_INCOME);}
