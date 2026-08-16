@@ -1,0 +1,426 @@
+name: V120 Fix
+
+on:
+  push:
+    branches: [ main ]
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Apply v1.20 changes
+        shell: bash
+        run: |
+          cat > app/src/main/java/com/example/creditcalculator/FinancialStatsActivity.java <<'JAVA'
+          package com.example.creditcalculator;
+
+          import android.content.Context;
+          import android.content.Intent;
+          import android.content.res.ColorStateList;
+          import android.graphics.Color;
+          import android.os.Bundle;
+          import android.view.Gravity;
+          import android.view.View;
+          import android.widget.LinearLayout;
+          import android.widget.ScrollView;
+          import android.widget.TextView;
+          import android.widget.Toast;
+
+          import androidx.appcompat.app.AlertDialog;
+          import androidx.appcompat.app.AppCompatActivity;
+          import androidx.core.content.ContextCompat;
+          import androidx.core.graphics.Insets;
+          import androidx.core.view.GravityCompat;
+          import androidx.core.view.ViewCompat;
+          import androidx.core.view.WindowCompat;
+          import androidx.core.view.WindowInsetsCompat;
+          import androidx.drawerlayout.widget.DrawerLayout;
+          import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
+
+          import com.google.android.material.card.MaterialCardView;
+
+          import java.util.List;
+
+          public class FinancialStatsActivity extends AppCompatActivity {
+              private DrawerLayout drawer;
+              private SwipeRefreshLayout swipeRefresh;
+              private LinearLayout content;
+
+              private static class Stats {
+                  double scheduledPaidAll;
+                  double earlyPaidAll;
+                  double earlyPaidActive;
+                  double totalPaidAll;
+                  double interestPaidAll;
+                  double interestPaidArchived;
+                  double futureInterestActive;
+                  double activeDebt;
+                  double savingsAll;
+                  double savingsActive;
+                  double savingsArchived;
+                  double activeDepositPrincipal;
+                  double archivedDepositPrincipal;
+                  double expectedDepositIncome;
+                  double archivedDepositIncome;
+                  int activeLoans;
+                  int archivedLoans;
+                  int activeDeposits;
+                  int archivedDeposits;
+              }
+
+              @Override protected void attachBaseContext(Context c){super.attachBaseContext(AppPreferences.wrapLocale(c));}
+
+              @Override protected void onCreate(Bundle b){
+                  AppPreferences.applyNightMode(this);
+                  super.onCreate(b);
+                  WindowCompat.setDecorFitsSystemWindows(getWindow(),false);
+                  setContentView(build());
+                  render();
+              }
+
+              @Override protected void onResume(){super.onResume();render();}
+
+              private View build(){
+                  drawer=new DrawerLayout(this);drawer.setFitsSystemWindows(false);
+                  LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);UiUtils.applyBackground(this,root);drawer.addView(root,new DrawerLayout.LayoutParams(-1,-1));
+
+                  LinearLayout bar=new LinearLayout(this);bar.setOrientation(LinearLayout.HORIZONTAL);bar.setGravity(Gravity.CENTER_VERTICAL);bar.setPadding(dp(8),0,dp(10),0);bar.setBackgroundColor(ContextCompat.getColor(this,R.color.primary));root.addView(bar,new LinearLayout.LayoutParams(-1,dp(58)));
+                  TextView menu=top("☰",30);menu.setOnClickListener(v->drawer.openDrawer(GravityCompat.START));bar.addView(menu,new LinearLayout.LayoutParams(dp(54),dp(54)));
+                  TextView title=top(AppPreferences.tr(this,"Финансовая статистика","Financial statistics"),20);title.setTypeface(null,android.graphics.Typeface.BOLD);title.setGravity(Gravity.CENTER_VERTICAL);bar.addView(title,new LinearLayout.LayoutParams(0,-1,1f));
+
+                  swipeRefresh=new SwipeRefreshLayout(this);swipeRefresh.setColorSchemeResources(R.color.primary);root.addView(swipeRefresh,new LinearLayout.LayoutParams(-1,0,1f));
+                  ScrollView scroll=new ScrollView(this);scroll.setFillViewport(true);scroll.setClipToPadding(false);swipeRefresh.addView(scroll,new SwipeRefreshLayout.LayoutParams(-1,-1));
+                  content=new LinearLayout(this);content.setOrientation(LinearLayout.VERTICAL);content.setPadding(dp(20),dp(22),dp(20),dp(34));scroll.addView(content,new ScrollView.LayoutParams(-1,-2));
+                  swipeRefresh.setOnRefreshListener(()->{try{ReminderScheduler.refreshAll(this);render();Toast.makeText(this,AppPreferences.tr(this,"Данные обновлены","Data refreshed"),Toast.LENGTH_SHORT).show();}finally{swipeRefresh.setRefreshing(false);}});
+
+                  LinearLayout nav=NavigationPanel.build(this,drawer,NavigationPanel.PAGE_STATS);DrawerLayout.LayoutParams np=new DrawerLayout.LayoutParams(NavigationPanel.drawerWidth(this),-1);np.gravity=GravityCompat.START;drawer.addView(nav,np);
+                  ViewCompat.setOnApplyWindowInsetsListener(drawer,(v,insets)->{Insets bars=insets.getInsets(WindowInsetsCompat.Type.systemBars());root.setPadding(0,bars.top,0,bars.bottom);nav.setPadding(0,bars.top,0,bars.bottom);scroll.setPadding(0,0,0,bars.bottom+dp(12));return insets;});
+                  return drawer;
+              }
+
+              private void render(){
+                  if(content==null)return;
+                  content.removeAllViews();
+                  Stats s=collect();
+                  content.addView(text(AppPreferences.tr(this,"Финансовая статистика","Financial statistics"),28,R.color.text_main,true));
+                  TextView sub=text(AppPreferences.tr(this,"Общая картина по активным и архивным кредитам, платежам и вкладам.","Overview of active and archived loans, payments and deposits."),14,R.color.text_secondary,false);LinearLayout.LayoutParams sp=new LinearLayout.LayoutParams(-1,-2);sp.setMargins(0,dp(5),0,dp(18));content.addView(sub,sp);
+
+                  content.addView(sectionTitle(AppPreferences.tr(this,"Кредиты — за всё время","Loans — lifetime")));
+                  content.addView(card(new String[][]{
+                          {AppPreferences.tr(this,"Всего внесено по кредитам","Total paid toward loans"),FormatUtils.money(this,s.totalPaidAll),AppPreferences.tr(this,"Сумма отмеченных обычных платежей и зарегистрированных досрочных погашений по активным и архивным кредитам. Корзина не учитывается.","Sum of recorded scheduled payments and registered early repayments for active and archived loans. Trash is excluded.")},
+                          {AppPreferences.tr(this,"Оплачено по графику","Scheduled payments paid"),FormatUtils.money(this,s.scheduledPaidAll),AppPreferences.tr(this,"Сумма обычных платежей, которые были отмечены оплаченными за всё время.","Total normal installments recorded as paid over time.")},
+                          {AppPreferences.tr(this,"Досрочно погашено","Early repayments"),FormatUtils.money(this,s.earlyPaidAll),AppPreferences.tr(this,"Сумма зарегистрированных досрочных погашений по активным и архивным кредитам за всё время.","Registered early repayments across active and archived loans over time.")},
+                          {AppPreferences.tr(this,"Уже выплачено процентов","Interest already paid"),FormatUtils.money(this,s.interestPaidAll),AppPreferences.tr(this,"Расчётная сумма процентов, уже пришедшаяся на отмеченные оплаченные платежи активных и архивных кредитов.","Estimated interest already included in recorded paid installments of active and archived loans.")},
+                          {AppPreferences.tr(this,"В том числе по архивным кредитам","Including archived loans"),FormatUtils.money(this,s.interestPaidArchived),AppPreferences.tr(this,"Часть уже выплаченных процентов, относящаяся к кредитам, которые сейчас находятся в архиве.","Part of already paid interest belonging to loans currently in archive.")},
+                          {AppPreferences.tr(this,"Сэкономлено за всё время","Lifetime savings"),FormatUtils.money(this,s.savingsAll),AppPreferences.tr(this,"Расчётная экономия от зарегистрированных досрочных погашений и рефинансирования по активным и архивным кредитам.","Estimated savings from recorded early repayments and refinancing across active and archived loans.")}
+                  }));
+
+                  content.addView(sectionTitle(AppPreferences.tr(this,"Активные кредиты — что впереди","Active loans — ahead")));
+                  content.addView(card(new String[][]{
+                          {AppPreferences.tr(this,"Текущий общий долг","Current total debt"),FormatUtils.money(this,s.activeDebt),AppPreferences.tr(this,"Остаток основного долга только по активным кредитам. Архив не входит.","Remaining principal for active loans only. Archive is excluded.")},
+                          {AppPreferences.tr(this,"Будущие проценты","Future interest"),FormatUtils.money(this,s.futureInterestActive),AppPreferences.tr(this,"Сколько расчётных процентов ещё предстоит выплатить по текущим активным графикам, если условия не менять.","Estimated interest still to be paid under current active schedules if terms do not change.")},
+                          {AppPreferences.tr(this,"Досрочно погашено по активным","Early repaid on active loans"),FormatUtils.money(this,s.earlyPaidActive),AppPreferences.tr(this,"Все зарегистрированные досрочные погашения только по кредитам, которые сейчас активны. После переноса кредита в архив эта сумма переходит в историческую статистику.","All registered early repayments for loans that are currently active. Once a loan moves to archive, this amount moves to historical statistics.")},
+                          {AppPreferences.tr(this,"Выгода по активным кредитам","Savings on active loans"),FormatUtils.money(this,s.savingsActive),AppPreferences.tr(this,"Расчётная экономия по активным кредитам. Выгода архивных кредитов здесь не учитывается.","Estimated savings for active loans. Archived-loan savings are excluded.")},
+                          {AppPreferences.tr(this,"Активных кредитов","Active loans"),String.valueOf(s.activeLoans),AppPreferences.tr(this,"Количество активных кредитных записей без вкладов.","Number of active credit records, excluding deposits.")}
+                  }));
+
+                  content.addView(sectionTitle(AppPreferences.tr(this,"Архив кредитов","Loan archive")));
+                  content.addView(card(new String[][]{
+                          {AppPreferences.tr(this,"Архивных кредитов","Archived loans"),String.valueOf(s.archivedLoans),AppPreferences.tr(this,"Количество кредитных записей, находящихся в архиве.","Number of credit records currently in archive.")},
+                          {AppPreferences.tr(this,"Выгода архивных кредитов","Archived-loan savings"),FormatUtils.money(this,s.savingsArchived),AppPreferences.tr(this,"Историческая расчётная экономия от досрочных погашений и рефинансирования кредитов, которые уже находятся в архиве.","Historical estimated savings from early repayment and refinancing of archived loans.")}
+                  }));
+
+                  content.addView(sectionTitle(AppPreferences.tr(this,"Вклады","Deposits")));
+                  content.addView(card(new String[][]{
+                          {AppPreferences.tr(this,"Сейчас во вкладах","Currently deposited"),FormatUtils.money(this,s.activeDepositPrincipal),AppPreferences.tr(this,"Сумма первоначальных сумм всех активных вкладов.","Principal amount across active deposits.")},
+                          {AppPreferences.tr(this,"Ожидаемый доход по активным вкладам","Expected income on active deposits"),FormatUtils.money(this,s.expectedDepositIncome),AppPreferences.tr(this,"Расчётный доход, который ожидается по активным вкладам при сохранении текущих условий.","Estimated income expected from active deposits if current terms remain unchanged.")},
+                          {AppPreferences.tr(this,"Доход завершённых вкладов","Income from completed deposits"),FormatUtils.money(this,s.archivedDepositIncome),AppPreferences.tr(this,"Расчётный доход по вкладам, которые находятся в архиве. Это значение рассчитано по сохранённым условиям и может отличаться от фактической выплаты банка.","Estimated income for deposits in archive. It is calculated from saved terms and may differ from the bank's actual payout.")},
+                          {AppPreferences.tr(this,"Сумма завершённых вкладов","Completed deposit principal"),FormatUtils.money(this,s.archivedDepositPrincipal),AppPreferences.tr(this,"Сумма первоначальных сумм вкладов, которые сейчас находятся в архиве.","Principal amount of deposits currently in archive.")},
+                          {AppPreferences.tr(this,"Активных / завершённых вкладов","Active / completed deposits"),s.activeDeposits+" / "+s.archivedDeposits,AppPreferences.tr(this,"Количество активных вкладов и вкладов в архиве.","Number of active deposits and deposits in archive.")}
+                  }));
+
+                  TextView note=text("ⓘ "+AppPreferences.tr(this,"Статистика строится по данным, сохранённым в приложении. Банковские округления, комиссии, штрафы и фактический доход по вкладам могут отличаться.","Statistics are based on data saved in the app. Bank rounding, fees, penalties and actual deposit income may differ."),13,R.color.text_secondary,false);LinearLayout.LayoutParams np=new LinearLayout.LayoutParams(-1,-2);np.setMargins(0,dp(18),0,0);content.addView(note,np);
+              }
+
+              private Stats collect(){
+                  Stats s=new Stats();
+                  List<ReminderScheduler.PaymentReminder> all=ReminderScheduler.loadAll(this);
+                  for(ReminderScheduler.PaymentReminder r:all){
+                      if(ReminderScheduler.STATUS_TRASH.equals(r.status))continue;
+                      boolean active=ReminderScheduler.STATUS_ACTIVE.equals(r.status);
+                      boolean archived=ReminderScheduler.STATUS_ARCHIVE.equals(r.status);
+                      if(!active&&!archived)continue;
+                      boolean deposit=ReminderScheduler.TYPE_DEPOSIT.equals(ReminderScheduler.normalizeType(r.type));
+                      if(deposit){
+                          double income=ReminderScheduler.depositExpectedIncome(r);
+                          if(active){s.activeDeposits++;s.activeDepositPrincipal+=r.principal;s.expectedDepositIncome+=income;}
+                          else{s.archivedDeposits++;s.archivedDepositPrincipal+=r.principal;s.archivedDepositIncome+=income;}
+                          continue;
+                      }
+                      if(active){s.activeLoans++;s.activeDebt+=ReminderScheduler.remainingDebt(r);s.futureInterestActive+=ReminderScheduler.remainingInterest(r);}
+                      else s.archivedLoans++;
+                      double pi=ReminderScheduler.paidInterest(r);s.interestPaidAll+=pi;if(archived)s.interestPaidArchived+=pi;
+                      for(ReminderScheduler.InstallmentEntry e:ReminderScheduler.ledger(r))if(e!=null&&e.index>=0&&e.paidAt>0){double paid=e.paidAmount>0?e.paidAmount:ReminderScheduler.paymentAmount(r,e.index);s.scheduledPaidAll+=Math.max(0,paid);}
+                      for(ReminderScheduler.BenefitEvent e:ReminderScheduler.benefits(r)){
+                          if(ReminderScheduler.HISTORY_EARLY.equals(e.type)){double a=Math.max(0,e.actionAmount);s.earlyPaidAll+=a;if(active)s.earlyPaidActive+=a;}
+                      }
+                      double benefit=ReminderScheduler.totalBenefit(r);s.savingsAll+=benefit;if(active)s.savingsActive+=benefit;else s.savingsArchived+=benefit;
+                  }
+                  s.totalPaidAll=s.scheduledPaidAll+s.earlyPaidAll;
+                  return s;
+              }
+
+              private TextView sectionTitle(String s){TextView t=text(s,20,R.color.text_main,true);LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-1,-2);p.setMargins(0,dp(18),0,dp(9));t.setLayoutParams(p);return t;}
+
+              private MaterialCardView card(String[][] rows){MaterialCardView c=new MaterialCardView(this);c.setCardBackgroundColor(ContextCompat.getColor(this,R.color.card_background));c.setRadius(dp(18));c.setStrokeColor(ContextCompat.getColor(this,R.color.border));c.setStrokeWidth(dp(1));LinearLayout box=new LinearLayout(this);box.setOrientation(LinearLayout.VERTICAL);box.setPadding(dp(18),dp(10),dp(18),dp(12));c.addView(box);for(int i=0;i<rows.length;i++){metric(box,rows[i][0],rows[i][1],rows[i][2]);if(i<rows.length-1){View d=new View(this);d.setBackgroundColor(ContextCompat.getColor(this,R.color.border));LinearLayout.LayoutParams dpv=new LinearLayout.LayoutParams(-1,dp(1));dpv.setMargins(0,dp(10),0,0);box.addView(d,dpv);}}return c;}
+
+              private void metric(LinearLayout box,String label,String value,String hint){LinearLayout row=new LinearLayout(this);row.setOrientation(LinearLayout.HORIZONTAL);row.setGravity(Gravity.CENTER_VERTICAL);row.setPadding(0,dp(10),0,0);box.addView(row,new LinearLayout.LayoutParams(-1,-2));TextView l=text(label+"  ⓘ",14,R.color.text_secondary,true);l.setClickable(true);l.setOnClickListener(v->showInfo(label,hint));row.addView(l,new LinearLayout.LayoutParams(0,-2,1f));TextView val=text(value,16,R.color.text_main,true);val.setGravity(Gravity.END);LinearLayout.LayoutParams vp=new LinearLayout.LayoutParams(-2,-2);vp.setMargins(dp(10),0,0,0);row.addView(val,vp);}
+
+              private void showInfo(String title,String msg){new AlertDialog.Builder(this).setTitle(title).setMessage(msg).setPositiveButton(AppPreferences.tr(this,"Понятно","OK"),null).show();}
+              private TextView top(String s,int z){TextView t=new TextView(this);t.setText(s);t.setTextSize(z);t.setTextColor(Color.WHITE);t.setGravity(Gravity.CENTER);t.setClickable(true);return t;}
+              private TextView text(String s,int z,int c,boolean bold){TextView t=new TextView(this);t.setText(s);t.setTextSize(z);t.setTextColor(ContextCompat.getColor(this,c));if(bold)t.setTypeface(null,android.graphics.Typeface.BOLD);return t;}
+              private int dp(int v){return Math.round(v*getResources().getDisplayMetrics().density);}
+          }
+          JAVA
+
+          cat > app/src/main/java/com/example/creditcalculator/InstructionActivity.java <<'JAVA'
+          package com.example.creditcalculator;
+
+          import android.content.Context;
+          import android.graphics.Color;
+          import android.os.Bundle;
+          import android.view.Gravity;
+          import android.view.View;
+          import android.widget.LinearLayout;
+          import android.widget.ScrollView;
+          import android.widget.TextView;
+
+          import androidx.appcompat.app.AppCompatActivity;
+          import androidx.core.content.ContextCompat;
+          import androidx.core.graphics.Insets;
+          import androidx.core.view.ViewCompat;
+          import androidx.core.view.WindowCompat;
+          import androidx.core.view.WindowInsetsCompat;
+
+          import com.google.android.material.card.MaterialCardView;
+
+          public class InstructionActivity extends AppCompatActivity {
+              @Override protected void attachBaseContext(Context c){super.attachBaseContext(AppPreferences.wrapLocale(c));}
+              @Override protected void onCreate(Bundle b){AppPreferences.applyNightMode(this);super.onCreate(b);WindowCompat.setDecorFitsSystemWindows(getWindow(),false);setContentView(build());}
+
+              private View build(){
+                  LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);UiUtils.applyBackground(this,root);
+                  LinearLayout bar=new LinearLayout(this);bar.setOrientation(LinearLayout.HORIZONTAL);bar.setGravity(Gravity.CENTER_VERTICAL);bar.setBackgroundColor(ContextCompat.getColor(this,R.color.primary));root.addView(bar,new LinearLayout.LayoutParams(-1,dp(56)));
+                  TextView back=top("‹",34);back.setOnClickListener(v->finish());bar.addView(back,new LinearLayout.LayoutParams(dp(56),dp(56)));
+                  TextView title=top(local("Инструкция","User guide","Kullanım kılavuzu","Instrucciones"),20);title.setTypeface(null,android.graphics.Typeface.BOLD);title.setGravity(Gravity.CENTER_VERTICAL);bar.addView(title,new LinearLayout.LayoutParams(0,-1,1f));
+                  ScrollView scroll=new ScrollView(this);scroll.setFillViewport(true);scroll.setClipToPadding(false);root.addView(scroll,new LinearLayout.LayoutParams(-1,0,1f));
+                  LinearLayout content=new LinearLayout(this);content.setOrientation(LinearLayout.VERTICAL);content.setPadding(dp(20),dp(22),dp(20),dp(34));scroll.addView(content,new ScrollView.LayoutParams(-1,-2));
+                  content.addView(text(local("Как пользоваться приложением","How to use the app","Uygulama nasıl kullanılır","Cómo usar la aplicación"),27,R.color.text_main,true));
+                  TextView intro=text(local("Инструкция разделена по функциям. Нажмите на нужный блок, чтобы открыть его, и нажмите ещё раз, чтобы закрыть.","The guide is grouped by feature. Tap a block to open it and tap again to close it.","Kılavuz işlevlere göre gruplandırılmıştır. Açmak için bölüme, kapatmak için tekrar dokunun.","La guía está agrupada por funciones. Toca un bloque para abrirlo y vuelve a tocarlo para cerrarlo."),14,R.color.text_secondary,false);LinearLayout.LayoutParams ip=new LinearLayout.LayoutParams(-1,-2);ip.setMargins(0,dp(6),0,dp(18));content.addView(intro,ip);
+
+                  expandable(content,local("1. Начало работы и язык","1. Getting started and language","1. Başlangıç ve dil","1. Inicio e idioma"),local(
+                          "При первом запуске выберите язык. После обычного входа приложение открывает «Мои платежи». Калькуляторы и остальные разделы доступны через боковое меню. Первый вход в «Мои платежи» и «Личный кабинет» сопровождается информационным окном с кнопкой «Понятно, продолжить». После подтверждения оно повторно не показывается, пока данные приложения не будут очищены.",
+                          "Choose a language on first launch. Normal startup opens My payments. Calculators and other sections are available from the side menu. My payments and Personal cabinet show a one-time information notice on first entry.",
+                          "İlk açılışta dili seçin. Normal başlangıç Ödemelerim bölümünü açar. Diğer bölümler yan menüdedir. Ödemelerim ve Kişisel alan ilk girişte bir bilgi penceresi gösterir.",
+                          "Elige el idioma al iniciar por primera vez. El inicio normal abre Mis pagos. Las demás secciones están en el menú lateral. Mis pagos y Área personal muestran un aviso informativo la primera vez."));
+
+                  expandable(content,local("2. Калькуляторы","2. Calculators","2. Hesaplayıcılar","2. Calculadoras"),local(
+                          "Доступны кредит, ипотека, автокредит, рассрочка и вклад. Заполните сумму, срок, ставку и остальные условия. Для кредита, ипотеки и автокредита можно выбрать аннуитетный или дифференцированный график. Денежные суммы форматируются пробелами. Расчёты ориентировочные: фактические банковские значения могут отличаться.",
+                          "Loan, mortgage, auto loan, installment and deposit calculators are available. Enter amount, term, rate and other terms. Loan types can use annuity or differential schedules. Results are estimates and can differ from the bank.",
+                          "Kredi, konut, araç kredisi, taksit ve mevduat hesaplayıcıları vardır. Sonuçlar yaklaşık değerlerdir ve bankadan farklı olabilir.",
+                          "Hay calculadoras de préstamo, hipoteca, auto, cuotas y depósito. Los resultados son aproximados y pueden diferir del banco."));
+
+                  expandable(content,local("3. Мои платежи и общая сводка","3. My payments and summary","3. Ödemelerim ve özet","3. Mis pagos y resumen"),local(
+                          "«Общая сводка» показывает только активные записи: общий остаток долга, сколько осталось оплатить в текущем месяце, сколько уже оплачено по графику, сколько обычных платежей осталось в месяце, ближайший платёж, следующий месяц, просрочки и проценты. Архивные кредиты сюда не входят. Потяните страницу вниз, чтобы перечитать локальные данные, пересчитать показатели и обновить напоминания. Текстовое пояснение о текущем способе сортировки над списком не показывается; способ сортировки выбирается кнопкой «Сортировка». По умолчанию записи идут по ближайшему платежу.",
+                          "Summary shows active items only: debt, current-month amount due, scheduled paid amount, remaining installment count, next payment, next month, overdue amounts and interest. Archived loans are excluded. Pull down to refresh. Sorting is selected with the Sort button; nearest payment is the default.",
+                          "Özet yalnızca aktif kayıtları gösterir. Arşiv kredileri dahil değildir. Yenilemek için aşağı çekin. Sıralama düğmesinden sıralama seçilir; varsayılan en yakın ödemedir.",
+                          "El resumen solo incluye registros activos. Los créditos archivados no se incluyen. Desliza hacia abajo para actualizar. El orden se elige con el botón Ordenar; por defecto, el pago más cercano."));
+
+                  expandable(content,local("4. Ваша выгода, досрочное погашение и рефинансирование","4. Savings, early repayment and refinancing","4. Tasarruf, erken ödeme ve refinansman","4. Ahorro, amortización anticipada y refinanciación"),local(
+                          "В карточке «Ваша выгода» показывается расчётная экономия только по активным кредитам. Там же показывается «Досрочно погашено по активным кредитам» — сумма всех зарегистрированных досрочных погашений за всё время по кредитам, которые сейчас активны. Это не показатель только текущего месяца. Как только кредит полностью закрывается и переходит в архив, его досрочные погашения и выгода перестают входить в активную карточку, но сохраняются в архиве и «Финансовой статистике». Досрочный платёж не смешивается с обычным ежемесячным платежом. При досрочном погашении можно уменьшить срок, уменьшить платёж или внести всю текущую сумму долга.",
+                          "Your savings shows estimated savings for active loans only. It also shows lifetime early repayments for loans that are currently active. Once a loan is archived, its early repayments and savings leave the active card but remain in archive and Financial statistics. Early repayment is kept separate from normal installments.",
+                          "Tasarruf kartı yalnızca aktif kredileri içerir. Aktif kredilerin tüm erken ödemeleri ayrıca gösterilir. Kredi arşive geçtiğinde bu veriler aktif karttan çıkar ancak arşivde ve Finansal istatistiklerde kalır.",
+                          "La tarjeta Ahorro solo incluye créditos activos. También muestra todas las amortizaciones anticipadas de los créditos que siguen activos. Al archivar un crédito, esos datos salen de la tarjeta activa pero permanecen en el archivo y en Estadísticas financieras."));
+
+                  expandable(content,local("5. Финансовая статистика","5. Financial statistics","5. Finansal istatistikler","5. Estadísticas financieras"),local(
+                          "Раздел «Финансовая статистика» находится в боковом меню и доступен также из «Личного кабинета». Он собирает активные и архивные данные, но не учитывает Корзину. Здесь показываются: сколько всего внесено по кредитам; сколько обычных платежей отмечено оплаченными; сколько внесено досрочно; сколько процентов уже выплачено; какая часть выплаченных процентов относится к архивным кредитам; сколько будущих процентов осталось по активным кредитам; текущий общий долг; выгода активных, архивных и всех кредитов; сумма активных вкладов; ожидаемый доход по активным вкладам; расчётный доход завершённых вкладов; количество активных и завершённых записей. У каждого показателя есть ⓘ с объяснением. Доход завершённых вкладов рассчитывается по сохранённым условиям и может отличаться от фактической суммы банка.",
+                          "Financial statistics is available in the side menu and from Personal cabinet. It combines active and archived data, excluding Trash. It shows lifetime loan payments, early repayments, interest already paid, archived interest, future active interest, current debt, savings, active deposits, expected deposit income, estimated completed-deposit income and record counts. Every metric has an ⓘ explanation.",
+                          "Finansal istatistikler yan menüde ve Kişisel alanda bulunur. Aktif ve arşiv verilerini birleştirir, Çöp kutusunu hariç tutar. Tüm göstergelerde ⓘ açıklaması vardır.",
+                          "Estadísticas financieras está en el menú lateral y en Área personal. Combina datos activos y archivados, excluye Papelera y ofrece una explicación ⓘ para cada indicador."));
+
+                  expandable(content,local("6. Личный кабинет","6. Personal cabinet","6. Kişisel alan","6. Área personal"),local(
+                          "В «Личном кабинете» можно сохранить ФИО, ежемесячный доход, другие обязательные платежи, известный рейтинг БКИ, количество заявок и отказов. Денежные поля форматируются, а долговая нагрузка и внутреннее «Кредитное здоровье» пересчитываются при вводе. Кнопка «Сохранить» фиксирует введённые данные. Потяните страницу вниз, чтобы обновить кредиты и расчёты. «Кредитное здоровье» — внутренняя ориентировочная оценка приложения, а не официальный рейтинг БКИ. Отсюда можно открыть «Финансовую статистику».",
+                          "Personal cabinet stores full name, income, other obligations, an optional bureau score, applications and rejections. Debt burden and internal Credit health update while typing. Save stores manual fields; pull down refreshes loan data. Credit health is not an official bureau score. Financial statistics can be opened from here.",
+                          "Kişisel alanda ad, gelir, diğer yükümlülükler ve kredi bürosu bilgileri saklanabilir. Kredi sağlığı resmi bir büro puanı değildir.",
+                          "En Área personal puedes guardar nombre, ingresos, otras obligaciones y datos del buró. Salud crediticia no es una puntuación oficial del buró."));
+
+                  expandable(content,local("7. Архив и Корзина","7. Archive and Trash","7. Arşiv ve Çöp kutusu","7. Archivo y Papelera"),local(
+                          "Полностью закрытый кредит переносится в архив и перестаёт участвовать в активной сводке и активной выгоде. Его история, досрочные погашения и выгода сохраняются для истории и статистики. Обычная оплата одного ежемесячного платежа не закрывает весь кредит. Корзина предназначена для удалённых записей и не участвует в «Финансовой статистике».",
+                          "A fully closed loan moves to archive and is excluded from active summary and savings, while history remains available for statistics. Paying one installment does not archive the whole loan. Trash is excluded from Financial statistics.",
+                          "Tam kapanan kredi arşive gider; geçmişi istatistiklerde kalır. Tek bir taksiti ödemek krediyi tamamen kapatmaz. Çöp kutusu istatistiklere dahil değildir.",
+                          "Un crédito totalmente cerrado pasa al archivo; su historial permanece en las estadísticas. Pagar una cuota no archiva todo el crédito. Papelera no se incluye en las estadísticas."));
+
+                  expandable(content,local("8. Напоминания и отметка оплаты","8. Reminders and marking payments","8. Hatırlatmalar ve ödeme işareti","8. Recordatorios y marcar pagos"),local(
+                          "В день платежа с 00:00 может показываться постоянное беззвучное уведомление, которое исчезает после отметки «Оплачено». В выбранное время отдельное звуковое напоминание срабатывает только для нерешённого платежа. Если платёж был отмечен ошибочно, его можно восстановить через архив платежей внутри графика записи. Досрочное погашение и обычный платёж учитываются отдельно.",
+                          "On payment day a persistent silent notice can stay until the installment is marked paid. A separate sound reminder runs only for unresolved payments. An accidentally paid installment can be restored from the schedule's paid-payment archive. Early repayment and normal installments are tracked separately.",
+                          "Ödeme gününde sessiz kalıcı bildirim ödeme işaretlenene kadar kalabilir. Erken ödeme ve normal taksitler ayrı izlenir.",
+                          "El día de pago puede permanecer un aviso silencioso hasta marcar la cuota como pagada. La amortización anticipada y la cuota normal se registran por separado."));
+
+                  expandable(content,local("9. Безопасность","9. Security","9. Güvenlik","9. Seguridad"),local(
+                          "Защиту можно настроить PIN-кодом, паролем, графическим ключом или системной защитой устройства. Биометрия используется только если она настроена в системе. Для отключения защиты требуется действующий способ разблокировки.",
+                          "Protection can use a PIN, password, pattern or device credential. Biometrics work only when configured in the system. Disabling protection requires the current unlock method.",
+                          "Koruma PIN, parola, desen veya cihaz kimlik bilgisi ile kullanılabilir. Biyometri sistemde yapılandırılmış olmalıdır.",
+                          "La protección puede usar PIN, contraseña, patrón o credencial del dispositivo. La biometría debe estar configurada en el sistema."));
+
+                  expandable(content,local("10. Обратная связь и файлы","10. Feedback and files","10. Geri bildirim ve dosyalar","10. Comentarios y archivos"),local(
+                          "В «О приложении» можно сообщить об ошибке или предложить улучшение. К обращению можно временно прикрепить фото или видео для объяснения проблемы. Приложение не должно хранить эти файлы после отправки: в истории обращений остаются только название, дата, тип и текст. Также в «О приложении» есть кнопка «Оценить приложение». После нескольких реально оплаченных платежей приложение может изредка ненавязчиво предложить поставить оценку; «Не сейчас» откладывает предложение.",
+                          "About lets you report a bug or suggest an improvement and temporarily attach photos or video. Attachments are not kept after sending; request history keeps only title, date, type and text. About also contains Rate the app, and an occasional rating prompt may appear after real usage.",
+                          "Hata bildirirken fotoğraf veya video geçici olarak eklenebilir; gönderimden sonra dosyalar saklanmaz. Geçmişte yalnızca metin kalır.",
+                          "Al informar de un problema se pueden adjuntar temporalmente fotos o vídeos; los archivos no se guardan después del envío. El historial conserva solo texto."));
+
+                  expandable(content,local("11. Важно о точности расчётов","11. Important calculation note","11. Hesaplama doğruluğu hakkında","11. Nota importante sobre los cálculos"),local(
+                          "Все финансовые показатели приложения носят ориентировочный информационный характер. Фактические платежи, проценты, остаток долга, штрафы, комиссии, досрочное погашение, экономия и доход по вкладам могут отличаться от данных банка. Для точных значений используйте договор и информацию банка.",
+                          "All financial figures are estimates for information. Actual payments, interest, balances, penalties, fees, early repayment, savings and deposit income may differ from bank data. Use your contract and bank information for exact values.",
+                          "Tüm finansal değerler yaklaşık ve bilgilendirme amaçlıdır. Kesin değerler için banka sözleşmesini kullanın.",
+                          "Todos los valores financieros son aproximados e informativos. Para cifras exactas, usa el contrato y los datos del banco."));
+
+                  ViewCompat.setOnApplyWindowInsetsListener(root,(v,insets)->{Insets bars=insets.getInsets(WindowInsetsCompat.Type.systemBars());v.setPadding(0,bars.top,0,0);scroll.setPadding(0,0,0,bars.bottom+dp(10));return insets;});
+                  return root;
+              }
+
+              private void expandable(LinearLayout parent,String title,String bodyText){
+                  MaterialCardView card=new MaterialCardView(this);card.setCardBackgroundColor(ContextCompat.getColor(this,R.color.card_background));card.setRadius(dp(16));card.setStrokeColor(ContextCompat.getColor(this,R.color.border));card.setStrokeWidth(dp(1));LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(-1,-2);cp.setMargins(0,0,0,dp(10));parent.addView(card,cp);
+                  LinearLayout box=new LinearLayout(this);box.setOrientation(LinearLayout.VERTICAL);card.addView(box);
+                  LinearLayout head=new LinearLayout(this);head.setOrientation(LinearLayout.HORIZONTAL);head.setGravity(Gravity.CENTER_VERTICAL);head.setPadding(dp(16),dp(14),dp(12),dp(14));box.addView(head,new LinearLayout.LayoutParams(-1,-2));
+                  TextView h=text(title,16,R.color.text_main,true);head.addView(h,new LinearLayout.LayoutParams(0,-2,1f));TextView arrow=text("›",26,R.color.primary,true);arrow.setGravity(Gravity.CENTER);head.addView(arrow,new LinearLayout.LayoutParams(dp(36),dp(36)));
+                  TextView body=text(bodyText,14,R.color.text_secondary,false);body.setPadding(dp(16),0,dp(16),dp(16));body.setLineSpacing(0,1.15f);body.setVisibility(View.GONE);box.addView(body,new LinearLayout.LayoutParams(-1,-2));
+                  View.OnClickListener toggle=v->{boolean open=body.getVisibility()==View.VISIBLE;body.setVisibility(open?View.GONE:View.VISIBLE);arrow.setText(open?"›":"⌄");};head.setClickable(true);head.setOnClickListener(toggle);h.setOnClickListener(toggle);arrow.setOnClickListener(toggle);
+              }
+
+              private String local(String ru,String en,String tr,String es){String l=AppPreferences.getLanguage(this);if("tr".equals(l))return tr;if("es".equals(l))return es;if("en".equals(l))return en;return ru;}
+              private TextView top(String s,int z){TextView t=new TextView(this);t.setText(s);t.setTextSize(z);t.setTextColor(Color.WHITE);t.setGravity(Gravity.CENTER);t.setClickable(true);return t;}
+              private TextView text(String s,int z,int c,boolean bold){TextView t=new TextView(this);t.setText(s);t.setTextSize(z);t.setTextColor(ContextCompat.getColor(this,c));if(bold)t.setTypeface(null,android.graphics.Typeface.BOLD);return t;}
+              private int dp(int v){return Math.round(v*getResources().getDisplayMetrics().density);}
+          }
+          JAVA
+
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          # My payments: remove sorting explanation text; move lifetime active early repayment into savings card.
+          p=Path('app/src/main/java/com/example/creditcalculator/PaymentsActivity.java')
+          s=p.read_text()
+          old='private void render(){listContainer.removeAllViews();listContainer.addView(text(AppPreferences.tr(this,"Мои платежи","My payments"),28,R.color.text_main,true));TextView sub=text(AppPreferences.tr(this,"Сначала показываются записи с ближайшим платежом.","Items with the nearest payment are shown first."),15,R.color.text_secondary,false);LinearLayout.LayoutParams sp=new LinearLayout.LayoutParams(-1,-2);sp.setMargins(0,dp(6),0,dp(18));listContainer.addView(sub,sp);List<ReminderScheduler.PaymentReminder> all=ReminderScheduler.load(this);'
+          new='private void render(){listContainer.removeAllViews();listContainer.addView(text(AppPreferences.tr(this,"Мои платежи","My payments"),28,R.color.text_main,true));List<ReminderScheduler.PaymentReminder> all=ReminderScheduler.load(this);'
+          if old in s:s=s.replace(old,new)
+          else:
+              s=re.sub(r'private void render\(\)\{listContainer\.removeAllViews\(\);listContainer\.addView\(text\(AppPreferences\.tr\(this,"Мои платежи","My payments"\),28,R\.color\.text_main,true\)\);TextView sub=.*?listContainer\.addView\(sub,sp\);List<ReminderScheduler\.PaymentReminder> all=', 'private void render(){listContainer.removeAllViews();listContainer.addView(text(AppPreferences.tr(this,"Мои платежи","My payments"),28,R.color.text_main,true));List<ReminderScheduler.PaymentReminder> all=', s, flags=re.S)
+
+          # Remove the tiny "Current: sorting" caption below buttons as well.
+          s=re.sub(r'TextView current=text\(AppPreferences\.tr\(this,"Сейчас: ","Current: "\)\+sortName\(sortMode\),12,R\.color\.text_secondary,false\);current\.setGravity\(Gravity\.END\);current\.setMaxLines\(2\);LinearLayout\.LayoutParams cp=new LinearLayout\.LayoutParams\(-1,-2\);cp\.setMargins\(0,dp\(5\),dp\(4\),0\);outer\.addView\(current,cp\);', '', s)
+
+          # Remove early-repayment-this-month line from general summary.
+          s=re.sub(r'TextView earlyPaid=text\(AppPreferences\.tr\(this,"Досрочно внесено в этом месяце: ","Early repayments this month: "\)\+FormatUtils\.money\(this,earlyMonth\),13,R\.color\.primary,true\);LinearLayout\.LayoutParams epp=new LinearLayout\.LayoutParams\(-1,-2\);epp\.setMargins\(0,dp\(10\),0,0\);box\.addView\(earlyPaid,epp\);', '', s)
+
+          # Replace savings card with active-only lifetime early repayment amount and contextual info.
+          pattern=r'    private View benefitSummary\(\)\{.*?\n    private LinearLayout\.LayoutParams benefitParams\(\)'
+          replacement='''    private View benefitSummary(){MaterialCardView c=card();c.setClickable(true);c.setFocusable(true);c.setOnClickListener(v->{Intent i=new Intent(this,BenefitHistoryActivity.class);i.putExtra(BenefitHistoryActivity.EXTRA_ACTIVE_ONLY,true);startActivity(i);});LinearLayout b=new LinearLayout(this);b.setOrientation(LinearLayout.VERTICAL);b.setPadding(dp(18),dp(15),dp(18),dp(15));c.addView(b);LinearLayout row=new LinearLayout(this);row.setOrientation(LinearLayout.HORIZONTAL);row.setGravity(Gravity.CENTER_VERTICAL);TextView h=text(AppPreferences.tr(this,"Ваша выгода","Your savings")+"  ⓘ",19,R.color.text_main,true);h.setOnClickListener(v->{v.getParent().requestDisallowInterceptTouchEvent(true);showInfo(AppPreferences.tr(this,"Ваша выгода","Your savings"),AppPreferences.tr(this,"Здесь учитывается расчётная экономия только по кредитам, которые сейчас активны. Архивные кредиты не входят.","Estimated savings for currently active loans only. Archived loans are excluded."));});row.addView(h,new LinearLayout.LayoutParams(0,-2,1f));row.addView(text("›",28,R.color.primary,true));b.addView(row);double total=ReminderScheduler.totalBenefit(this);b.addView(text(FormatUtils.money(this,total),25,total>=0?R.color.success:R.color.danger,true));TextView early=text(AppPreferences.tr(this,"Досрочно погашено по активным кредитам","Early repaid on active loans")+": "+FormatUtils.money(this,activeEarlyRepaymentTotal())+"  ⓘ",13,R.color.primary,true);early.setClickable(true);early.setOnClickListener(v->showInfo(AppPreferences.tr(this,"Досрочно погашено по активным кредитам","Early repaid on active loans"),AppPreferences.tr(this,"Сумма всех зарегистрированных досрочных погашений за всё время только по кредитам, которые сейчас активны. Досрочные погашения архивных кредитов здесь не показываются.","Lifetime registered early repayments for loans that are currently active only. Early repayments of archived loans are not shown here.")));LinearLayout.LayoutParams ep=new LinearLayout.LayoutParams(-1,-2);ep.setMargins(0,dp(5),0,0);b.addView(early,ep);b.addView(text(AppPreferences.tr(this,"Досрочные погашения и рефинансирование","Early repayments and refinancing"),13,R.color.text_secondary,false));return c;}
+    private double activeEarlyRepaymentTotal(){double total=0;for(ReminderScheduler.PaymentReminder r:ReminderScheduler.load(this))for(ReminderScheduler.BenefitEvent e:ReminderScheduler.benefits(r))if(ReminderScheduler.HISTORY_EARLY.equals(e.type))total+=Math.max(0,e.actionAmount);return total;}
+    private LinearLayout.LayoutParams benefitParams()'''
+          s,n=re.subn(pattern,replacement,s,flags=re.S)
+          if n!=1:raise SystemExit('benefitSummary replacement failed')
+          p.write_text(s)
+
+          # Shared navigation: add stats item and selected state, tighten row height so the full menu fits.
+          p=Path('app/src/main/java/com/example/creditcalculator/NavigationPanel.java');s=p.read_text()
+          s=s.replace('static final String PAGE_CALCULATORS="calculators";','static final String PAGE_CALCULATORS="calculators";\n    static final String PAGE_STATS="stats";')
+          needle='add(panel,item(a,drawer,android.R.drawable.ic_menu_myplaces,AppPreferences.tr(a,"Личный кабинет","Personal cabinet"),false,PersonalCabinetActivity.class,false));'
+          insert=needle+'\n        add(panel,item(a,drawer,android.R.drawable.ic_menu_sort_by_size,AppPreferences.tr(a,"Финансовая статистика","Financial statistics"),PAGE_STATS.equals(selected),FinancialStatsActivity.class,false));'
+          if 'FinancialStatsActivity.class' not in s:s=s.replace(needle,insert)
+          s=s.replace('new LinearLayout.LayoutParams(-1,dp(a,116))','new LinearLayout.LayoutParams(-1,dp(a,104))')
+          s=s.replace('new LinearLayout.LayoutParams(-1,dp(v.getContext(),50))','new LinearLayout.LayoutParams(-1,dp(v.getContext(),46))')
+          p.write_text(s)
+
+          # Personal cabinet: direct link to statistics.
+          p=Path('app/src/main/java/com/example/creditcalculator/PersonalCabinetActivity.java');s=p.read_text()
+          if 'import android.content.Intent;' not in s:s=s.replace('import android.content.Context;','import android.content.Context;\nimport android.content.Intent;')
+          marker='content.addView(healthCard());'
+          if 'statsButton' not in s:
+              add='''content.addView(healthCard());
+                  MaterialButton statsButton=new MaterialButton(this);statsButton.setText(AppPreferences.tr(this,"Финансовая статистика","Financial statistics"));statsButton.setAllCaps(false);statsButton.setTextSize(15);statsButton.setTextColor(ContextCompat.getColor(this,R.color.primary));statsButton.setBackgroundTintList(ColorStateList.valueOf(ContextCompat.getColor(this,R.color.card_background)));statsButton.setStrokeColor(ColorStateList.valueOf(ContextCompat.getColor(this,R.color.primary)));statsButton.setStrokeWidth(dp(1));statsButton.setCornerRadius(dp(14));statsButton.setOnClickListener(v->startActivity(new Intent(this,FinancialStatsActivity.class)));LinearLayout.LayoutParams stp=new LinearLayout.LayoutParams(-1,dp(54));stp.setMargins(0,dp(14),0,0);content.addView(statsButton,stp);'''
+              if marker not in s:raise SystemExit('Personal cabinet marker not found')
+              s=s.replace(marker,add)
+          p.write_text(s)
+
+          # Manifest and version.
+          p=Path('app/src/main/AndroidManifest.xml');s=p.read_text();needle='        <activity android:name=".PersonalCabinetActivity" android:exported="false" android:windowSoftInputMode="adjustResize" />'
+          if 'FinancialStatsActivity' not in s:s=s.replace(needle,needle+'\n        <activity android:name=".FinancialStatsActivity" android:exported="false" android:windowSoftInputMode="adjustResize" />')
+          p.write_text(s)
+          p=Path('app/build.gradle');s=p.read_text();s=s.replace('versionCode 19','versionCode 20').replace('versionName "1.19"','versionName "1.20"');p.write_text(s)
+
+          # Add translations for the main new labels used outside the multilingual instruction.
+          p=Path('app/src/main/java/com/example/creditcalculator/Translations.java');s=p.read_text();marker='        add("Разработчик", "Geliştirici", "Desarrollador");'
+          if 'add("Финансовая статистика"' not in s:
+              additions='''        add("Финансовая статистика", "Finansal istatistikler", "Estadísticas financieras");
+        add("Досрочно погашено по активным кредитам", "Aktif kredilerde erken ödenen", "Amortizado anticipadamente en créditos activos");
+        add("Кредиты — за всё время", "Krediler — tüm dönem", "Créditos — histórico");
+        add("Активные кредиты — что впереди", "Aktif krediler — gelecek", "Créditos activos — futuro");
+        add("Архив кредитов", "Kredi arşivi", "Archivo de créditos");
+        add("Вклады", "Mevduatlar", "Depósitos");
+        add("Всего внесено по кредитам", "Kredilere toplam ödeme", "Total pagado a créditos");
+        add("Досрочно погашено", "Erken ödenen", "Amortización anticipada");
+        add("Уже выплачено процентов", "Ödenmiş faiz", "Intereses ya pagados");
+        add("Будущие проценты", "Gelecek faiz", "Intereses futuros");
+        add("Сэкономлено за всё время", "Toplam tasarruf", "Ahorro histórico");
+        add("Ожидаемый доход по активным вкладам", "Aktif mevduat beklenen getirisi", "Ingreso esperado de depósitos activos");
+        add("Доход завершённых вкладов", "Tamamlanan mevduat getirisi", "Ingreso de depósitos finalizados");
+'''
+              if marker not in s:raise SystemExit('Translations marker not found')
+              s=s.replace(marker,additions+marker)
+          p.write_text(s)
+          PY
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install SDK packages
+        run: |
+          yes | sdkmanager --licenses
+          sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Set up Gradle 8.9
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Test and build
+        run: gradle testDebugUnitTest assembleDebug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: CreditCalculator-APK
+          path: app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Commit v1.20 and remove temporary workflow
+        run: |
+          rm .github/workflows/v120-fix.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Add financial statistics and expandable guide v1.20"
+          git push
