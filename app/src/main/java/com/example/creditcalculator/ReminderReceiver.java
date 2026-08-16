@@ -40,10 +40,20 @@ public class ReminderReceiver extends BroadcastReceiver {
         open.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
         PendingIntent contentIntent = PendingIntent.getActivity(context, notificationId, open, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
 
-        Intent paid = new Intent(context, PaymentActionReceiver.class);
-        paid.setAction(PaymentActionReceiver.ACTION_MARK_PAID);
-        paid.putExtra("reminder_id", id); paid.putExtra("payment_index", index); paid.putExtra("notification_id", notificationId);
-        PendingIntent paidIntent = PendingIntent.getBroadcast(context, notificationId + 100000, paid, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+        PendingIntent paidIntent;
+        if (AppPreferences.isSecurityEnabled(context)) {
+            // Protected apps never mutate financial data from the lock screen.
+            // Open the protected record directly; CreditApplication will present LockActivity first.
+            Intent paidOpen = new Intent(context, PaymentDetailsActivity.class);
+            paidOpen.putExtra(PaymentDetailsActivity.EXTRA_REMINDER_ID, id);
+            paidOpen.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+            paidIntent = PendingIntent.getActivity(context, notificationId + 100000, paidOpen, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+        } else {
+            Intent paid = new Intent(context, PaymentActionReceiver.class);
+            paid.setAction(PaymentActionReceiver.ACTION_MARK_PAID);
+            paid.putExtra("reminder_id", id); paid.putExtra("payment_index", index); paid.putExtra("notification_id", notificationId);
+            paidIntent = PendingIntent.getBroadcast(context, notificationId + 100000, paid, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+        }
 
         Intent snooze = new Intent(context, SnoozeActivity.class);
         snooze.putExtra("reminder_id", id); snooze.putExtra("payment_index", index); snooze.putExtra("notification_id", notificationId);

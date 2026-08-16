@@ -16,15 +16,9 @@ public class PaymentActionReceiver extends BroadcastReceiver {
         int notificationId = intent.getIntExtra("notification_id", -1);
         ReminderScheduler.PaymentReminder r = ReminderScheduler.findById(context, id);
         if (r == null || index < 0 || index >= r.months) return;
-        // When app protection is enabled, never change financial data from the lock screen.
-        // Open the protected payment page instead; CreditApplication puts LockActivity on top.
-        if (AppPreferences.isSecurityEnabled(context)) {
-            Intent open = new Intent(context, PaymentDetailsActivity.class);
-            open.putExtra(PaymentDetailsActivity.EXTRA_REMINDER_ID, id);
-            open.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
-            context.startActivity(open);
-            return;
-        }
+        // With app protection enabled the notification uses a direct Activity PendingIntent,
+        // so this receiver is only reached when it is safe to record the payment immediately.
+        if (AppPreferences.isSecurityEnabled(context)) return;
         ReminderScheduler.markPaid(context, id, index, System.currentTimeMillis(), ReminderScheduler.paymentAmount(r, index), 0);
         if (notificationId >= 0) NotificationManagerCompat.from(context).cancel(notificationId);
     }
