@@ -1,0 +1,103 @@
+name: Apply v1.9 final fixes
+
+on:
+  push:
+    branches:
+      - v1.9-work
+    paths:
+      - .github/v19-final-fix-trigger.txt
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: v1.9-work
+      - name: Apply correctness fixes
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          # ReminderScheduler: preserve v1.8 history, partial payments, unmark payment.
+          p = Path('app/src/main/java/com/example/creditcalculator/ReminderScheduler.java')
+          s = p.read_text()
+
+          old = '''                if (r.historyJson.trim().isEmpty()) {\n                    appendHistory(r, r.createdAt, HISTORY_CREATED, "Создана запись", "Item created",\n                            "Создана запись «" + r.title + "».", "Created “" + r.title + "”.");\n                    changed = true;\n                }\n                result.add(r);'''
+          new = '''                // v1.8 and older did not store per-installment payment status. Preserve the old\n                // behaviour on upgrade by marking already elapsed installments as paid once.\n                if (!o.has("ledger") && !TYPE_DEPOSIT.equals(normalizeType(r.type))) {\n                    migrateLegacyPastPaid(r, now);\n                    changed = true;\n                }\n                if (r.historyJson.trim().isEmpty()) {\n                    appendHistory(r, r.createdAt, HISTORY_CREATED, "Создана запись", "Item created",\n                            "Создана запись «" + r.title + "».", "Created “" + r.title + "”.");\n                    changed = true;\n                }\n                result.add(r);'''
+          if old not in s: raise SystemExit('load migration target not found')
+          s = s.replace(old, new)
+
+          anchor = '''    public static PaymentReminder findById(Context context, long id) {'''
+          helper = '''    private static void migrateLegacyPastPaid(PaymentReminder r, long now) {\n        List<InstallmentEntry> migrated = new ArrayList<>();\n        for (int i = 0; i < r.months; i++) {\n            Calendar due = buildDueDate(r, i);\n            due.set(Calendar.HOUR_OF_DAY, 23);\n            due.set(Calendar.MINUTE, 59);\n            due.set(Calendar.SECOND, 59);\n            if (due.getTimeInMillis() >= now) break;\n            PaymentParts parts = paymentParts(r, i);\n            InstallmentEntry e = new InstallmentEntry();\n            e.index = i;\n            e.paidAt = buildDueDate(r, i).getTimeInMillis();\n            e.paidAmount = parts.amount;\n            migrated.add(e);\n        }\n        writeLedger(r, migrated);\n    }\n\n'''
+          if anchor not in s: raise SystemExit('migration helper anchor not found')
+          s = s.replace(anchor, helper + anchor, 1)
+
+          old = '''    public static double remainingDebt(PaymentReminder r){if(r==null||TYPE_DEPOSIT.equals(normalizeType(r.type)))return 0;double paidPrincipal=0;for(int i=0;i<r.months;i++)if(isPaid(r,i)){PaymentParts p=paymentParts(r,i);InstallmentEntry e=entry(r,i);double actualPrincipal=Math.max(0,e.paidAmount-p.interestPart);paidPrincipal+=Math.min(p.principalPart,actualPrincipal);}return Math.max(0,r.principal-paidPrincipal);}\n    public static double balanceAtDate(PaymentReminder r,long date){if(r==null)return 0;double b=r.principal;for(int i=0;i<r.months;i++){PaymentParts p=paymentParts(r,i);if(p.dueDate>=date)break;if(isPaid(r,i)||p.dueDate>System.currentTimeMillis())b=Math.max(0,b-p.principalPart);}return Math.min(remainingDebt(r),b);}\n    public static int remainingPaymentsAfterDate(PaymentReminder r,long date){int n=0;for(int i=0;i<r.months;i++)if(buildDueDate(r,i).getTimeInMillis()>=date&&!isPaid(r,i))n++;return n;}\n    private static long firstDueOnOrAfter(PaymentReminder r,long date){for(int i=0;i<r.months;i++){long d=buildDueDate(r,i).getTimeInMillis();if(d>=date&&!isPaid(r,i))return d;}Calendar c=Calendar.getInstance();c.setTimeInMillis(date);c.add(Calendar.MONTH,1);return c.getTimeInMillis();}\n    public static double segmentPaidInterest(PaymentReminder r){double t=0;for(int i=0;i<r.months;i++)if(isPaid(r,i)){PaymentParts p=paymentParts(r,i);t+=Math.min(p.interestPart,paidAmount(r,i));}return t;}\n    public static double paidInterest(PaymentReminder r){return r==null?0:Math.max(0,r.interestPaidBefore+segmentPaidInterest(r));}\n    public static double remainingInterest(PaymentReminder r){if(r==null||TYPE_DEPOSIT.equals(normalizeType(r.type)))return 0;double t=0;for(int i=0;i<r.months;i++)if(!isPaid(r,i))t+=paymentParts(r,i).interestPart;return Math.max(0,t);}'''
+          new = '''    private static double actualInterestPaid(PaymentReminder r,int index){PaymentParts p=paymentParts(r,index);return Math.max(0,Math.min(p.interestPart,paidAmount(r,index)));}\n    private static double actualPrincipalPaid(PaymentReminder r,int index){PaymentParts p=paymentParts(r,index);double principal=Math.max(0,paidAmount(r,index)-actualInterestPaid(r,index));return Math.max(0,Math.min(p.principalPart,principal));}\n    public static double remainingDebt(PaymentReminder r){if(r==null||TYPE_DEPOSIT.equals(normalizeType(r.type)))return 0;double paidPrincipal=0;for(int i=0;i<r.months;i++)if(paidAmount(r,i)>0)paidPrincipal+=actualPrincipalPaid(r,i);return Math.max(0,r.principal-paidPrincipal);}\n    public static double balanceAtDate(PaymentReminder r,long date){if(r==null)return 0;double b=r.principal;long now=System.currentTimeMillis();for(int i=0;i<r.months;i++){PaymentParts p=paymentParts(r,i);if(p.dueDate>=date)break;if(p.dueDate>now)b=Math.max(0,b-p.principalPart);else if(paidAmount(r,i)>0)b=Math.max(0,b-actualPrincipalPaid(r,i));}return Math.min(remainingDebt(r),b);}\n    public static int remainingPaymentsAfterDate(PaymentReminder r,long date){int n=0;for(int i=0;i<r.months;i++)if(buildDueDate(r,i).getTimeInMillis()>=date&&!isPaid(r,i))n++;return n;}\n    private static long firstDueOnOrAfter(PaymentReminder r,long date){for(int i=0;i<r.months;i++){long d=buildDueDate(r,i).getTimeInMillis();if(d>=date&&!isPaid(r,i))return d;}Calendar c=Calendar.getInstance();c.setTimeInMillis(date);c.add(Calendar.MONTH,1);return c.getTimeInMillis();}\n    public static double segmentPaidInterest(PaymentReminder r){double t=0;for(int i=0;i<r.months;i++)if(paidAmount(r,i)>0)t+=actualInterestPaid(r,i);return t;}\n    public static double paidInterest(PaymentReminder r){return r==null?0:Math.max(0,r.interestPaidBefore+segmentPaidInterest(r));}\n    public static double remainingInterest(PaymentReminder r){if(r==null||TYPE_DEPOSIT.equals(normalizeType(r.type)))return 0;double t=0;for(int i=0;i<r.months;i++){PaymentParts p=paymentParts(r,i);t+=Math.max(0,p.interestPart-actualInterestPaid(r,i));}return Math.max(0,t);}'''
+          if old not in s: raise SystemExit('partial-payment target not found')
+          s = s.replace(old, new)
+
+          anchor = '''    public static void markPastPaid(Context c,long id){'''
+          unmark = '''    public static void unmarkPaid(Context c,long id,int index){List<PaymentReminder> items=loadAll(c);for(PaymentReminder r:items)if(r.id==id&&index>=0&&index<r.months){List<InstallmentEntry> l=ledger(r);InstallmentEntry e=mutableEntry(l,index);e.paidAt=0;e.paidAmount=0;e.penalty=0;e.snoozeUntil=0;writeLedger(r,l);r.updatedAt=System.currentTimeMillis();appendHistory(r,r.updatedAt,HISTORY_PAYMENT,"Снята отметка об оплате","Payment marked unpaid","С платежа "+dateText(buildDueDate(r,index).getTimeInMillis())+" снята отметка «Оплачен».","The paid mark was removed from the payment due "+dateText(buildDueDate(r,index).getTimeInMillis())+".");saveRaw(c,items);schedule(c,r);return;}}\n\n'''
+          if anchor not in s: raise SystemExit('unmark anchor not found')
+          s = s.replace(anchor, unmark + anchor, 1)
+          p.write_text(s)
+
+          # Payment details: allow correcting an accidental paid mark.
+          p = Path('app/src/main/java/com/example/creditcalculator/PaymentDetailsActivity.java')
+          s = p.read_text()
+          old = '''new AlertDialog.Builder(this).setTitle(AppPreferences.tr(this,"Платёж оплачен","Payment paid")).setView(box).setNegativeButton(AppPreferences.tr(this,"Отмена","Cancel"),null).setPositiveButton(AppPreferences.tr(this,"Применить","Apply"),(d,w)->{try{ReminderScheduler.markPaid(this,reminder.id,index,paidDate.getTimeInMillis(),parse(amount.getText().toString()),parseZero(penalty.getText().toString()));refresh();}catch(Exception ex){Toast.makeText(this,AppPreferences.tr(this,"Проверьте введённые данные","Check entered data"),Toast.LENGTH_SHORT).show();}}).show();'''
+          new = '''AlertDialog.Builder builder=new AlertDialog.Builder(this).setTitle(AppPreferences.tr(this,"Платёж оплачен","Payment paid")).setView(box).setNegativeButton(AppPreferences.tr(this,"Отмена","Cancel"),null).setPositiveButton(AppPreferences.tr(this,"Применить","Apply"),(d,w)->{try{ReminderScheduler.markPaid(this,reminder.id,index,paidDate.getTimeInMillis(),parse(amount.getText().toString()),parseZero(penalty.getText().toString()));refresh();}catch(Exception ex){Toast.makeText(this,AppPreferences.tr(this,"Проверьте введённые данные","Check entered data"),Toast.LENGTH_SHORT).show();}});if(ReminderScheduler.paidAmount(reminder,index)>0)builder.setNeutralButton(AppPreferences.tr(this,"Снять отметку об оплате","Mark unpaid"),(d,w)->{ReminderScheduler.unmarkPaid(this,reminder.id,index);refresh();});builder.show();'''
+          if old not in s: raise SystemExit('paid dialog target not found')
+          p.write_text(s.replace(old,new))
+
+          # Early repayment: full payoff is a valid outcome and must not require positive future payment fields.
+          p = Path('app/src/main/java/com/example/creditcalculator/EarlyRepaymentActivity.java')
+          s = p.read_text()
+          old = '''sim=ReminderScheduler.simulateEarlyRepayment(reminder,actionDate.getTimeInMillis(),amount);binding=true;leftPaymentEdit.setText(num(sim.reducedPayment));leftMonthsEdit.setText(String.valueOf(Math.max(1,sim.remainingMonths)));rightPaymentEdit.setText(num(sim.keptPayment));rightMonthsEdit.setText(String.valueOf(Math.max(1,sim.reducedMonths)));binding=false;updateCardsFromManual();afterText.setText'''
+          new = '''sim=ReminderScheduler.simulateEarlyRepayment(reminder,actionDate.getTimeInMillis(),amount);if(sim.newBalance<=.01){binding=true;leftPaymentEdit.setText("0");leftMonthsEdit.setText("0");rightPaymentEdit.setText("0");rightMonthsEdit.setText("0");binding=false;leftEnd.setText(AppPreferences.tr(this,"Кредит будет погашен полностью","Loan will be fully repaid"));rightEnd.setText(AppPreferences.tr(this,"Кредит будет погашен полностью","Loan will be fully repaid"));leftInterest.setText(AppPreferences.tr(this,"Осталось процентов: 0 ₽","Interest left: 0 ₽"));rightInterest.setText(AppPreferences.tr(this,"Осталось процентов: 0 ₽","Interest left: 0 ₽"));leftSavings.setText(AppPreferences.tr(this,"Полное погашение","Full repayment"));rightSavings.setText(AppPreferences.tr(this,"Полное погашение","Full repayment"));recommendation.setText(AppPreferences.tr(this,"После внесения этой суммы кредит будет погашен полностью.","This amount fully repays the loan."));reducePaymentCard.setStrokeColor(ContextCompat.getColor(this,R.color.success));reduceTermCard.setStrokeColor(ContextCompat.getColor(this,R.color.success));selected=0;updateSelection();afterText.setText(AppPreferences.tr(this,"Досрочно вносится: ","Early repayment: ")+FormatUtils.money(this,sim.prepayment)+AppPreferences.tr(this," → новый остаток долга: "," → new balance: ")+FormatUtils.money(this,sim.newBalance));return;}binding=true;leftPaymentEdit.setText(num(sim.reducedPayment));leftMonthsEdit.setText(String.valueOf(Math.max(1,sim.remainingMonths)));rightPaymentEdit.setText(num(sim.keptPayment));rightMonthsEdit.setText(String.valueOf(Math.max(1,sim.reducedMonths)));binding=false;updateCardsFromManual();afterText.setText'''
+          if old not in s: raise SystemExit('early recalc target not found')
+          s = s.replace(old,new)
+          old = '''private void apply(){if(sim==null||selected<0)return;try{double p=positive((selected==0?leftPaymentEdit:rightPaymentEdit).getText().toString());int m=positiveInt((selected==0?leftMonthsEdit:rightMonthsEdit).getText().toString());double amount=positive(amountInput.getText().toString());ReminderScheduler.applyEarlyRepayment(this,reminder.id,actionDate.getTimeInMillis(),amount,selected==1,p,m);'''
+          new = '''private void apply(){if(sim==null||selected<0)return;try{double amount=positive(amountInput.getText().toString());if(sim.newBalance<=.01){ReminderScheduler.applyEarlyRepayment(this,reminder.id,actionDate.getTimeInMillis(),amount,false,0,0);Toast.makeText(this,AppPreferences.tr(this,"Кредит погашен полностью","Loan fully repaid"),Toast.LENGTH_LONG).show();finish();return;}double p=positive((selected==0?leftPaymentEdit:rightPaymentEdit).getText().toString());int m=positiveInt((selected==0?leftMonthsEdit:rightMonthsEdit).getText().toString());ReminderScheduler.applyEarlyRepayment(this,reminder.id,actionDate.getTimeInMillis(),amount,selected==1,p,m);'''
+          if old not in s: raise SystemExit('early apply target not found')
+          p.write_text(s.replace(old,new))
+
+          # General summary: green face when a payment due within 3 days was already paid early.
+          p = Path('app/src/main/java/com/example/creditcalculator/PaymentsActivity.java')
+          s = p.read_text()
+          s = s.replace('statusFace(overdueCount,nearest,nearestIndex)', 'statusFace(overdueCount,nearest,nearestIndex,hasPaidEarlySoon(items))')
+          s = s.replace('statusColor(overdueCount,nearest,nearestIndex)', 'statusColor(overdueCount,nearest,nearestIndex,hasPaidEarlySoon(items))')
+          old = '''private String statusFace(int overdue,ReminderScheduler.PaymentReminder r,int index){if(overdue>0)return "☹";if(r==null||index<0)return "☺";int c=paymentUrgencyColor(r,index);return c==R.color.danger?"☹":c==R.color.warning?"☻":"☺";}private int statusColor(int overdue,ReminderScheduler.PaymentReminder r,int index){if(overdue>0)return R.color.danger;if(r==null||index<0)return R.color.success;return paymentUrgencyColor(r,index);}'''
+          new = '''private boolean hasPaidEarlySoon(List<ReminderScheduler.PaymentReminder> items){long now=System.currentTimeMillis(),limit=now+3L*24L*60L*60L*1000L;for(ReminderScheduler.PaymentReminder r:items){if(ReminderScheduler.TYPE_DEPOSIT.equals(ReminderScheduler.normalizeType(r.type)))continue;for(int i=0;i<r.months;i++){long due=ReminderScheduler.buildDueDate(r,i).getTimeInMillis();if(due>=now&&due<=limit&&ReminderScheduler.isPaid(r,i)&&ReminderScheduler.paidAt(r,i)>0&&ReminderScheduler.paidAt(r,i)<due)return true;}}return false;}private String statusFace(int overdue,ReminderScheduler.PaymentReminder r,int index,boolean paidEarly){if(overdue>0)return "☹";if(paidEarly)return "☺";if(r==null||index<0)return "☺";int c=paymentUrgencyColor(r,index);return c==R.color.danger?"☹":c==R.color.warning?"☻":"☺";}private int statusColor(int overdue,ReminderScheduler.PaymentReminder r,int index,boolean paidEarly){if(overdue>0)return R.color.danger;if(paidEarly)return R.color.success;if(r==null||index<0)return R.color.success;return paymentUrgencyColor(r,index);}'''
+          if old not in s: raise SystemExit('summary face target not found')
+          p.write_text(s.replace(old,new))
+
+          # Full reset must immediately return to first-launch language selection.
+          p = Path('app/src/main/java/com/example/creditcalculator/SettingsActivity.java')
+          s = p.read_text()
+          old = '''Intent i=new Intent(this,MainActivity.class);i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK|Intent.FLAG_ACTIVITY_CLEAR_TASK);startActivity(i);finish();'''
+          new = '''Intent i=new Intent(this,LanguageSelectionActivity.class);i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK|Intent.FLAG_ACTIVITY_CLEAR_TASK);startActivity(i);finish();'''
+          if old not in s: raise SystemExit('reset target not found')
+          p.write_text(s.replace(old,new))
+
+          # History in Turkish/Spanish should fall back to translated/English text, never Russian by default.
+          p = Path('app/src/main/java/com/example/creditcalculator/HistoryActivity.java')
+          s = p.read_text()
+          old = '''        String title = AppPreferences.isEnglish(this) ? event.titleEn : event.titleRu;\n        String details = AppPreferences.isEnglish(this) ? event.detailsEn : event.detailsRu;'''
+          new = '''        String title = AppPreferences.tr(this, event.titleRu, event.titleEn);\n        String details = AppPreferences.tr(this, event.detailsRu, event.detailsEn);'''
+          if old not in s: raise SystemExit('history localization target not found')
+          p.write_text(s.replace(old,new))
+          PY
+      - name: Commit fixes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/src/main/java/com/example/creditcalculator
+          git diff --cached --quiet && exit 0
+          git commit -m "fix: preserve upgrades and payment edge cases"
+          git push origin HEAD:v1.9-work
