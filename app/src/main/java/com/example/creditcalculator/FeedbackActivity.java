@@ -7,6 +7,7 @@ import android.content.res.ColorStateList;
 import android.database.Cursor;
 import android.graphics.Color;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.provider.OpenableColumns;
 import android.view.Gravity;
@@ -34,6 +35,7 @@ public class FeedbackActivity extends AppCompatActivity {
     public static final String EXTRA_KIND="feedback_kind";
     public static final String KIND_BUG="bug";
     public static final String KIND_IDEA="idea";
+    private static final String SUPPORT_EMAIL="SKRYTONsupport@gmail.com";
     private static final int REQ_FILES=4107;
     private static final int MAX_FILES=5;
     private static final long MAX_TOTAL_BYTES=100L*1024L*1024L;
@@ -75,7 +77,7 @@ public class FeedbackActivity extends AppCompatActivity {
         LinearLayout.LayoutParams acp=new LinearLayout.LayoutParams(-1,-2);acp.setMargins(0,dp(16),0,dp(14));content.addView(attachCard,acp);
 
         MaterialButton send=new MaterialButton(this);send.setText(AppPreferences.tr(this,"Отправить обращение","Send request"));send.setAllCaps(false);send.setTextSize(16);send.setTextColor(Color.WHITE);send.setBackgroundTintList(ColorStateList.valueOf(ContextCompat.getColor(this,R.color.primary)));send.setCornerRadius(dp(14));send.setOnClickListener(v->send());content.addView(send,new LinearLayout.LayoutParams(-1,dp(56)));
-        TextView privacy=text("ⓘ "+AppPreferences.tr(this,"В истории приложения останутся только название, дата, тип и текст обращения. Фото и видео не сохраняются.","Only the request title, date, type and text remain in app history. Photos and videos are not stored."),13,R.color.text_secondary,true);LinearLayout.LayoutParams pp=new LinearLayout.LayoutParams(-1,-2);pp.setMargins(0,dp(12),0,0);content.addView(privacy,pp);
+        TextView privacy=text("ⓘ "+AppPreferences.tr(this,"Письмо будет адресовано службе поддержки SKRYTON. В истории приложения останутся только название, дата, тип и текст обращения. Фото и видео не сохраняются.","The email will be addressed to SKRYTON support. Only the request title, date, type and text remain in app history. Photos and videos are not stored."),13,R.color.text_secondary,true);LinearLayout.LayoutParams pp=new LinearLayout.LayoutParams(-1,-2);pp.setMargins(0,dp(12),0,0);content.addView(privacy,pp);
 
         ViewCompat.setOnApplyWindowInsetsListener(root,(v,insets)->{Insets bars=insets.getInsets(WindowInsetsCompat.Type.systemBars());Insets ime=insets.getInsets(WindowInsetsCompat.Type.ime());v.setPadding(0,bars.top,0,0);scroll.setPadding(0,0,0,Math.max(bars.bottom,ime.bottom)+dp(18));UiUtils.ensureFocusedFieldVisible(scroll);return insets;});
         return root;
@@ -101,9 +103,32 @@ public class FeedbackActivity extends AppCompatActivity {
     private void send(){
         String title=value(titleInput),message=value(messageInput);if(title.isEmpty()){titleInput.setError(AppPreferences.tr(this,"Укажите название","Enter a title"));titleInput.requestFocus();return;}if(message.isEmpty()){messageInput.setError(AppPreferences.tr(this,"Опишите обращение","Describe your request"));messageInput.requestFocus();return;}
         FeedbackStore.add(this,kindLabel(),title,message);
-        String body=kindLabel()+"\n"+title+"\n\n"+message;
-        Intent out;if(attachments.isEmpty()){out=new Intent(Intent.ACTION_SEND);out.setType("text/plain");}else{out=new Intent(Intent.ACTION_SEND_MULTIPLE);out.setType("*/*");out.putParcelableArrayListExtra(Intent.EXTRA_STREAM,new ArrayList<>(attachments));out.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);}out.putExtra(Intent.EXTRA_SUBJECT,title);out.putExtra(Intent.EXTRA_TEXT,body);
-        try{startActivity(Intent.createChooser(out,AppPreferences.tr(this,"Отправить обращение","Send request")));Toast.makeText(this,AppPreferences.tr(this,"Текст обращения сохранён в истории","Request text saved in history"),Toast.LENGTH_SHORT).show();attachments.clear();updateAttachmentInfo();finish();}catch(Exception e){Toast.makeText(this,AppPreferences.tr(this,"Не найдено приложение для отправки. Текст обращения сохранён в истории.","No app was found for sending. The request text was saved in history."),Toast.LENGTH_LONG).show();attachments.clear();updateAttachmentInfo();}
+        String appName=getString(R.string.app_name);
+        String subject=appName+" — "+AppPreferences.tr(this,KIND_IDEA.equals(kind)?"предложение":"ошибка",KIND_IDEA.equals(kind)?"suggestion":"bug")+": "+title;
+        String body=kindLabel()+"\n"+title+"\n\n"+message+"\n\n---\n"+diagnostics(appName);
+        Intent out;
+        if(attachments.isEmpty()){
+            out=new Intent(Intent.ACTION_SENDTO);
+            out.setData(Uri.parse("mailto:"+SUPPORT_EMAIL));
+        }else{
+            out=new Intent(Intent.ACTION_SEND_MULTIPLE);
+            out.setType("*/*");
+            out.putParcelableArrayListExtra(Intent.EXTRA_STREAM,new ArrayList<>(attachments));
+            out.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        }
+        out.putExtra(Intent.EXTRA_EMAIL,new String[]{SUPPORT_EMAIL});
+        out.putExtra(Intent.EXTRA_SUBJECT,subject);
+        out.putExtra(Intent.EXTRA_TEXT,body);
+        try{startActivity(Intent.createChooser(out,AppPreferences.tr(this,"Отправить обращение","Send request")));Toast.makeText(this,AppPreferences.tr(this,"Письмо подготовлено для службы поддержки","Email prepared for support"),Toast.LENGTH_SHORT).show();attachments.clear();updateAttachmentInfo();finish();}catch(Exception e){Toast.makeText(this,AppPreferences.tr(this,"Не найдено почтовое приложение. Текст обращения сохранён в истории.","No email app was found. The request text was saved in history."),Toast.LENGTH_LONG).show();attachments.clear();updateAttachmentInfo();}
+    }
+
+    private String diagnostics(String appName){
+        String version="—";try{String v=getPackageManager().getPackageInfo(getPackageName(),0).versionName;if(v!=null&&!v.trim().isEmpty())version=v;}catch(Exception ignored){}
+        String maker=Build.MANUFACTURER==null?"":Build.MANUFACTURER.trim();String model=Build.MODEL==null?"":Build.MODEL.trim();String device=(maker+" "+model).trim();
+        return AppPreferences.tr(this,"Отправлено из приложения: ","Sent from app: ")+appName+"\n"+
+                AppPreferences.tr(this,"Версия приложения: ","App version: ")+version+"\n"+
+                "Android: "+Build.VERSION.RELEASE+" (API "+Build.VERSION.SDK_INT+")\n"+
+                AppPreferences.tr(this,"Устройство: ","Device: ")+(device.isEmpty()?"—":device);
     }
 
     private String kindLabel(){return AppPreferences.tr(this,KIND_IDEA.equals(kind)?"Предложение":"Ошибка",KIND_IDEA.equals(kind)?"Suggestion":"Bug");}
