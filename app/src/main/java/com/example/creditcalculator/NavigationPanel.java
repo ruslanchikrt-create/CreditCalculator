@@ -1,6 +1,7 @@
 package com.example.creditcalculator;
 
 import android.app.Activity;
+import android.content.Context;
 import android.content.Intent;
 import android.graphics.Color;
 import android.graphics.drawable.Drawable;
@@ -46,7 +47,7 @@ final class NavigationPanel {
 
     private static View header(Activity a,DrawerLayout drawer){
         LinearLayout h=new LinearLayout(a);h.setOrientation(LinearLayout.HORIZONTAL);h.setGravity(Gravity.CENTER_VERTICAL);h.setPadding(dp(a,18),dp(a,14),dp(a,14),dp(a,14));h.setBackgroundColor(ContextCompat.getColor(a,R.color.primary));
-        FrameLayout avatarBox=new FrameLayout(a);LinearLayout.LayoutParams avp=new LinearLayout.LayoutParams(dp(a,58),dp(a,58));h.addView(avatarBox,avp);
+        FrameLayout avatarBox=new FrameLayout(a);h.addView(avatarBox,new LinearLayout.LayoutParams(dp(a,58),dp(a,58)));
         GradientDrawable circle=new GradientDrawable();circle.setShape(GradientDrawable.OVAL);circle.setColor(ContextCompat.getColor(a,R.color.primary_dark));
         TextView fallback=new TextView(a);fallback.setGravity(Gravity.CENTER);fallback.setTextSize(24);fallback.setTextColor(Color.WHITE);fallback.setTypeface(null,android.graphics.Typeface.BOLD);fallback.setBackground(circle);
         String fio=AppPreferences.getCabinetFullName(a);String profile=fio.isEmpty()?AppPreferences.getProfileName(a):fio;String first=profile.trim().isEmpty()?"₽":profile.trim().substring(0,1).toUpperCase();fallback.setText(first);avatarBox.addView(fallback,new FrameLayout.LayoutParams(-1,-1));
@@ -59,7 +60,6 @@ final class NavigationPanel {
 
     private static TextView item(Activity a,DrawerLayout drawer,int icon,String label,boolean selected,Class<?> target,boolean calculators){TextView t=navText(a,icon,label,selected);t.setOnClickListener(v->{drawer.closeDrawer(GravityCompat.START);if((target==PaymentsActivity.class&&a instanceof PaymentsActivity)||(target==MainActivity.class&&a instanceof MainActivity))return;Intent i=new Intent(a,target);if(calculators)i.putExtra(MainActivity.EXTRA_SHOW_CALCULATORS,true);a.startActivity(i);});return t;}
     private static TextView navText(Activity a,int iconRes,String label,boolean selected){TextView t=new TextView(a);t.setText(label);t.setTextSize(16);t.setGravity(Gravity.CENTER_VERTICAL);t.setPadding(dp(a,14),0,dp(a,12),0);t.setCompoundDrawablePadding(dp(a,14));int color=ContextCompat.getColor(a,selected?R.color.primary:R.color.text_main);t.setTextColor(color);if(selected)t.setTypeface(null,android.graphics.Typeface.BOLD);Drawable d=AppCompatResources.getDrawable(a,iconRes);if(d!=null){d=DrawableCompat.wrap(d.mutate());DrawableCompat.setTint(d,color);d.setBounds(0,0,dp(a,22),dp(a,22));t.setCompoundDrawablesRelative(d,null,null,null);}if(selected){GradientDrawable bg=new GradientDrawable();bg.setColor(Color.argb(24,47,111,235));bg.setCornerRadius(dp(a,12));t.setBackground(bg);}return t;}
-    private static void add(LinearLayout panel,TextView v){LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-1,dp(v.getContext(),50));p.setMargins(dp(v.getContext(),10),dp(v.getContext(),2),dp(v.getContext(),10),dp(v.getContext(),2));panel.addView(v,p);}private static int dp(ContextLike c,int v){return 0;}
-    private static int dp(android.content.Context c,int v){return Math.round(v*c.getResources().getDisplayMetrics().density);}
-    private interface ContextLike {}
+    private static void add(LinearLayout panel,TextView v){LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-1,dp(v.getContext(),50));p.setMargins(dp(v.getContext(),10),dp(v.getContext(),2),dp(v.getContext(),10),dp(v.getContext(),2));panel.addView(v,p);}
+    private static int dp(Context c,int v){return Math.round(v*c.getResources().getDisplayMetrics().density);}
 }
