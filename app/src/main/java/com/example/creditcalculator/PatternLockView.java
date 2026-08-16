@@ -25,6 +25,7 @@ public class PatternLockView extends View {
 
     private final Paint dotPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint selectedPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint innerPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint linePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final float[] xs = new float[9];
     private final float[] ys = new float[9];
@@ -62,6 +63,9 @@ public class PatternLockView extends View {
         selectedPaint.setStyle(Paint.Style.FILL);
         selectedPaint.setColor(ContextCompat.getColor(getContext(), R.color.primary));
 
+        innerPaint.setStyle(Paint.Style.FILL);
+        innerPaint.setColor(ContextCompat.getColor(getContext(), R.color.card_background));
+
         linePaint.setStyle(Paint.Style.STROKE);
         linePaint.setStrokeCap(Paint.Cap.ROUND);
         linePaint.setStrokeJoin(Paint.Join.ROUND);
@@ -69,7 +73,7 @@ public class PatternLockView extends View {
         linePaint.setColor(ContextCompat.getColor(getContext(), R.color.primary));
         linePaint.setAlpha(205);
 
-        setMinimumHeight(dp(250));
+        setMinimumHeight(Math.round(dp(250)));
     }
 
     public void setOnPatternCompleteListener(OnPatternCompleteListener listener) {
@@ -139,10 +143,7 @@ public class PatternLockView extends View {
             boolean active = selected.contains(i);
             if (active) {
                 canvas.drawCircle(xs[i], ys[i], dotRadius * 1.35f, selectedPaint);
-                Paint inner = new Paint(Paint.ANTI_ALIAS_FLAG);
-                inner.setStyle(Paint.Style.FILL);
-                inner.setColor(ContextCompat.getColor(getContext(), R.color.card_background));
-                canvas.drawCircle(xs[i], ys[i], dotRadius * 0.52f, inner);
+                canvas.drawCircle(xs[i], ys[i], dotRadius * 0.52f, innerPaint);
             } else {
                 canvas.drawCircle(xs[i], ys[i], dotRadius, dotPaint);
             }
