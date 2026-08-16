@@ -1,6 +1,7 @@
 package com.example.creditcalculator;
 
 import android.Manifest;
+import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
@@ -85,6 +86,7 @@ public class ReminderReceiver extends BroadcastReceiver {
                 .setAutoCancel(!persistentDay)
                 .setOngoing(persistentDay)
                 .setOnlyAlertOnce(silentDay)
+                .setSilent(silentDay)
                 .setContentIntent(contentIntent);
 
         if(today || overdue){
@@ -102,7 +104,7 @@ public class ReminderReceiver extends BroadcastReceiver {
             }
             b.addAction(0, AppPreferences.tr(context, "✓ Уже оплачено", "✓ Already paid"), paidIntent);
         }
-        b.addAction(0, AppPreferences.tr(context, "Напомнить позже", "Remind later"), snoozeIntent);
+        if(!silentDay)b.addAction(0, AppPreferences.tr(context, "Напомнить позже", "Remind later"), snoozeIntent);
 
         if (today || overdue) b.setColor(ContextCompat.getColor(context, R.color.danger));
         else b.setColor(ContextCompat.getColor(context, R.color.primary));
@@ -110,16 +112,16 @@ public class ReminderReceiver extends BroadcastReceiver {
             if (allowSound && soundUri != null) b.setSound(soundUri);
             if (allowVibration) b.setVibrate(new long[]{0,350,180,350,180,500});
         }
-        NotificationManagerCompat.from(context).notify(notificationId, b.build());
+        Notification notification=b.build();if(persistentDay)notification.flags|=Notification.FLAG_ONGOING_EVENT|Notification.FLAG_NO_CLEAR;NotificationManagerCompat.from(context).notify(notificationId, notification);
         ReminderScheduler.scheduleFollowing(context, r, index);
     }
 
     private Uri resolveSound(Context c,boolean enabled){if(!enabled)return null;String saved=AppPreferences.getSoundUri(c);if(saved==null||saved.isEmpty())return RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM);try{return Uri.parse(saved);}catch(Exception e){return RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM);}}
 
     private String createSilentDayChannel(Context c){
-        String id="payment_day_silent_v2";
+        String id="payment_day_silent_v3";
         if(Build.VERSION.SDK_INT>=26){
-            NotificationChannel ch=new NotificationChannel(id,AppPreferences.tr(c,"Платёж сегодня — без звука","Payment due today — silent"),NotificationManager.IMPORTANCE_DEFAULT);
+            NotificationChannel ch=new NotificationChannel(id,AppPreferences.tr(c,"Платёж сегодня — без звука","Payment due today — silent"),NotificationManager.IMPORTANCE_LOW);
             ch.setDescription(AppPreferences.tr(c,"Постоянное беззвучное уведомление с 00:00 в день платежа","Persistent silent notice from 00:00 on the payment day"));
             ch.enableVibration(false);ch.setSound(null,null);ch.setShowBadge(true);
             NotificationManager nm=c.getSystemService(NotificationManager.class);if(nm!=null)nm.createNotificationChannel(ch);

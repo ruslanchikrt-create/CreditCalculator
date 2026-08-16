@@ -10,8 +10,8 @@ android {
         applicationId "com.example.creditcalculator"
         minSdk 23
         targetSdk 35
-        versionCode 13
-        versionName "1.13"
+        versionCode 14
+        versionName "1.14"
     }
 }
 
@@ -20,4 +20,5 @@ dependencies {
     implementation 'androidx.drawerlayout:drawerlayout:1.2.0'
     implementation 'androidx.biometric:biometric:1.1.0'
     implementation 'com.google.android.material:material:1.12.0'
+    testImplementation 'junit:junit:4.13.2'
 }

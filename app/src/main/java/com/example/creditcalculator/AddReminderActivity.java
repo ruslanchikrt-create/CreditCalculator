@@ -147,6 +147,7 @@ public class AddReminderActivity extends AppCompatActivity {
             int days=daysSpinner.getSelectedItemPosition()+1;
             String paymentType=(paymentTypeSpinner.getVisibility()==View.VISIBLE&&paymentTypeSpinner.getSelectedItemPosition()==1)?ReminderScheduler.PAYMENT_DIFFERENTIAL:ReminderScheduler.PAYMENT_ANNUITY;
             double payment=ReminderScheduler.TYPE_DEPOSIT.equals(type)?0:requiredPositive(paymentLayout,paymentInput,AppPreferences.tr(this,"Укажите сумму платежа больше 0","Enter a payment amount greater than 0"));
+            if(!ReminderScheduler.TYPE_DEPOSIT.equals(type)&&!ReminderScheduler.TYPE_INSTALLMENT.equals(type)){double firstInterest=principal*rate/100d/12d;if(payment<=firstInterest+.01)throw fieldError(paymentLayout,AppPreferences.tr(this,"Платёж слишком маленький: он должен быть больше процентов за первый месяц","Payment is too small: it must exceed the first month interest"));}
             if(selectedDate==null)throw fieldError(dateLayout,AppPreferences.tr(this,ReminderScheduler.TYPE_DEPOSIT.equals(type)?"Выберите дату открытия вклада":"Выберите дату первого платежа",ReminderScheduler.TYPE_DEPOSIT.equals(type)?"Choose the deposit start date":"Choose the first payment date"));
             Calendar date=(Calendar)selectedDate.clone();date.set(Calendar.HOUR_OF_DAY,selectedHour);date.set(Calendar.MINUTE,selectedMinute);date.set(Calendar.SECOND,0);date.set(Calendar.MILLISECOND,0);
             long id=editReminder==null?System.currentTimeMillis():editReminder.id;
