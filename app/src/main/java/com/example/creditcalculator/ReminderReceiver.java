@@ -101,6 +101,7 @@ public class ReminderReceiver extends BroadcastReceiver {
             if (vibration) b.setVibrate(new long[]{0,350,180,350,180,500});
         }
         NotificationManagerCompat.from(context).notify(notificationId, b.build());
+        ReminderScheduler.scheduleFollowing(context, r, index);
     }
 
     private Uri resolveSound(Context c,boolean enabled){if(!enabled)return null;String saved=AppPreferences.getSoundUri(c);if(saved==null||saved.isEmpty())return RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM);try{return Uri.parse(saved);}catch(Exception e){return RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM);}}
