@@ -230,6 +230,12 @@ public final class ReminderScheduler {
                         o.optBoolean("soundEnabled", true), createdAt, o.optLong("updatedAt", createdAt),
                         o.optDouble("interestPaidBefore", 0), o.optString("history", ""), o.optString("ledger", "")
                 );
+                // v1.8 and older did not store per-installment payment status. Preserve the old
+                // behaviour on upgrade by marking already elapsed installments as paid once.
+                if (!o.has("ledger") && !TYPE_DEPOSIT.equals(normalizeType(r.type))) {
+                    migrateLegacyPastPaid(r, now);
+                    changed = true;
+                }
                 if (r.historyJson.trim().isEmpty()) {
                     appendHistory(r, r.createdAt, HISTORY_CREATED, "Создана запись", "Item created",
                             "Создана запись «" + r.title + "».", "Created “" + r.title + "”.");
@@ -240,6 +246,24 @@ public final class ReminderScheduler {
         } catch (Exception ignored) {}
         if (changed) saveRaw(context, result);
         return result;
+    }
+
+    private static void migrateLegacyPastPaid(PaymentReminder r, long now) {
+        List<InstallmentEntry> migrated = new ArrayList<>();
+        for (int i = 0; i < r.months; i++) {
+            Calendar due = buildDueDate(r, i);
+            due.set(Calendar.HOUR_OF_DAY, 23);
+            due.set(Calendar.MINUTE, 59);
+            due.set(Calendar.SECOND, 59);
+            if (due.getTimeInMillis() >= now) break;
+            PaymentParts parts = paymentParts(r, i);
+            InstallmentEntry e = new InstallmentEntry();
+            e.index = i;
+            e.paidAt = buildDueDate(r, i).getTimeInMillis();
+            e.paidAmount = parts.amount;
+            migrated.add(e);
+        }
+        writeLedger(r, migrated);
     }
 
     public static PaymentReminder findById(Context context, long id) {
@@ -343,6 +367,8 @@ public final class ReminderScheduler {
 
     public static void markPaid(Context c,long id,int index,long paidAt,double paidAmount,double penalty){List<PaymentReminder> items=loadAll(c);for(PaymentReminder r:items)if(r.id==id&&index>=0&&index<r.months){List<InstallmentEntry> l=ledger(r);InstallmentEntry e=mutableEntry(l,index);PaymentParts p=paymentParts(r,index);e.paidAt=paidAt>0?paidAt:System.currentTimeMillis();e.paidAmount=paidAmount>0?paidAmount:p.amount;e.penalty=Math.max(0,penalty);e.snoozeUntil=0;writeLedger(r,l);r.updatedAt=System.currentTimeMillis();long delayDays=Math.max(0,(e.paidAt-p.dueDate)/(24L*60L*60L*1000L));String late=delayDays>0?"\nПросрочка: "+delayDays+" дн.":"";appendHistory(r,r.updatedAt,HISTORY_PAYMENT,"Платёж оплачен","Payment paid","Платёж от "+dateText(p.dueDate)+" оплачен "+dateText(e.paidAt)+". Сумма: "+round2(e.paidAmount)+" ₽"+late+(e.penalty>0?"\nШтраф / пеня: "+round2(e.penalty)+" ₽":""),"Payment due "+dateText(p.dueDate)+" paid "+dateText(e.paidAt)+". Amount: "+round2(e.paidAmount)+" ₽"+(delayDays>0?"\nLate by "+delayDays+" days.":"")+(e.penalty>0?"\nPenalty: "+round2(e.penalty)+" ₽":""));cancelInstallment(c,r,index);break;}saveRaw(c,items);}
 
+    public static void unmarkPaid(Context c,long id,int index){List<PaymentReminder> items=loadAll(c);for(PaymentReminder r:items)if(r.id==id&&index>=0&&index<r.months){List<InstallmentEntry> l=ledger(r);InstallmentEntry e=mutableEntry(l,index);e.paidAt=0;e.paidAmount=0;e.penalty=0;e.snoozeUntil=0;writeLedger(r,l);r.updatedAt=System.currentTimeMillis();appendHistory(r,r.updatedAt,HISTORY_PAYMENT,"Снята отметка об оплате","Payment marked unpaid","С платежа "+dateText(buildDueDate(r,index).getTimeInMillis())+" снята отметка «Оплачен».","The paid mark was removed from the payment due "+dateText(buildDueDate(r,index).getTimeInMillis())+".");saveRaw(c,items);schedule(c,r);return;}}
+
     public static void markPastPaid(Context c,long id){List<PaymentReminder> items=loadAll(c);for(PaymentReminder r:items)if(r.id==id){List<InstallmentEntry> l=ledger(r);long now=System.currentTimeMillis();for(int i=0;i<r.months;i++){Calendar d=buildDueDate(r,i);d.set(Calendar.HOUR_OF_DAY,23);d.set(Calendar.MINUTE,59);d.set(Calendar.SECOND,59);if(d.getTimeInMillis()>=now)break;InstallmentEntry e=mutableEntry(l,i);if(e.paidAt<=0){e.paidAt=buildDueDate(r,i).getTimeInMillis();e.paidAmount=paymentAmount(r,i);}}writeLedger(r,l);r.updatedAt=now;appendHistory(r,now,HISTORY_PAYMENT,"Прошедшие платежи отмечены оплаченными","Past payments marked paid","Все прошедшие платежи отмечены как оплаченные по графику.","All past payments were marked paid according to schedule.");break;}saveRaw(c,items);}
 
     public static void changePlannedAmount(Context c,long id,int index,double amount,boolean following,boolean includeArchived){if(amount<=0)return;List<PaymentReminder> items=loadAll(c);for(PaymentReminder r:items)if(r.id==id){List<InstallmentEntry> l=ledger(r);for(int i=0;i<r.months;i++){boolean past=buildDueDate(r,i).getTimeInMillis()<System.currentTimeMillis()||isPaid(r,i);boolean apply=(i==index)||(following&&i>=index)||(includeArchived&&past);if(apply)mutableEntry(l,i).plannedOverride=amount;}writeLedger(r,l);r.updatedAt=System.currentTimeMillis();appendHistory(r,r.updatedAt,HISTORY_SCHEDULE,"Изменена сумма графика","Schedule amount changed","Плановый платёж изменён на "+round2(amount)+" ₽. "+(following?"Применено к выбранному и следующим платежам.":"Применено к одному платежу.")+(includeArchived?" Изменение также применено к архивным платежам.":""),"Planned payment changed to "+round2(amount)+" ₽. "+(following?"Applied to the selected and following payments.":"Applied to one payment.")+(includeArchived?" Archived payments were included.":""));cancel(c,r);saveRaw(c,items);schedule(c,r);return;} }
@@ -353,13 +379,15 @@ public final class ReminderScheduler {
     /** Legacy name now intentionally reflects actual paid status, not elapsed dates. */
     public static int elapsedPayments(PaymentReminder r){return paidPaymentCount(r);}
 
-    public static double remainingDebt(PaymentReminder r){if(r==null||TYPE_DEPOSIT.equals(normalizeType(r.type)))return 0;double paidPrincipal=0;for(int i=0;i<r.months;i++)if(isPaid(r,i)){PaymentParts p=paymentParts(r,i);InstallmentEntry e=entry(r,i);double actualPrincipal=Math.max(0,e.paidAmount-p.interestPart);paidPrincipal+=Math.min(p.principalPart,actualPrincipal);}return Math.max(0,r.principal-paidPrincipal);}
-    public static double balanceAtDate(PaymentReminder r,long date){if(r==null)return 0;double b=r.principal;for(int i=0;i<r.months;i++){PaymentParts p=paymentParts(r,i);if(p.dueDate>=date)break;if(isPaid(r,i)||p.dueDate>System.currentTimeMillis())b=Math.max(0,b-p.principalPart);}return Math.min(remainingDebt(r),b);}
+    private static double actualInterestPaid(PaymentReminder r,int index){PaymentParts p=paymentParts(r,index);return Math.max(0,Math.min(p.interestPart,paidAmount(r,index)));}
+    private static double actualPrincipalPaid(PaymentReminder r,int index){PaymentParts p=paymentParts(r,index);double principal=Math.max(0,paidAmount(r,index)-actualInterestPaid(r,index));return Math.max(0,Math.min(p.principalPart,principal));}
+    public static double remainingDebt(PaymentReminder r){if(r==null||TYPE_DEPOSIT.equals(normalizeType(r.type)))return 0;double paidPrincipal=0;for(int i=0;i<r.months;i++)if(paidAmount(r,i)>0)paidPrincipal+=actualPrincipalPaid(r,i);return Math.max(0,r.principal-paidPrincipal);}
+    public static double balanceAtDate(PaymentReminder r,long date){if(r==null)return 0;double b=r.principal;long now=System.currentTimeMillis();for(int i=0;i<r.months;i++){PaymentParts p=paymentParts(r,i);if(p.dueDate>=date)break;if(p.dueDate>now)b=Math.max(0,b-p.principalPart);else if(paidAmount(r,i)>0)b=Math.max(0,b-actualPrincipalPaid(r,i));}return Math.min(remainingDebt(r),b);}
     public static int remainingPaymentsAfterDate(PaymentReminder r,long date){int n=0;for(int i=0;i<r.months;i++)if(buildDueDate(r,i).getTimeInMillis()>=date&&!isPaid(r,i))n++;return n;}
     private static long firstDueOnOrAfter(PaymentReminder r,long date){for(int i=0;i<r.months;i++){long d=buildDueDate(r,i).getTimeInMillis();if(d>=date&&!isPaid(r,i))return d;}Calendar c=Calendar.getInstance();c.setTimeInMillis(date);c.add(Calendar.MONTH,1);return c.getTimeInMillis();}
-    public static double segmentPaidInterest(PaymentReminder r){double t=0;for(int i=0;i<r.months;i++)if(isPaid(r,i)){PaymentParts p=paymentParts(r,i);t+=Math.min(p.interestPart,paidAmount(r,i));}return t;}
+    public static double segmentPaidInterest(PaymentReminder r){double t=0;for(int i=0;i<r.months;i++)if(paidAmount(r,i)>0)t+=actualInterestPaid(r,i);return t;}
     public static double paidInterest(PaymentReminder r){return r==null?0:Math.max(0,r.interestPaidBefore+segmentPaidInterest(r));}
-    public static double remainingInterest(PaymentReminder r){if(r==null||TYPE_DEPOSIT.equals(normalizeType(r.type)))return 0;double t=0;for(int i=0;i<r.months;i++)if(!isPaid(r,i))t+=paymentParts(r,i).interestPart;return Math.max(0,t);}
+    public static double remainingInterest(PaymentReminder r){if(r==null||TYPE_DEPOSIT.equals(normalizeType(r.type)))return 0;double t=0;for(int i=0;i<r.months;i++){PaymentParts p=paymentParts(r,i);t+=Math.max(0,p.interestPart-actualInterestPaid(r,i));}return Math.max(0,t);}
     public static double totalInterest(PaymentReminder r){return paidInterest(r)+remainingInterest(r);}
     public static double totalPenalties(PaymentReminder r){double t=0;if(r!=null)for(InstallmentEntry e:ledger(r))t+=Math.max(0,e.penalty);return t;}
     public static double dueThisMonth(PaymentReminder r){if(r==null||TYPE_DEPOSIT.equals(normalizeType(r.type)))return 0;Calendar n=Calendar.getInstance();double t=0;for(int i=0;i<r.months;i++){Calendar d=buildDueDate(r,i);if(d.get(Calendar.YEAR)==n.get(Calendar.YEAR)&&d.get(Calendar.MONTH)==n.get(Calendar.MONTH))t+=paymentAmount(r,i);}return t;}

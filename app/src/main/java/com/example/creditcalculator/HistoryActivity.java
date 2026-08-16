@@ -161,8 +161,8 @@ public class HistoryActivity extends AppCompatActivity {
         box.setOrientation(LinearLayout.VERTICAL);
         box.setPadding(dp(16), dp(14), dp(16), dp(14));
         card.addView(box);
-        String title = AppPreferences.isEnglish(this) ? event.titleEn : event.titleRu;
-        String details = AppPreferences.isEnglish(this) ? event.detailsEn : event.detailsRu;
+        String title = AppPreferences.tr(this, event.titleRu, event.titleEn);
+        String details = AppPreferences.tr(this, event.detailsRu, event.detailsEn);
         box.addView(text(title, 17, R.color.text_main, true));
         TextView date = text(FormatUtils.date(this, event.time), 12, R.color.text_secondary, false);
         LinearLayout.LayoutParams dp = new LinearLayout.LayoutParams(-1, -2);
