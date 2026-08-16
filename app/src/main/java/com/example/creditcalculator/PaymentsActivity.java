@@ -2,6 +2,7 @@ package com.example.creditcalculator;
 
 import android.content.Context;
 import android.content.Intent;
+import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.view.Gravity;
@@ -26,379 +27,47 @@ import java.util.Comparator;
 import java.util.List;
 
 public class PaymentsActivity extends AppCompatActivity {
-
     private LinearLayout listContainer;
     private String filterType;
-    private String sortMode;
+    /** Sorting deliberately resets every time the page is opened. */
+    private String sortMode = "nearest";
 
-    @Override
-    protected void attachBaseContext(Context newBase) { super.attachBaseContext(AppPreferences.wrapLocale(newBase)); }
+    @Override protected void attachBaseContext(Context newBase){super.attachBaseContext(AppPreferences.wrapLocale(newBase));}
+    @Override public void onCreate(Bundle b){AppPreferences.applyNightMode(this);super.onCreate(b);filterType=AppPreferences.getPaymentsFilter(this);sortMode="nearest";setContentView(build());}
+    @Override protected void onResume(){super.onResume();render();}
 
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        AppPreferences.applyNightMode(this);
-        super.onCreate(savedInstanceState);
-        filterType = AppPreferences.getPaymentsFilter(this);
-        sortMode = AppPreferences.getPaymentsSort(this);
-        setContentView(buildContent());
-    }
+    private View build(){LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);UiUtils.applyBackground(this,root);LinearLayout bar=new LinearLayout(this);bar.setOrientation(LinearLayout.HORIZONTAL);bar.setGravity(Gravity.CENTER_VERTICAL);bar.setPadding(dp(8),0,dp(10),0);bar.setBackgroundColor(ContextCompat.getColor(this,R.color.primary));root.addView(bar,new LinearLayout.LayoutParams(-1,dp(58)));TextView back=top("‹",34);back.setOnClickListener(v->finish());bar.addView(back,new LinearLayout.LayoutParams(dp(54),dp(54)));TextView title=top(AppPreferences.tr(this,"Мои платежи","My payments"),20);title.setTypeface(null,android.graphics.Typeface.BOLD);title.setGravity(Gravity.CENTER_VERTICAL);bar.addView(title,new LinearLayout.LayoutParams(0,-1,1f));TextView add=top("+",32);add.setOnClickListener(v->startActivity(new Intent(this,AddReminderActivity.class)));bar.addView(add,new LinearLayout.LayoutParams(dp(64),dp(58)));ScrollView scroll=new ScrollView(this);scroll.setFillViewport(true);root.addView(scroll,new LinearLayout.LayoutParams(-1,0,1f));listContainer=new LinearLayout(this);listContainer.setOrientation(LinearLayout.VERTICAL);listContainer.setPadding(dp(20),dp(22),dp(20),dp(28));scroll.addView(listContainer,new ScrollView.LayoutParams(-1,-2));ViewCompat.setOnApplyWindowInsetsListener(root,(v,insets)->{Insets bars=insets.getInsets(WindowInsetsCompat.Type.systemBars());v.setPadding(0,bars.top,0,bars.bottom);return insets;});return root;}
 
-    @Override
-    protected void onResume() { super.onResume(); renderPayments(); }
+    private void render(){listContainer.removeAllViews();listContainer.addView(text(AppPreferences.tr(this,"Мои платежи","My payments"),28,R.color.text_main,true));TextView sub=text(AppPreferences.tr(this,"Сначала показываются записи с ближайшим платежом.","Items with the nearest payment are shown first."),15,R.color.text_secondary,false);LinearLayout.LayoutParams sp=new LinearLayout.LayoutParams(-1,-2);sp.setMargins(0,dp(6),0,dp(18));listContainer.addView(sub,sp);List<ReminderScheduler.PaymentReminder> all=ReminderScheduler.load(this);listContainer.addView(summary(all));listContainer.addView(controls(),controlsParams());List<ReminderScheduler.PaymentReminder> shown=filterSort(all);TextView head=text(AppPreferences.tr(this,"Активные записи — ","Active items — ")+shown.size(),19,R.color.text_main,true);LinearLayout.LayoutParams hp=new LinearLayout.LayoutParams(-1,-2);hp.setMargins(0,dp(18),0,dp(10));listContainer.addView(head,hp);if(shown.isEmpty()){TextView e=text(AppPreferences.tr(this,all.isEmpty()?"Активных записей пока нет. Нажмите +, чтобы добавить первую.":"По выбранному фильтру записей нет.",all.isEmpty()?"No active items yet. Tap + to add one.":"No items match the filter."),16,R.color.text_secondary,false);e.setGravity(Gravity.CENTER);e.setPadding(dp(12),dp(42),dp(12),dp(64));listContainer.addView(e);return;}for(ReminderScheduler.PaymentReminder r:shown)listContainer.addView(paymentCard(r));}
 
-    private View buildContent() {
-        LinearLayout root = new LinearLayout(this);
-        root.setOrientation(LinearLayout.VERTICAL);
-        UiUtils.applyBackground(this, root);
+    private View controls(){LinearLayout outer=new LinearLayout(this);outer.setOrientation(LinearLayout.VERTICAL);LinearLayout row=new LinearLayout(this);row.setOrientation(LinearLayout.HORIZONTAL);row.setGravity(Gravity.CENTER_VERTICAL);outer.addView(row,new LinearLayout.LayoutParams(-1,-2));MaterialButton filter=small(filterLabel());filter.setOnClickListener(v->showFilter(filter));row.addView(filter,new LinearLayout.LayoutParams(0,dp(48),1f));MaterialButton sort=small(AppPreferences.tr(this,"Сортировка ⇅","Sort ⇅"));LinearLayout.LayoutParams sr=new LinearLayout.LayoutParams(0,dp(48),1f);sr.setMargins(dp(10),0,0,0);row.addView(sort,sr);sort.setOnClickListener(v->showSort(sort));TextView current=text(AppPreferences.tr(this,"Сейчас: ","Current: ")+sortName(sortMode),12,R.color.text_secondary,false);current.setGravity(Gravity.END);LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(-1,-2);cp.setMargins(0,dp(5),dp(4),0);outer.addView(current,cp);return outer;}
+    private LinearLayout.LayoutParams controlsParams(){LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-1,-2);p.setMargins(0,dp(16),0,0);return p;}
+    private MaterialButton small(String s){MaterialButton b=new MaterialButton(this);b.setText(s);b.setAllCaps(false);b.setSingleLine(true);b.setTextSize(13);b.setTextColor(ContextCompat.getColor(this,R.color.primary));b.setBackgroundTintList(ColorStateList.valueOf(ContextCompat.getColor(this,R.color.card_background)));b.setStrokeColor(ColorStateList.valueOf(ContextCompat.getColor(this,R.color.border)));b.setStrokeWidth(dp(1));b.setCornerRadius(dp(12));return b;}
+    private String filterLabel(){String v;if(ReminderScheduler.TYPE_CREDIT.equals(filterType))v=FormatUtils.typeLabel(this,ReminderScheduler.TYPE_CREDIT);else if(ReminderScheduler.TYPE_MORTGAGE.equals(filterType))v=FormatUtils.typeLabel(this,ReminderScheduler.TYPE_MORTGAGE);else if(ReminderScheduler.TYPE_AUTO.equals(filterType))v=FormatUtils.typeLabel(this,ReminderScheduler.TYPE_AUTO);else if(ReminderScheduler.TYPE_INSTALLMENT.equals(filterType))v=FormatUtils.typeLabel(this,ReminderScheduler.TYPE_INSTALLMENT);else if(ReminderScheduler.TYPE_DEPOSIT.equals(filterType))v=FormatUtils.typeLabel(this,ReminderScheduler.TYPE_DEPOSIT);else v=AppPreferences.tr(this,"Все","All");return AppPreferences.tr(this,"Фильтр: ","Filter: ")+v;}
+    private String sortName(String m){if("created_new".equals(m))return AppPreferences.tr(this,"новые сначала","newest first");if("created_old".equals(m))return AppPreferences.tr(this,"старые сначала","oldest first");if("name_asc".equals(m))return AppPreferences.tr(this,"название А–Я","name A–Z");if("name_desc".equals(m))return AppPreferences.tr(this,"название Я–А","name Z–A");if("debt_desc".equals(m))return AppPreferences.tr(this,"долг ↓","debt ↓");if("debt_asc".equals(m))return AppPreferences.tr(this,"долг ↑","debt ↑");if("payment_desc".equals(m))return AppPreferences.tr(this,"платёж ↓","payment ↓");if("payment_asc".equals(m))return AppPreferences.tr(this,"платёж ↑","payment ↑");if("rate_desc".equals(m))return AppPreferences.tr(this,"ставка ↓","rate ↓");if("rate_asc".equals(m))return AppPreferences.tr(this,"ставка ↑","rate ↑");if("type".equals(m))return AppPreferences.tr(this,"тип","type");return AppPreferences.tr(this,"ближайший платёж","nearest payment");}
+    private void showFilter(View a){PopupMenu m=new PopupMenu(this,a);addFilter(m,AppPreferences.tr(this,"Все","All"),"all");addFilter(m,FormatUtils.typeLabel(this,ReminderScheduler.TYPE_CREDIT),ReminderScheduler.TYPE_CREDIT);addFilter(m,FormatUtils.typeLabel(this,ReminderScheduler.TYPE_MORTGAGE),ReminderScheduler.TYPE_MORTGAGE);addFilter(m,FormatUtils.typeLabel(this,ReminderScheduler.TYPE_AUTO),ReminderScheduler.TYPE_AUTO);addFilter(m,FormatUtils.typeLabel(this,ReminderScheduler.TYPE_INSTALLMENT),ReminderScheduler.TYPE_INSTALLMENT);addFilter(m,FormatUtils.typeLabel(this,ReminderScheduler.TYPE_DEPOSIT),ReminderScheduler.TYPE_DEPOSIT);m.show();}
+    private void addFilter(PopupMenu m,String label,String value){m.getMenu().add(label).setOnMenuItemClickListener(x->{filterType=value;AppPreferences.setPaymentsFilter(this,value);render();return true;});}
+    private void showSort(View a){PopupMenu m=new PopupMenu(this,a);addSort(m,AppPreferences.tr(this,"Ближайший платёж","Nearest payment"),"nearest");addSort(m,AppPreferences.tr(this,"Дата создания — новые сначала","Created — newest first"),"created_new");addSort(m,AppPreferences.tr(this,"Дата создания — старые сначала","Created — oldest first"),"created_old");addSort(m,AppPreferences.tr(this,"Название А–Я","Name A–Z"),"name_asc");addSort(m,AppPreferences.tr(this,"Название Я–А","Name Z–A"),"name_desc");addSort(m,AppPreferences.tr(this,"Остаток долга — больше сначала","Debt — highest first"),"debt_desc");addSort(m,AppPreferences.tr(this,"Остаток долга — меньше сначала","Debt — lowest first"),"debt_asc");addSort(m,AppPreferences.tr(this,"Ежемесячный платёж — больше сначала","Payment — highest first"),"payment_desc");addSort(m,AppPreferences.tr(this,"Ежемесячный платёж — меньше сначала","Payment — lowest first"),"payment_asc");addSort(m,AppPreferences.tr(this,"Процентная ставка — больше сначала","Rate — highest first"),"rate_desc");addSort(m,AppPreferences.tr(this,"Процентная ставка — меньше сначала","Rate — lowest first"),"rate_asc");addSort(m,AppPreferences.tr(this,"По типу","By type"),"type");m.show();}
+    private void addSort(PopupMenu m,String label,String value){m.getMenu().add(label).setOnMenuItemClickListener(x->{sortMode=value;render();return true;});}
 
-        LinearLayout bar = new LinearLayout(this);
-        bar.setOrientation(LinearLayout.HORIZONTAL);
-        bar.setGravity(Gravity.CENTER_VERTICAL);
-        bar.setPadding(dp(8), 0, dp(10), 0);
-        bar.setBackgroundColor(ContextCompat.getColor(this, R.color.primary));
-        root.addView(bar, new LinearLayout.LayoutParams(-1, dp(58)));
+    private List<ReminderScheduler.PaymentReminder> filterSort(List<ReminderScheduler.PaymentReminder> src){List<ReminderScheduler.PaymentReminder> out=new ArrayList<>();for(ReminderScheduler.PaymentReminder r:src)if("all".equals(filterType)||filterType==null||filterType.equals(ReminderScheduler.normalizeType(r.type)))out.add(r);Comparator<ReminderScheduler.PaymentReminder> c;if("created_new".equals(sortMode))c=(a,b)->Long.compare(b.createdAt,a.createdAt);else if("created_old".equals(sortMode))c=(a,b)->Long.compare(a.createdAt,b.createdAt);else if("name_asc".equals(sortMode))c=(a,b)->a.title.compareToIgnoreCase(b.title);else if("name_desc".equals(sortMode))c=(a,b)->b.title.compareToIgnoreCase(a.title);else if("debt_desc".equals(sortMode))c=(a,b)->Double.compare(ReminderScheduler.remainingDebt(b),ReminderScheduler.remainingDebt(a));else if("debt_asc".equals(sortMode))c=(a,b)->Double.compare(ReminderScheduler.remainingDebt(a),ReminderScheduler.remainingDebt(b));else if("payment_desc".equals(sortMode))c=(a,b)->Double.compare(nextAmount(b),nextAmount(a));else if("payment_asc".equals(sortMode))c=(a,b)->Double.compare(nextAmount(a),nextAmount(b));else if("rate_desc".equals(sortMode))c=(a,b)->Double.compare(b.annualRate,a.annualRate);else if("rate_asc".equals(sortMode))c=(a,b)->Double.compare(a.annualRate,b.annualRate);else if("type".equals(sortMode))c=(a,b)->{int t=Integer.compare(typeOrder(a.type),typeOrder(b.type));return t!=0?t:Long.compare(ReminderScheduler.nextPaymentMillis(a),ReminderScheduler.nextPaymentMillis(b));};else c=(a,b)->{boolean ad=ReminderScheduler.TYPE_DEPOSIT.equals(ReminderScheduler.normalizeType(a.type)),bd=ReminderScheduler.TYPE_DEPOSIT.equals(ReminderScheduler.normalizeType(b.type));if(ad!=bd)return ad?1:-1;return Long.compare(ReminderScheduler.nextPaymentMillis(a),ReminderScheduler.nextPaymentMillis(b));};Collections.sort(out,c);return out;}
+    private double nextAmount(ReminderScheduler.PaymentReminder r){int i=ReminderScheduler.nextPaymentIndex(r);return i<0?0:ReminderScheduler.paymentAmount(r,i);}private int typeOrder(String t){String x=ReminderScheduler.normalizeType(t);if(ReminderScheduler.TYPE_CREDIT.equals(x))return 0;if(ReminderScheduler.TYPE_MORTGAGE.equals(x))return 1;if(ReminderScheduler.TYPE_AUTO.equals(x))return 2;if(ReminderScheduler.TYPE_INSTALLMENT.equals(x))return 3;return 4;}
 
-        TextView back = topText("‹", 34);
-        back.setOnClickListener(v -> finish());
-        bar.addView(back, new LinearLayout.LayoutParams(dp(54), dp(54)));
+    private View summary(List<ReminderScheduler.PaymentReminder> items){double debt=0,due=0,paidMonth=0,remainMonth=0,totalInterest=0,paidInterest=0,remainInterest=0,overdue=0,dep=0,depIncome=0,depFinal=0;int overdueCount=0;boolean hasDebt=false,hasDeposit=false;ReminderScheduler.PaymentReminder nearest=null;int nearestIndex=-1;for(ReminderScheduler.PaymentReminder r:items){if(ReminderScheduler.TYPE_DEPOSIT.equals(ReminderScheduler.normalizeType(r.type))){hasDeposit=true;dep+=r.principal;depIncome+=ReminderScheduler.depositExpectedIncome(r);depFinal+=ReminderScheduler.depositFinalAmount(r);continue;}hasDebt=true;debt+=ReminderScheduler.remainingDebt(r);due+=ReminderScheduler.dueThisMonth(r);paidMonth+=ReminderScheduler.paidThisMonth(r);remainMonth+=ReminderScheduler.remainingThisMonth(r);totalInterest+=ReminderScheduler.totalInterest(r);paidInterest+=ReminderScheduler.paidInterest(r);remainInterest+=ReminderScheduler.remainingInterest(r);overdue+=ReminderScheduler.overdueAmount(r);overdueCount+=ReminderScheduler.overdueCount(r);int ix=ReminderScheduler.nextPaymentIndex(r);if(ix>=0&&(nearest==null||ReminderScheduler.buildDueDate(r,ix).getTimeInMillis()<ReminderScheduler.buildDueDate(nearest,nearestIndex).getTimeInMillis())){nearest=r;nearestIndex=ix;}}
+        MaterialCardView card=card();LinearLayout box=new LinearLayout(this);box.setOrientation(LinearLayout.VERTICAL);box.setPadding(dp(18),dp(16),dp(18),dp(18));card.addView(box);LinearLayout head=new LinearLayout(this);head.setOrientation(LinearLayout.HORIZONTAL);head.setGravity(Gravity.CENTER_VERTICAL);box.addView(head);head.addView(text(AppPreferences.tr(this,"Общая сводка","Summary"),19,R.color.text_main,true),new LinearLayout.LayoutParams(0,-2,1f));TextView smile=text(statusFace(overdueCount,nearest,nearestIndex),32,statusColor(overdueCount,nearest,nearestIndex),true);smile.setGravity(Gravity.CENTER);head.addView(smile,new LinearLayout.LayoutParams(dp(46),dp(46)));
+        addLabelValue(box,AppPreferences.tr(this,"Общий остаток долга","Total remaining debt"),FormatUtils.money(this,debt),25,R.color.text_main);addLabelValue(box,AppPreferences.tr(this,"К оплате в этом месяце","Due this month"),FormatUtils.money(this,due),21,R.color.primary);
+        LinearLayout stats=new LinearLayout(this);stats.setOrientation(LinearLayout.HORIZONTAL);LinearLayout.LayoutParams stp=new LinearLayout.LayoutParams(-1,-2);stp.setMargins(0,dp(10),0,0);box.addView(stats,stp);stats.addView(statBox(AppPreferences.tr(this,"Оплачено","Paid"),paidMonth,R.color.success),new LinearLayout.LayoutParams(0,-2,1f));stats.addView(statBox(AppPreferences.tr(this,"Осталось оплатить","Remaining"),remainMonth,remainMonth>0?R.color.warning:R.color.success),new LinearLayout.LayoutParams(0,-2,1f));
+        if(overdueCount>0){TextView od=text(AppPreferences.tr(this,"Просрочено","Overdue")+": "+overdueCount+" · "+FormatUtils.money(this,overdue),14,R.color.danger,true);LinearLayout.LayoutParams op=new LinearLayout.LayoutParams(-1,-2);op.setMargins(0,dp(10),0,0);box.addView(od,op);}if(nearest!=null&&nearestIndex>=0){int color=paymentUrgencyColor(nearest,nearestIndex);TextView next=text(AppPreferences.tr(this,"Следующий платёж","Next payment")+": "+FormatUtils.date(this,ReminderScheduler.buildDueDate(nearest,nearestIndex).getTimeInMillis())+" · "+FormatUtils.money(this,ReminderScheduler.paymentAmount(nearest,nearestIndex)),15,color,true);LinearLayout.LayoutParams np=new LinearLayout.LayoutParams(-1,-2);np.setMargins(0,dp(12),0,0);box.addView(next,np);}
+        if(hasDebt){divider(box);box.addView(text(AppPreferences.tr(this,"Переплата по активным кредитам","Active loan interest"),17,R.color.text_main,true));summaryLine(box,AppPreferences.tr(this,"Общая переплата","Total interest"),totalInterest);summaryLine(box,AppPreferences.tr(this,"Уже выплачено процентов","Interest already paid"),paidInterest);summaryLine(box,AppPreferences.tr(this,"Осталось выплатить процентов","Interest remaining"),remainInterest);}if(hasDeposit){divider(box);box.addView(text(AppPreferences.tr(this,"Активные вклады","Active deposits"),17,R.color.text_main,true));summaryLine(box,AppPreferences.tr(this,"Во вкладах","Deposited"),dep);summaryLine(box,AppPreferences.tr(this,"Ожидаемый доход","Expected income"),depIncome);summaryLine(box,AppPreferences.tr(this,"Итого к получению","Expected total"),depFinal);}return card;}
+    private String statusFace(int overdue,ReminderScheduler.PaymentReminder r,int index){if(overdue>0)return "☹";if(r==null||index<0)return "☺";int c=paymentUrgencyColor(r,index);return c==R.color.danger?"☹":c==R.color.warning?"◉":"☺";}private int statusColor(int overdue,ReminderScheduler.PaymentReminder r,int index){if(overdue>0)return R.color.danger;if(r==null||index<0)return R.color.success;return paymentUrgencyColor(r,index);}
+    private int paymentUrgencyColor(ReminderScheduler.PaymentReminder r,int i){if(ReminderScheduler.isPaid(r,i))return R.color.success;if(ReminderScheduler.isOverdue(r,i)||ReminderScheduler.isToday(r,i))return R.color.danger;long days=(ReminderScheduler.buildDueDate(r,i).getTimeInMillis()-System.currentTimeMillis())/(24L*60L*60L*1000L);return days<=Math.max(1,r.daysBefore)?R.color.danger:R.color.warning;}
+    private View statBox(String label,double value,int color){LinearLayout b=new LinearLayout(this);b.setOrientation(LinearLayout.VERTICAL);b.addView(text(label,12,R.color.text_secondary,false));b.addView(text(FormatUtils.money(this,value),15,color,true));return b;}private void addLabelValue(LinearLayout b,String l,String v,int size,int color){TextView label=text(l,13,R.color.text_secondary,false);LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);lp.setMargins(0,dp(10),0,dp(2));b.addView(label,lp);b.addView(text(v,size,color,true));}private void divider(LinearLayout b){View v=new View(this);v.setBackgroundColor(ContextCompat.getColor(this,R.color.border));LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-1,dp(1));p.setMargins(0,dp(16),0,dp(14));b.addView(v,p);}private void summaryLine(LinearLayout p,String l,double v){LinearLayout r=new LinearLayout(this);r.setOrientation(LinearLayout.HORIZONTAL);r.setGravity(Gravity.CENTER_VERTICAL);LinearLayout.LayoutParams rp=new LinearLayout.LayoutParams(-1,-2);rp.setMargins(0,dp(9),0,0);p.addView(r,rp);r.addView(text(l,14,R.color.text_secondary,false),new LinearLayout.LayoutParams(0,-2,1f));r.addView(text(FormatUtils.money(this,v),15,R.color.text_main,true));}
 
-        TextView title = topText(AppPreferences.tr(this, "Мои платежи", "My payments"), 20);
-        title.setTypeface(null, android.graphics.Typeface.BOLD);
-        title.setGravity(Gravity.CENTER_VERTICAL);
-        bar.addView(title, new LinearLayout.LayoutParams(0, -1, 1f));
-
-        TextView add = topText("+", 32);
-        add.setOnClickListener(v -> startActivity(new Intent(this, AddReminderActivity.class)));
-        bar.addView(add, new LinearLayout.LayoutParams(dp(64), dp(58)));
-
-        ScrollView scroll = new ScrollView(this);
-        scroll.setFillViewport(true);
-        scroll.setBackgroundColor(Color.TRANSPARENT);
-        root.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1f));
-
-        listContainer = new LinearLayout(this);
-        listContainer.setOrientation(LinearLayout.VERTICAL);
-        listContainer.setPadding(dp(20), dp(22), dp(20), dp(28));
-        scroll.addView(listContainer, new ScrollView.LayoutParams(-1, -2));
-
-        ViewCompat.setOnApplyWindowInsetsListener(root, (view, insets) -> {
-            Insets bars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
-            view.setPadding(0, bars.top, 0, bars.bottom);
-            return insets;
-        });
-        ViewCompat.requestApplyInsets(root);
-        return root;
-    }
-
-    private void renderPayments() {
-        listContainer.removeAllViews();
-
-        listContainer.addView(text(AppPreferences.tr(this, "Мои платежи", "My payments"), 28, R.color.text_main, true));
-        TextView subtitle = text(AppPreferences.tr(this,
-                "Сначала показываются записи с ближайшим платежом.",
-                "Items with the nearest payment are shown first."), 15, R.color.text_secondary, false);
-        LinearLayout.LayoutParams subParams = new LinearLayout.LayoutParams(-1, -2);
-        subParams.setMargins(0, dp(6), 0, dp(18));
-        listContainer.addView(subtitle, subParams);
-
-        List<ReminderScheduler.PaymentReminder> all = ReminderScheduler.load(this);
-        listContainer.addView(createSummaryCard(all));
-        listContainer.addView(buildControls(), controlsParams());
-
-        List<ReminderScheduler.PaymentReminder> shown = filterAndSort(all);
-        TextView listTitle = text(AppPreferences.tr(this, "Активные записи — ", "Active items — ") + shown.size(), 19, R.color.text_main, true);
-        LinearLayout.LayoutParams listTitleParams = new LinearLayout.LayoutParams(-1, -2);
-        listTitleParams.setMargins(0, dp(18), 0, dp(10));
-        listContainer.addView(listTitle, listTitleParams);
-
-        if (shown.isEmpty()) {
-            TextView empty = text(AppPreferences.tr(this,
-                    all.isEmpty() ? "Активных записей пока нет. Нажмите +, чтобы добавить первую." : "По выбранному фильтру записей нет.",
-                    all.isEmpty() ? "No active items yet. Tap + to add the first one." : "No items match the selected filter."),
-                    17, R.color.text_secondary, false);
-            empty.setGravity(Gravity.CENTER);
-            empty.setPadding(dp(16), dp(46), dp(16), dp(70));
-            listContainer.addView(empty);
-            return;
-        }
-
-        for (ReminderScheduler.PaymentReminder reminder : shown) listContainer.addView(createPaymentCard(reminder));
-    }
-
-    private View buildControls() {
-        LinearLayout row = new LinearLayout(this);
-        row.setOrientation(LinearLayout.HORIZONTAL);
-        row.setGravity(Gravity.CENTER_VERTICAL);
-
-        MaterialButton filter = smallButton(filterLabel());
-        filter.setOnClickListener(v -> showFilter(filter));
-        row.addView(filter, new LinearLayout.LayoutParams(0, dp(48), 1f));
-
-        MaterialButton sort = smallButton(sortLabel());
-        LinearLayout.LayoutParams sortParams = new LinearLayout.LayoutParams(0, dp(48), 1f);
-        sortParams.setMargins(dp(10), 0, 0, 0);
-        row.addView(sort, sortParams);
-        sort.setOnClickListener(v -> showSort(sort));
-        return row;
-    }
-
-    private LinearLayout.LayoutParams controlsParams() {
-        LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(-1, -2);
-        p.setMargins(0, dp(16), 0, 0);
-        return p;
-    }
-
-    private MaterialButton smallButton(String label) {
-        MaterialButton b = new MaterialButton(this);
-        b.setText(label);
-        b.setAllCaps(false);
-        b.setTextSize(13);
-        b.setTextColor(ContextCompat.getColor(this, R.color.primary));
-        b.setBackgroundTintList(android.content.res.ColorStateList.valueOf(ContextCompat.getColor(this, R.color.card_background)));
-        b.setStrokeColor(android.content.res.ColorStateList.valueOf(ContextCompat.getColor(this, R.color.border)));
-        b.setStrokeWidth(dp(1));
-        b.setCornerRadius(dp(12));
-        return b;
-    }
-
-    private String filterLabel() {
-        String value;
-        if (ReminderScheduler.TYPE_CREDIT.equals(filterType)) value = FormatUtils.typeLabel(this, ReminderScheduler.TYPE_CREDIT);
-        else if (ReminderScheduler.TYPE_MORTGAGE.equals(filterType)) value = FormatUtils.typeLabel(this, ReminderScheduler.TYPE_MORTGAGE);
-        else if (ReminderScheduler.TYPE_AUTO.equals(filterType)) value = FormatUtils.typeLabel(this, ReminderScheduler.TYPE_AUTO);
-        else if (ReminderScheduler.TYPE_INSTALLMENT.equals(filterType)) value = FormatUtils.typeLabel(this, ReminderScheduler.TYPE_INSTALLMENT);
-        else if (ReminderScheduler.TYPE_DEPOSIT.equals(filterType)) value = FormatUtils.typeLabel(this, ReminderScheduler.TYPE_DEPOSIT);
-        else value = AppPreferences.tr(this, "Все", "All");
-        return AppPreferences.tr(this, "Фильтр: ", "Filter: ") + value;
-    }
-
-    private String sortLabel() {
-        return AppPreferences.tr(this, "Сортировка: ", "Sort: ") + sortName(sortMode);
-    }
-
-    private String sortName(String mode) {
-        if ("created_new".equals(mode)) return AppPreferences.tr(this, "новые", "newest");
-        if ("created_old".equals(mode)) return AppPreferences.tr(this, "старые", "oldest");
-        if ("name".equals(mode)) return AppPreferences.tr(this, "название", "name");
-        if ("debt".equals(mode)) return AppPreferences.tr(this, "остаток", "balance");
-        if ("payment".equals(mode)) return AppPreferences.tr(this, "платёж", "payment");
-        if ("rate".equals(mode)) return AppPreferences.tr(this, "ставка", "rate");
-        if ("type".equals(mode)) return AppPreferences.tr(this, "тип", "type");
-        return AppPreferences.tr(this, "ближайший платёж", "nearest payment");
-    }
-
-    private void showFilter(View anchor) {
-        PopupMenu menu = new PopupMenu(this, anchor);
-        addFilterItem(menu, AppPreferences.tr(this, "Все", "All"), "all");
-        addFilterItem(menu, FormatUtils.typeLabel(this, ReminderScheduler.TYPE_CREDIT), ReminderScheduler.TYPE_CREDIT);
-        addFilterItem(menu, FormatUtils.typeLabel(this, ReminderScheduler.TYPE_MORTGAGE), ReminderScheduler.TYPE_MORTGAGE);
-        addFilterItem(menu, FormatUtils.typeLabel(this, ReminderScheduler.TYPE_AUTO), ReminderScheduler.TYPE_AUTO);
-        addFilterItem(menu, FormatUtils.typeLabel(this, ReminderScheduler.TYPE_INSTALLMENT), ReminderScheduler.TYPE_INSTALLMENT);
-        addFilterItem(menu, FormatUtils.typeLabel(this, ReminderScheduler.TYPE_DEPOSIT), ReminderScheduler.TYPE_DEPOSIT);
-        menu.show();
-    }
-
-    private void addFilterItem(PopupMenu menu, String label, String value) {
-        android.view.MenuItem item = menu.getMenu().add(label);
-        item.setOnMenuItemClickListener(clicked -> {
-            filterType = value;
-            AppPreferences.setPaymentsFilter(this, value);
-            renderPayments();
-            return true;
-        });
-    }
-
-    private void showSort(View anchor) {
-        PopupMenu menu = new PopupMenu(this, anchor);
-        addSortItem(menu, AppPreferences.tr(this, "Ближайший платёж", "Nearest payment"), "nearest");
-        addSortItem(menu, AppPreferences.tr(this, "Дата создания — новые сначала", "Created — newest first"), "created_new");
-        addSortItem(menu, AppPreferences.tr(this, "Дата создания — старые сначала", "Created — oldest first"), "created_old");
-        addSortItem(menu, AppPreferences.tr(this, "Название А–Я", "Name A–Z"), "name");
-        addSortItem(menu, AppPreferences.tr(this, "Остаток долга — больше сначала", "Balance — highest first"), "debt");
-        addSortItem(menu, AppPreferences.tr(this, "Ежемесячный платёж — больше сначала", "Monthly payment — highest first"), "payment");
-        addSortItem(menu, AppPreferences.tr(this, "Процентная ставка — больше сначала", "Rate — highest first"), "rate");
-        addSortItem(menu, AppPreferences.tr(this, "По типу", "By type"), "type");
-        menu.show();
-    }
-
-    private void addSortItem(PopupMenu menu, String label, String value) {
-        android.view.MenuItem item = menu.getMenu().add(label);
-        item.setOnMenuItemClickListener(clicked -> {
-            sortMode = value;
-            AppPreferences.setPaymentsSort(this, value);
-            renderPayments();
-            return true;
-        });
-    }
-
-    private List<ReminderScheduler.PaymentReminder> filterAndSort(List<ReminderScheduler.PaymentReminder> source) {
-        List<ReminderScheduler.PaymentReminder> result = new ArrayList<>();
-        for (ReminderScheduler.PaymentReminder r : source) {
-            if ("all".equals(filterType) || filterType == null || filterType.equals(ReminderScheduler.normalizeType(r.type))) result.add(r);
-        }
-        Comparator<ReminderScheduler.PaymentReminder> comparator;
-        if ("created_new".equals(sortMode)) comparator = (a, b) -> Long.compare(b.createdAt, a.createdAt);
-        else if ("created_old".equals(sortMode)) comparator = (a, b) -> Long.compare(a.createdAt, b.createdAt);
-        else if ("name".equals(sortMode)) comparator = (a, b) -> a.title.compareToIgnoreCase(b.title);
-        else if ("debt".equals(sortMode)) comparator = (a, b) -> Double.compare(ReminderScheduler.remainingDebt(b), ReminderScheduler.remainingDebt(a));
-        else if ("payment".equals(sortMode)) comparator = (a, b) -> Double.compare(b.amount, a.amount);
-        else if ("rate".equals(sortMode)) comparator = (a, b) -> Double.compare(b.annualRate, a.annualRate);
-        else if ("type".equals(sortMode)) comparator = (a, b) -> {
-            int byType = Integer.compare(typeOrder(a.type), typeOrder(b.type));
-            return byType != 0 ? byType : Long.compare(ReminderScheduler.nextPaymentMillis(a), ReminderScheduler.nextPaymentMillis(b));
-        };
-        else comparator = (a, b) -> {
-            boolean ad = ReminderScheduler.TYPE_DEPOSIT.equals(ReminderScheduler.normalizeType(a.type));
-            boolean bd = ReminderScheduler.TYPE_DEPOSIT.equals(ReminderScheduler.normalizeType(b.type));
-            if (ad != bd) return ad ? 1 : -1;
-            int date = Long.compare(ReminderScheduler.nextPaymentMillis(a), ReminderScheduler.nextPaymentMillis(b));
-            return date != 0 ? date : Long.compare(a.createdAt, b.createdAt);
-        };
-        Collections.sort(result, comparator);
-        return result;
-    }
-
-    private int typeOrder(String type) {
-        String t = ReminderScheduler.normalizeType(type);
-        if (ReminderScheduler.TYPE_CREDIT.equals(t)) return 0;
-        if (ReminderScheduler.TYPE_MORTGAGE.equals(t)) return 1;
-        if (ReminderScheduler.TYPE_AUTO.equals(t)) return 2;
-        if (ReminderScheduler.TYPE_INSTALLMENT.equals(t)) return 3;
-        return 4;
-    }
-
-    private View createSummaryCard(List<ReminderScheduler.PaymentReminder> reminders) {
-        double totalDebt = 0.0, dueThisMonth = 0.0;
-        double totalInterest = 0.0, paidInterest = 0.0, remainingInterest = 0.0;
-        double depositPrincipal = 0.0, depositIncome = 0.0, depositFinal = 0.0;
-        boolean hasDebt = false, hasDeposit = false;
-
-        for (ReminderScheduler.PaymentReminder r : reminders) {
-            if (ReminderScheduler.TYPE_DEPOSIT.equals(ReminderScheduler.normalizeType(r.type))) {
-                hasDeposit = true;
-                depositPrincipal += r.principal;
-                depositIncome += ReminderScheduler.depositExpectedIncome(r);
-                depositFinal += ReminderScheduler.depositFinalAmount(r);
-            } else {
-                hasDebt = true;
-                totalDebt += ReminderScheduler.remainingDebt(r);
-                dueThisMonth += ReminderScheduler.dueThisMonth(r);
-                totalInterest += ReminderScheduler.totalInterest(r);
-                paidInterest += ReminderScheduler.paidInterest(r);
-                remainingInterest += ReminderScheduler.remainingInterest(r);
-            }
-        }
-
-        MaterialCardView card = new MaterialCardView(this);
-        card.setCardBackgroundColor(ContextCompat.getColor(this, R.color.card_background));
-        card.setRadius(dp(18)); card.setStrokeColor(ContextCompat.getColor(this, R.color.border)); card.setStrokeWidth(dp(1)); card.setCardElevation(dp(1));
-        LinearLayout box = new LinearLayout(this);
-        box.setOrientation(LinearLayout.VERTICAL); box.setPadding(dp(18), dp(16), dp(18), dp(18)); card.addView(box);
-        box.addView(text(AppPreferences.tr(this, "Общая сводка", "Summary"), 19, R.color.text_main, true));
-
-        TextView debtLabel = text(AppPreferences.tr(this, "Общий остаток долга", "Total remaining debt"), 13, R.color.text_secondary, false);
-        LinearLayout.LayoutParams debtLabelParams = new LinearLayout.LayoutParams(-1, -2); debtLabelParams.setMargins(0, dp(14), 0, dp(2)); box.addView(debtLabel, debtLabelParams);
-        box.addView(text(FormatUtils.money(this, totalDebt), 25, R.color.text_main, true));
-        TextView monthLabel = text(AppPreferences.tr(this, "К оплате в этом месяце", "Due this month"), 13, R.color.text_secondary, false);
-        LinearLayout.LayoutParams monthLabelParams = new LinearLayout.LayoutParams(-1, -2); monthLabelParams.setMargins(0, dp(12), 0, dp(2)); box.addView(monthLabel, monthLabelParams);
-        box.addView(text(FormatUtils.money(this, dueThisMonth), 21, R.color.primary, true));
-
-        if (hasDebt) {
-            addDivider(box);
-            box.addView(text(AppPreferences.tr(this, "Переплата по активным кредитам", "Active loan interest"), 17, R.color.text_main, true));
-            addSummaryLine(box, AppPreferences.tr(this, "Общая переплата", "Total interest"), totalInterest);
-            addSummaryLine(box, AppPreferences.tr(this, "Уже выплачено процентов", "Interest already paid"), paidInterest);
-            addSummaryLine(box, AppPreferences.tr(this, "Осталось выплатить процентов", "Interest remaining"), remainingInterest);
-        }
-        if (hasDeposit) {
-            addDivider(box);
-            box.addView(text(AppPreferences.tr(this, "Активные вклады", "Active deposits"), 17, R.color.text_main, true));
-            addSummaryLine(box, AppPreferences.tr(this, "Во вкладах", "Deposited"), depositPrincipal);
-            addSummaryLine(box, AppPreferences.tr(this, "Ожидаемый доход", "Expected income"), depositIncome);
-            addSummaryLine(box, AppPreferences.tr(this, "Итого к получению", "Expected total"), depositFinal);
-        }
-        return card;
-    }
-
-    private void addDivider(LinearLayout box) {
-        View divider = new View(this); divider.setBackgroundColor(ContextCompat.getColor(this, R.color.border));
-        LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(-1, dp(1)); p.setMargins(0, dp(16), 0, dp(14)); box.addView(divider, p);
-    }
-
-    private void addSummaryLine(LinearLayout parent, String label, double value) {
-        LinearLayout row = new LinearLayout(this); row.setOrientation(LinearLayout.HORIZONTAL); row.setGravity(Gravity.CENTER_VERTICAL);
-        LinearLayout.LayoutParams rp = new LinearLayout.LayoutParams(-1, -2); rp.setMargins(0, dp(9), 0, 0); parent.addView(row, rp);
-        row.addView(text(label, 14, R.color.text_secondary, false), new LinearLayout.LayoutParams(0, -2, 1f));
-        row.addView(text(FormatUtils.money(this, value), 15, R.color.text_main, true));
-    }
-
-    private View createPaymentCard(ReminderScheduler.PaymentReminder reminder) {
-        MaterialCardView card = new MaterialCardView(this);
-        card.setCardBackgroundColor(ContextCompat.getColor(this, R.color.card_background)); card.setRadius(dp(18)); card.setCardElevation(dp(1));
-        card.setStrokeColor(ContextCompat.getColor(this, R.color.border)); card.setStrokeWidth(dp(1)); card.setClickable(true); card.setFocusable(true);
-        card.setOnClickListener(v -> openDetails(reminder));
-
-        LinearLayout content = new LinearLayout(this); content.setOrientation(LinearLayout.VERTICAL); content.setPadding(dp(18), dp(14), dp(10), dp(16)); card.addView(content);
-        LinearLayout top = new LinearLayout(this); top.setOrientation(LinearLayout.HORIZONTAL); top.setGravity(Gravity.CENTER_VERTICAL); content.addView(top);
-        top.addView(text(FormatUtils.typeLabel(this, reminder.type), 13, R.color.primary, true), new LinearLayout.LayoutParams(0, -2, 1f));
-        TextView more = text("⋮", 28, R.color.text_main, true); more.setGravity(Gravity.CENTER); more.setOnClickListener(v -> showActions(more, reminder));
-        top.addView(more, new LinearLayout.LayoutParams(dp(52), dp(46)));
-
-        LinearLayout titleRow = new LinearLayout(this); titleRow.setOrientation(LinearLayout.HORIZONTAL); titleRow.setGravity(Gravity.CENTER_VERTICAL);
-        LinearLayout.LayoutParams trp = new LinearLayout.LayoutParams(-1, -2); trp.setMargins(0, dp(2), 0, dp(8)); content.addView(titleRow, trp);
-        TextView title = text(reminder.title, 20, R.color.text_main, true); titleRow.addView(title, new LinearLayout.LayoutParams(0, -2, 1f));
-        TextView created = text(AppPreferences.tr(this, "Создано: ", "Created: ") + FormatUtils.date(this, reminder.createdAt), 11, R.color.text_secondary, false);
-        created.setGravity(Gravity.END | Gravity.CENTER_VERTICAL); titleRow.addView(created, new LinearLayout.LayoutParams(-2, -2));
-
-        boolean deposit = ReminderScheduler.TYPE_DEPOSIT.equals(ReminderScheduler.normalizeType(reminder.type));
-        if (deposit) {
-            content.addView(text(AppPreferences.tr(this, "Сумма вклада: ", "Deposit: ") + FormatUtils.money(this, reminder.principal), 15, R.color.text_secondary, false));
-            content.addView(text(AppPreferences.tr(this, "Ожидаемый доход: ", "Expected income: ") + FormatUtils.money(this, ReminderScheduler.depositExpectedIncome(reminder)), 16, R.color.text_main, false));
-            content.addView(text(AppPreferences.tr(this, "Итого: ", "Total: ") + FormatUtils.money(this, ReminderScheduler.depositFinalAmount(reminder)), 15, R.color.text_secondary, false));
-        } else {
-            content.addView(text(AppPreferences.tr(this, "Исходная сумма: ", "Original amount: ") + FormatUtils.money(this, reminder.baseAmount), 15, R.color.text_secondary, false));
-            content.addView(text(AppPreferences.tr(this, "Остаток долга: ", "Remaining debt: ") + FormatUtils.money(this, ReminderScheduler.remainingDebt(reminder)), 16, R.color.text_main, true));
-            content.addView(text(AppPreferences.tr(this, "Ежемесячно: ", "Monthly: ") + FormatUtils.money(this, reminder.amount), 16, R.color.text_main, false));
-            content.addView(text(AppPreferences.tr(this, "Переплата: ", "Interest: ") + FormatUtils.money(this, ReminderScheduler.totalInterest(reminder)), 13, R.color.text_secondary, false));
-        }
-        if (!reminder.soundEnabled) content.addView(text(AppPreferences.tr(this, "🔇 Без звука", "🔇 Muted"), 13, R.color.text_secondary, false));
-
-        int nextIndex = ReminderScheduler.nextPaymentIndex(reminder);
-        TextView next = text("", 14, R.color.text_secondary, false);
-        if (nextIndex >= 0) {
-            long nextDate = ReminderScheduler.buildDueDate(reminder.firstPaymentMillis, nextIndex).getTimeInMillis();
-            next.setText((deposit ? AppPreferences.tr(this, "Ближайшая дата: ", "Next date: ") : AppPreferences.tr(this, "Следующий платёж: ", "Next payment: ")) + FormatUtils.date(this, nextDate));
-        } else next.setText(AppPreferences.tr(this, "Срок завершён", "Term completed"));
-        LinearLayout.LayoutParams np = new LinearLayout.LayoutParams(-1, -2); np.setMargins(0, dp(8), 0, 0); content.addView(next, np);
-
-        LinearLayout.LayoutParams cp = new LinearLayout.LayoutParams(-1, -2); cp.setMargins(0, 0, 0, dp(12)); card.setLayoutParams(cp);
-        return card;
-    }
-
-    private void showActions(View anchor, ReminderScheduler.PaymentReminder reminder) {
-        PopupMenu menu = new PopupMenu(this, anchor);
-        String mute = reminder.soundEnabled ? AppPreferences.tr(this, "Без звука", "Mute") : AppPreferences.tr(this, "Включить звук", "Enable sound");
-        String history = AppPreferences.tr(this, "История изменений", "Change history");
-        String archive = AppPreferences.tr(this, "В архив", "Archive");
-        String delete = AppPreferences.tr(this, "Удалить", "Delete");
-        menu.getMenu().add(mute); menu.getMenu().add(history); menu.getMenu().add(archive); menu.getMenu().add(delete);
-        menu.setOnMenuItemClickListener(item -> {
-            String label = item.getTitle().toString();
-            if (label.equals(mute)) ReminderScheduler.setMuted(this, reminder.id, reminder.soundEnabled);
-            else if (label.equals(history)) {
-                Intent intent = new Intent(this, HistoryActivity.class); intent.putExtra(HistoryActivity.EXTRA_REMINDER_ID, reminder.id); startActivity(intent); return true;
-            } else if (label.equals(archive)) ReminderScheduler.archive(this, reminder.id);
-            else ReminderScheduler.moveToTrash(this, reminder.id);
-            renderPayments(); return true;
-        });
-        menu.show();
-    }
-
-    private void openDetails(ReminderScheduler.PaymentReminder reminder) {
-        Intent intent = new Intent(this, PaymentDetailsActivity.class); intent.putExtra(PaymentDetailsActivity.EXTRA_REMINDER_ID, reminder.id); startActivity(intent);
-    }
-
-    private TextView topText(String value, int size) { TextView v = new TextView(this); v.setText(value); v.setTextSize(size); v.setTextColor(Color.WHITE); v.setGravity(Gravity.CENTER); v.setClickable(true); v.setFocusable(true); return v; }
-    private TextView text(String value, int size, int color, boolean bold) { TextView v = new TextView(this); v.setText(value); v.setTextSize(size); v.setTextColor(ContextCompat.getColor(this, color)); if (bold) v.setTypeface(null, android.graphics.Typeface.BOLD); return v; }
-    private int dp(int value) { return Math.round(value * getResources().getDisplayMetrics().density); }
+    private View paymentCard(ReminderScheduler.PaymentReminder r){MaterialCardView card=card();card.setClickable(true);card.setFocusable(true);card.setOnClickListener(v->openDetails(r));LinearLayout c=new LinearLayout(this);c.setOrientation(LinearLayout.VERTICAL);c.setPadding(dp(18),dp(14),dp(10),dp(16));card.addView(c);LinearLayout top=new LinearLayout(this);top.setOrientation(LinearLayout.HORIZONTAL);top.setGravity(Gravity.CENTER_VERTICAL);c.addView(top);top.addView(text(FormatUtils.typeLabel(this,r.type),13,R.color.primary,true),new LinearLayout.LayoutParams(0,-2,1f));TextView more=text("⋮",28,R.color.text_main,true);more.setGravity(Gravity.CENTER);more.setOnClickListener(v->actions(more,r));top.addView(more,new LinearLayout.LayoutParams(dp(52),dp(46)));LinearLayout titleRow=new LinearLayout(this);titleRow.setOrientation(LinearLayout.HORIZONTAL);titleRow.setGravity(Gravity.CENTER_VERTICAL);LinearLayout.LayoutParams trp=new LinearLayout.LayoutParams(-1,-2);trp.setMargins(0,dp(2),0,dp(8));c.addView(titleRow,trp);titleRow.addView(text(r.title,20,R.color.text_main,true),new LinearLayout.LayoutParams(0,-2,1f));TextView created=text(AppPreferences.tr(this,"Создано: ","Created: ")+FormatUtils.date(this,r.createdAt),11,R.color.text_secondary,false);titleRow.addView(created);
+        boolean deposit=ReminderScheduler.TYPE_DEPOSIT.equals(ReminderScheduler.normalizeType(r.type));if(deposit){c.addView(text(AppPreferences.tr(this,"Сумма вклада: ","Deposit: ")+FormatUtils.money(this,r.principal),15,R.color.text_secondary,false));c.addView(text(AppPreferences.tr(this,"Ожидаемый доход: ","Expected income: ")+FormatUtils.money(this,ReminderScheduler.depositExpectedIncome(r)),16,R.color.text_main,false));}else{c.addView(text(AppPreferences.tr(this,"Исходная сумма: ","Original amount: ")+FormatUtils.money(this,r.baseAmount),14,R.color.text_secondary,false));c.addView(text(AppPreferences.tr(this,"Остаток долга: ","Remaining debt: ")+FormatUtils.money(this,ReminderScheduler.remainingDebt(r)),16,R.color.text_main,true));int ni=ReminderScheduler.nextPaymentIndex(r);if(ni>=0)c.addView(text((ReminderScheduler.PAYMENT_DIFFERENTIAL.equals(r.paymentType)?AppPreferences.tr(this,"Следующий платёж: ","Next payment: "):AppPreferences.tr(this,"Ежемесячно: ","Monthly: "))+FormatUtils.money(this,ReminderScheduler.paymentAmount(r,ni)),16,R.color.text_main,false));c.addView(text(AppPreferences.tr(this,"Переплата: ","Interest: ")+FormatUtils.money(this,ReminderScheduler.totalInterest(r)),13,R.color.text_secondary,false));}
+        if(!deposit){int special=paidEarlyNearDue(r);int ix=special>=0?special:ReminderScheduler.nextPaymentIndex(r);TextView next=text("",14,R.color.text_secondary,false);if(ix>=0){if(special>=0){next.setText(AppPreferences.tr(this,"Оплачено заранее: ","Paid early: ")+FormatUtils.date(this,ReminderScheduler.buildDueDate(r,ix).getTimeInMillis()));next.setTextColor(ContextCompat.getColor(this,R.color.success));}else if(ReminderScheduler.isOverdue(r,ix)){long days=Math.max(1,(System.currentTimeMillis()-ReminderScheduler.buildDueDate(r,ix).getTimeInMillis())/(24L*60L*60L*1000L));next.setText(AppPreferences.tr(this,"Просрочен платёж: ","Overdue payment: ")+FormatUtils.money(this,ReminderScheduler.paymentAmount(r,ix))+" · "+days+AppPreferences.tr(this," дн."," d."));next.setTextColor(ContextCompat.getColor(this,R.color.danger));next.setTypeface(null,android.graphics.Typeface.BOLD);}else{next.setText(AppPreferences.tr(this,"Следующий платёж: ","Next payment: ")+FormatUtils.date(this,ReminderScheduler.buildDueDate(r,ix).getTimeInMillis()));next.setTextColor(ContextCompat.getColor(this,paymentUrgencyColor(r,ix)));next.setTypeface(null,android.graphics.Typeface.BOLD);}}else next.setText(AppPreferences.tr(this,"Срок завершён","Term completed"));LinearLayout.LayoutParams np=new LinearLayout.LayoutParams(-1,-2);np.setMargins(0,dp(8),0,0);c.addView(next,np);}if(!r.soundEnabled)c.addView(text("🔇 "+AppPreferences.tr(this,"Без звука","Muted"),12,R.color.text_secondary,false));LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(-1,-2);cp.setMargins(0,0,0,dp(12));card.setLayoutParams(cp);return card;}
+    private int paidEarlyNearDue(ReminderScheduler.PaymentReminder r){long now=System.currentTimeMillis(),limit=now+3L*24L*60L*60L*1000L;for(int i=0;i<r.months;i++){long due=ReminderScheduler.buildDueDate(r,i).getTimeInMillis();if(due>=now&&due<=limit&&ReminderScheduler.isPaid(r,i)&&ReminderScheduler.paidAt(r,i)<due)return i;}return -1;}
+    private void actions(View a,ReminderScheduler.PaymentReminder r){PopupMenu m=new PopupMenu(this,a);String mute=r.soundEnabled?AppPreferences.tr(this,"Без звука","Mute"):AppPreferences.tr(this,"Включить звук","Enable sound"),hist=AppPreferences.tr(this,"История изменений","Change history"),arch=AppPreferences.tr(this,"В архив","Archive"),del=AppPreferences.tr(this,"Удалить","Delete");m.getMenu().add(mute);m.getMenu().add(hist);m.getMenu().add(arch);m.getMenu().add(del);m.setOnMenuItemClickListener(x->{String s=x.getTitle().toString();if(s.equals(mute))ReminderScheduler.setMuted(this,r.id,r.soundEnabled);else if(s.equals(hist)){Intent i=new Intent(this,HistoryActivity.class);i.putExtra(HistoryActivity.EXTRA_REMINDER_ID,r.id);startActivity(i);return true;}else if(s.equals(arch))ReminderScheduler.archive(this,r.id);else ReminderScheduler.moveToTrash(this,r.id);render();return true;});m.show();}
+    private void openDetails(ReminderScheduler.PaymentReminder r){Intent i=new Intent(this,PaymentDetailsActivity.class);i.putExtra(PaymentDetailsActivity.EXTRA_REMINDER_ID,r.id);startActivity(i);}
+    private MaterialCardView card(){MaterialCardView c=new MaterialCardView(this);c.setCardBackgroundColor(ContextCompat.getColor(this,R.color.card_background));c.setRadius(dp(18));c.setStrokeColor(ContextCompat.getColor(this,R.color.border));c.setStrokeWidth(dp(1));c.setCardElevation(dp(1));return c;}private TextView top(String s,int z){TextView t=new TextView(this);t.setText(s);t.setTextSize(z);t.setTextColor(Color.WHITE);t.setGravity(Gravity.CENTER);t.setClickable(true);return t;}private TextView text(String s,int z,int color,boolean bold){TextView t=new TextView(this);t.setText(s);t.setTextSize(z);t.setTextColor(ContextCompat.getColor(this,color));if(bold)t.setTypeface(null,android.graphics.Typeface.BOLD);return t;}private int dp(int v){return Math.round(v*getResources().getDisplayMetrics().density);}
 }
