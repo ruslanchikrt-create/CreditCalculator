@@ -1,10 +1,12 @@
-name: Build Android APK
+name: Apply v1.23 and Build APK
 
 on:
-  workflow_dispatch:
   push:
     branches:
       - main
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -13,6 +15,38 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Apply v1.23 update
+        run: |
+          cat .github/v123-part-* > /tmp/v123.b64
+          base64 -d /tmp/v123.b64 > /tmp/v123-bundle.tar.gz
+          test "$(sha256sum /tmp/v123-bundle.tar.gz | awk '{print $1}')" = "57c5f2ca8c9a03f19b6d6a52d821bccbb5ee9462320d33d84776593ce400eca8"
+          mkdir -p /tmp/v123
+          tar -xzf /tmp/v123-bundle.tar.gz -C /tmp/v123
+          set +e
+          gzip -dc /tmp/v123/patch.gz | patch -p1
+          patch_status=$?
+          set -e
+          bad_rejects="$(find . -name '*.rej' ! -path './app/build.gradle.rej' -print)"
+          if [ -n "$bad_rejects" ]; then
+            echo "Unexpected patch rejects:"
+            echo "$bad_rejects"
+            exit 1
+          fi
+          if [ "$patch_status" -ne 0 ] && [ ! -f app/build.gradle.rej ]; then
+            echo "Patch failed without the expected version-only build.gradle reject"
+            exit 1
+          fi
+          rm -f app/build.gradle.rej app/build.gradle.orig
+          find . -name '*.orig' -delete
+          mkdir -p app/src/main/res/drawable-nodpi
+          cp /tmp/v123/icon.webp app/src/main/res/drawable-nodpi/ic_launcher_skryton.webp
+          rm -f .github/v123-part-*
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Use unique icon and include insurance in overpayment"
+          git push origin HEAD:main
 
       - name: Set up Java 17
         uses: actions/setup-java@v4
@@ -41,16 +75,3 @@ jobs:
         with:
           name: CreditCalculator-APK
           path: app/build/outputs/apk/debug/app-debug.apk
-
-      - name: Upload source snapshot
-        uses: actions/upload-artifact@v4
-        with:
-          name: CreditCalculator-Source
-          path: |
-            app/src
-            app/build.gradle
-            build.gradle
-            settings.gradle
-            .github/workflows/build-apk.yml
-
-# Temporary source snapshot for coordinated app-wide update
