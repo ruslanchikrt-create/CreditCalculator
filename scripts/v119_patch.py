@@ -1,0 +1,120 @@
+from pathlib import Path
+import re
+
+# Payments: real drawer, cleaner summary, rating prompt.
+p=Path('app/src/main/java/com/example/creditcalculator/PaymentsActivity.java')
+s=p.read_text()
+if 'import androidx.drawerlayout.widget.DrawerLayout;' not in s:
+    s=s.replace('import androidx.core.view.WindowInsetsCompat;\n','import androidx.core.view.WindowInsetsCompat;\nimport androidx.core.view.GravityCompat;\nimport androidx.drawerlayout.widget.DrawerLayout;\n')
+s=s.replace('public class PaymentsActivity extends AppCompatActivity {\n    private LinearLayout listContainer;', 'public class PaymentsActivity extends AppCompatActivity {\n    private DrawerLayout drawer;\n    private LinearLayout listContainer;')
+s=s.replace('@Override protected void onResume(){super.onResume();render();}', '@Override protected void onResume(){super.onResume();render();if(AppPreferences.isPaymentsDisclaimerAccepted(this))getWindow().getDecorView().postDelayed(()->RatingHelper.maybePrompt(this),450);}')
+
+build='''    private View build(){
+        drawer=new DrawerLayout(this);drawer.setFitsSystemWindows(false);
+        LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);UiUtils.applyBackground(this,root);drawer.addView(root,new DrawerLayout.LayoutParams(-1,-1));
+        LinearLayout bar=new LinearLayout(this);bar.setOrientation(LinearLayout.HORIZONTAL);bar.setGravity(Gravity.CENTER_VERTICAL);bar.setPadding(dp(8),0,dp(10),0);bar.setBackgroundColor(ContextCompat.getColor(this,R.color.primary));root.addView(bar,new LinearLayout.LayoutParams(-1,dp(58)));
+        TextView back=top("☰",30);back.setOnClickListener(v->showNavigationMenu(back));bar.addView(back,new LinearLayout.LayoutParams(dp(54),dp(54)));
+        TextView title=top(AppPreferences.tr(this,"Мои платежи","My payments"),20);title.setTypeface(null,android.graphics.Typeface.BOLD);title.setGravity(Gravity.CENTER_VERTICAL);bar.addView(title,new LinearLayout.LayoutParams(0,-1,1f));
+        TextView add=top("+",32);add.setOnClickListener(v->startActivity(new Intent(this,AddReminderActivity.class)));bar.addView(add,new LinearLayout.LayoutParams(dp(64),dp(58)));
+        swipeRefresh=new SwipeRefreshLayout(this);swipeRefresh.setColorSchemeResources(R.color.primary);root.addView(swipeRefresh,new LinearLayout.LayoutParams(-1,0,1f));
+        ScrollView scroll=new ScrollView(this);scroll.setFillViewport(true);swipeRefresh.addView(scroll,new SwipeRefreshLayout.LayoutParams(-1,-1));
+        listContainer=new LinearLayout(this);listContainer.setOrientation(LinearLayout.VERTICAL);listContainer.setPadding(dp(20),dp(22),dp(20),dp(28));scroll.addView(listContainer,new ScrollView.LayoutParams(-1,-2));swipeRefresh.setOnRefreshListener(this::refreshAllData);
+        LinearLayout nav=NavigationPanel.build(this,drawer,NavigationPanel.PAGE_PAYMENTS);DrawerLayout.LayoutParams np=new DrawerLayout.LayoutParams(NavigationPanel.drawerWidth(this),-1);np.gravity=GravityCompat.START;drawer.addView(nav,np);
+        ViewCompat.setOnApplyWindowInsetsListener(drawer,(v,insets)->{Insets bars=insets.getInsets(WindowInsetsCompat.Type.systemBars());root.setPadding(0,bars.top,0,bars.bottom);nav.setPadding(0,bars.top,0,bars.bottom);return insets;});
+        return drawer;
+    }'''
+s,n=re.subn(r'    private View build\(\)\{.*?\n\n    private void render\(\)',build+'\n\n    private void render()',s,flags=re.S)
+assert n==1, 'Payments build replacement failed'
+
+old='stats.addView(statBox(AppPreferences.tr(this,"Осталось оплатить","Remaining"),remainMonth,remainMonth>0?R.color.warning:R.color.success),new LinearLayout.LayoutParams(0,-2,1f));'
+new='stats.addView(countStatBox(AppPreferences.tr(this,"Осталось платежей в этом месяце","Payments left this month"),remainingPaymentsThisMonth(items),remainingPaymentsThisMonth(items)>0?R.color.warning:R.color.success),new LinearLayout.LayoutParams(0,-2,1f));'
+assert old in s, 'remaining summary block not found'
+s=s.replace(old,new)
+
+marker='    private double nextMonthTotal(List<ReminderScheduler.PaymentReminder> items)'
+helper='''    private int remainingPaymentsThisMonth(List<ReminderScheduler.PaymentReminder> items){int count=0;Calendar now=Calendar.getInstance();int y=now.get(Calendar.YEAR),m=now.get(Calendar.MONTH);for(ReminderScheduler.PaymentReminder r:items){if(ReminderScheduler.TYPE_DEPOSIT.equals(ReminderScheduler.normalizeType(r.type)))continue;for(int i=0;i<r.months;i++){if(ReminderScheduler.isPaid(r,i))continue;Calendar d=ReminderScheduler.buildDueDate(r,i);if(d.get(Calendar.YEAR)==y&&d.get(Calendar.MONTH)==m)count++;}}return count;}
+'''
+assert marker in s
+s=s.replace(marker,helper+marker)
+stat='    private View statBox(String label,double value,int color)'
+countbox='''    private View countStatBox(String label,int value,int color){LinearLayout b=new LinearLayout(this);b.setOrientation(LinearLayout.VERTICAL);b.addView(text(label,12,R.color.text_secondary,false));b.addView(text(String.valueOf(value),15,color,true));return b;}
+'''
+assert stat in s
+s=s.replace(stat,countbox+stat)
+old_hint='if(s.startsWith("осталось оплатить")||s.startsWith("remaining"))return AppPreferences.tr(this,"Неоплаченная часть обычных платежей текущего месяца.","Unpaid part of this month\'s normal scheduled installments.");'
+new_hint='if(s.startsWith("осталось платежей в этом месяце")||s.startsWith("payments left this month"))return AppPreferences.tr(this,"Количество обычных платежей текущего месяца, которые ещё не отмечены оплаченными.","Number of normal installments this month that are not yet marked paid.");'
+assert old_hint in s
+s=s.replace(old_hint,new_hint)
+s,n=re.subn(r'    private void showNavigationMenu\(View anchor\)\{.*?\n    \}\n\n    private TextView navigationItem', '    private void showNavigationMenu(View anchor){if(drawer!=null)drawer.openDrawer(GravityCompat.START);}\n\n    private TextView navigationItem',s,flags=re.S)
+assert n==1, 'old menu replacement failed'
+p.write_text(s)
+
+# Calculator drawer uses the same polished panel and true 80% screen width.
+p=Path('app/src/main/java/com/example/creditcalculator/MainActivity.java');s=p.read_text()
+old='drawerView=buildDrawer();DrawerLayout.LayoutParams dpv=new DrawerLayout.LayoutParams(dp(310),-1);dpv.gravity=GravityCompat.START;drawer.addView(drawerView,dpv);'
+new='drawerView=NavigationPanel.build(this,drawer,NavigationPanel.PAGE_CALCULATORS);DrawerLayout.LayoutParams dpv=new DrawerLayout.LayoutParams(NavigationPanel.drawerWidth(this),-1);dpv.gravity=GravityCompat.START;drawer.addView(drawerView,dpv);'
+assert old in s, 'Main drawer line not found'
+s=s.replace(old,new)
+p.write_text(s)
+
+# About: functional feedback, text history, rating button.
+p=Path('app/src/main/java/com/example/creditcalculator/AboutActivity.java');s=p.read_text()
+guide='MaterialButton guide=outline(AppPreferences.tr(this,"Инструкция по использованию","User guide"));guide.setOnClickListener(v->startActivity(new Intent(this,InstructionActivity.class)));LinearLayout.LayoutParams gp=new LinearLayout.LayoutParams(-1,dp(54));gp.setMargins(0,dp(18),0,0);content.addView(guide,gp);'
+rate=guide+'MaterialButton rate=outline("★ "+AppPreferences.tr(this,"Оценить приложение","Rate the app"));rate.setOnClickListener(v->RatingHelper.openStore(this));LinearLayout.LayoutParams rtp=new LinearLayout.LayoutParams(-1,dp(54));rtp.setMargins(0,dp(10),0,0);content.addView(rate,rtp);'
+assert guide in s
+s=s.replace(guide,rate)
+s=s.replace('Нашли ошибку или есть идея, что изменить или добавить? Здесь можно будет связаться с разработчиком.','Нашли ошибку или есть идея? Опишите обращение и при необходимости прикрепите фото или видео. В памяти приложения сохраняется только текст обращения — сами файлы после отправки не остаются.')
+s=s.replace('Found a bug or have an idea for something to change or add? You will be able to contact the developer here.','Found a bug or have an idea? Describe it and optionally attach photos or video. Only request text is kept in app history; the files are not stored after sending.')
+s=s.replace('bug.setOnClickListener(v->feedbackUnavailable());','bug.setOnClickListener(v->openFeedback(FeedbackActivity.KIND_BUG));')
+oldidea='MaterialButton idea=outline(AppPreferences.tr(this,"Предложить улучшение","Suggest an improvement"));idea.setOnClickListener(v->feedbackUnavailable());fb.addView(idea,buttonParams());'
+newidea='MaterialButton idea=outline(AppPreferences.tr(this,"Предложить улучшение","Suggest an improvement"));idea.setOnClickListener(v->openFeedback(FeedbackActivity.KIND_IDEA));fb.addView(idea,buttonParams());MaterialButton history=outline(AppPreferences.tr(this,"Мои обращения","My requests"));history.setOnClickListener(v->startActivity(new Intent(this,FeedbackHistoryActivity.class)));fb.addView(history,buttonParams());'
+assert oldidea in s
+s=s.replace(oldidea,newidea)
+insert='    private void feedbackUnavailable(){Toast.makeText(this,AppPreferences.tr(this,"Адрес обратной связи будет добавлен позже.","The feedback address will be added later."),Toast.LENGTH_LONG).show();}'
+repl='    private void openFeedback(String kind){Intent i=new Intent(this,FeedbackActivity.class);i.putExtra(FeedbackActivity.EXTRA_KIND,kind);startActivity(i);}\n'+insert
+assert insert in s
+s=s.replace(insert,repl)
+p.write_text(s)
+
+# Register screens and bump version.
+p=Path('app/src/main/AndroidManifest.xml');s=p.read_text()
+needle='        <activity android:name=".AboutActivity" android:exported="false" />'
+add=needle+'\n        <activity android:name=".FeedbackActivity" android:exported="false" android:windowSoftInputMode="adjustResize" />\n        <activity android:name=".FeedbackHistoryActivity" android:exported="false" />'
+assert needle in s
+s=s.replace(needle,add)
+p.write_text(s)
+
+p=Path('app/build.gradle');s=p.read_text();s=s.replace('versionCode 18','versionCode 19').replace('versionName "1.18"','versionName "1.19"');p.write_text(s)
+
+# Instruction: remove duplicated summary concept and document file privacy + rating.
+p=Path('app/src/main/java/com/example/creditcalculator/InstructionActivity.java');s=p.read_text()
+s=s.replace('оплаченные в текущем месяце платежи, остаток и просрочка.','оплаченные в текущем месяце платежи, количество оставшихся платежей в текущем месяце и просрочка.')
+pattern=r'        section\(content,"15",local\("Обратная связь".*?\n                "En Acerca de están Informar de un error y Sugerir una mejora\. Mientras no haya dirección de contacto, la app lo indicará\."\)\);'
+replacement='''        section(content,"15",local("Обратная связь и оценка","Feedback and rating","Geri bildirim ve değerlendirme","Comentarios y valoración"),local(
+                "В «О приложении» находятся «Сообщить об ошибке», «Предложить улучшение», «Мои обращения» и «Оценить приложение». К обращению можно временно прикрепить до 5 фото или видео. Приложение не копирует эти файлы в свою память и не хранит их после отправки: в истории остаются только название, дата, тип и текст обращения. После нескольких реально оплаченных платежей приложение может изредка ненавязчиво предложить поставить оценку; «Не сейчас» откладывает предложение.",
+                "About contains Report a bug, Suggest an improvement, My requests and Rate the app. Up to 5 photos or videos may be attached temporarily. The app does not copy or retain those files after sending; history keeps only the request title, date, type and text. After several actual paid installments the app may occasionally ask for a rating; Not now postpones it.",
+                "Uygulama hakkında bölümünde hata bildirme, iyileştirme önerme, başvuru geçmişi ve uygulamayı değerlendirme seçenekleri vardır. Fotoğraf ve videolar yalnızca gönderim sırasında geçici olarak kullanılır ve uygulamada saklanmaz; geçmişte yalnızca metin kalır.",
+                "En Acerca de puedes informar de errores, proponer mejoras, ver tus solicitudes y valorar la app. Las fotos y vídeos se usan solo temporalmente para el envío y no se guardan; el historial conserva solo texto."));'''
+s,n=re.subn(pattern,replacement,s,flags=re.S)
+assert n==1, 'Instruction section 15 replacement failed'
+p.write_text(s)
+
+# Turkish/Spanish labels for new UI.
+p=Path('app/src/main/java/com/example/creditcalculator/Translations.java');s=p.read_text()
+marker='        add("Разработчик", "Geliştirici", "Desarrollador");'
+additions='''        add("Оценить приложение", "Uygulamayı değerlendir", "Valorar la aplicación");
+        add("Мои обращения", "Başvurularım", "Mis solicitudes");
+        add("Название обращения", "Başvuru başlığı", "Título de la solicitud");
+        add("Описание", "Açıklama", "Descripción");
+        add("Фото и видео", "Fotoğraf ve video", "Fotos y vídeos");
+        add("Прикрепить фото или видео", "Fotoğraf veya video ekle", "Adjuntar fotos o vídeos");
+        add("Отправить обращение", "Başvuruyu gönder", "Enviar solicitud");
+        add("Ошибка", "Hata", "Error");
+        add("Предложение", "Öneri", "Sugerencia");
+        add("Оценить", "Değerlendir", "Valorar");
+        add("Не сейчас", "Şimdi değil", "Ahora no");
+        add("Осталось платежей в этом месяце", "Bu ay kalan ödeme sayısı", "Pagos restantes este mes");
+'''
+assert marker in s
+s=s.replace(marker,additions+marker)
+p.write_text(s)
