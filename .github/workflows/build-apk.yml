@@ -28,18 +28,19 @@ jobs:
           yes | sdkmanager --licenses
           sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
 
-      - name: Set up Gradle 8.9
-        uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: "8.9"
+      - name: Test and build debug + release APK
+        run: gradle testDebugUnitTest assembleDebug assembleRelease
 
-      - name: Test financial math and build debug APK
-        run: gradle testDebugUnitTest assembleDebug
-
-      - name: Upload APK
+      - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
-          name: CreditCalculator-APK
+          name: CreditCalculator-Debug-APK
           path: app/build/outputs/apk/debug/app-debug.apk
 
-# v1.25 approved launcher icon and insurance-aware overpayment
+      - name: Upload unsigned release APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: CreditCalculator-Release-Unsigned
+          path: app/build/outputs/apk/release/app-release-unsigned.apk
+
+# v1.26 permanent com.skryton.creditcalculator release preparation
