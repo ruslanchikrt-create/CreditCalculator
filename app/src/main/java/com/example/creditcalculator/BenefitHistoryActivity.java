@@ -24,6 +24,7 @@ import java.util.List;
 
 public class BenefitHistoryActivity extends AppCompatActivity {
     public static final String EXTRA_REMINDER_ID="reminder_id";
+    public static final String EXTRA_ACTIVE_ONLY="active_only";
 
     @Override protected void attachBaseContext(Context c){super.attachBaseContext(AppPreferences.wrapLocale(c));}
     @Override protected void onCreate(Bundle b){AppPreferences.applyNightMode(this);super.onCreate(b);WindowCompat.setDecorFitsSystemWindows(getWindow(),false);setContentView(build());}
@@ -36,7 +37,8 @@ public class BenefitHistoryActivity extends AppCompatActivity {
         ScrollView scroll=new ScrollView(this);scroll.setFillViewport(true);scroll.setClipToPadding(false);root.addView(scroll,new LinearLayout.LayoutParams(-1,0,1f));
         LinearLayout content=new LinearLayout(this);content.setOrientation(LinearLayout.VERTICAL);content.setPadding(dp(20),dp(22),dp(20),dp(30));scroll.addView(content,new ScrollView.LayoutParams(-1,-2));
         long id=getIntent().getLongExtra(EXTRA_REMINDER_ID,-1);
-        List<ReminderScheduler.BenefitEvent> events=id>0?ReminderScheduler.benefits(ReminderScheduler.findById(this,id)):ReminderScheduler.allBenefits(this);
+        boolean activeOnly=getIntent().getBooleanExtra(EXTRA_ACTIVE_ONLY,false);
+        List<ReminderScheduler.BenefitEvent> events=id>0?ReminderScheduler.benefits(ReminderScheduler.findById(this,id)):(activeOnly?ReminderScheduler.activeBenefits(this):ReminderScheduler.allBenefits(this));
         Collections.sort(events,(a,b)->Long.compare(b.time,a.time));
         double total=0;for(ReminderScheduler.BenefitEvent e:events)total+=e.savings;
         MaterialCardView summary=card();LinearLayout sb=box(summary);sb.addView(text(AppPreferences.tr(this,"Общая расчётная выгода","Total estimated savings"),14,R.color.text_secondary,false));TextView value=text(FormatUtils.money(this,total),30,total>=0?R.color.success:R.color.danger,true);LinearLayout.LayoutParams vp=new LinearLayout.LayoutParams(-1,-2);vp.setMargins(0,dp(4),0,dp(6));sb.addView(value,vp);sb.addView(text(AppPreferences.tr(this,"Суммируются результаты применённых досрочных погашений и рефинансирований.","Totals the results of applied early repayments and refinancing actions."),13,R.color.text_secondary,false));content.addView(summary);

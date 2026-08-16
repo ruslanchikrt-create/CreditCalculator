@@ -1,9 +1,9 @@
 -- Merging decision tree log ---
 manifest
-ADDED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:1:1-56:12
-INJECTED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:1:1-56:12
-INJECTED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:1:1-56:12
-INJECTED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:1:1-56:12
+ADDED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:1:1-57:12
+INJECTED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:1:1-57:12
+INJECTED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:1:1-57:12
+INJECTED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:1:1-57:12
 MERGED from [androidx.biometric:biometric:1.1.0] /home/runner/.gradle/caches/8.9/transforms/007a1fa5a6ec99e744e97e63217b9e84/transformed/biometric-1.1.0/AndroidManifest.xml:17:1-29:12
 MERGED from [com.google.android.material:material:1.12.0] /home/runner/.gradle/caches/8.9/transforms/0c904728dc3a8d192cc0c0faeb598900/transformed/material-1.12.0/AndroidManifest.xml:17:1-24:12
 MERGED from [androidx.appcompat:appcompat-resources:1.7.0] /home/runner/.gradle/caches/8.9/transforms/4a215c1c9bda988afcdbc6e16c92c92d/transformed/jetified-appcompat-resources-1.7.0/AndroidManifest.xml:2:1-7:12
@@ -76,8 +76,8 @@ MERGED from [androidx.biometric:biometric:1.1.0] /home/runner/.gradle/caches/8.9
 	android:name
 		ADDED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:6:22-71
 application
-ADDED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:8:5-55:19
-INJECTED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:8:5-55:19
+ADDED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:8:5-56:19
+INJECTED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:8:5-56:19
 MERGED from [com.google.android.material:material:1.12.0] /home/runner/.gradle/caches/8.9/transforms/0c904728dc3a8d192cc0c0faeb598900/transformed/material-1.12.0/AndroidManifest.xml:22:5-20
 MERGED from [com.google.android.material:material:1.12.0] /home/runner/.gradle/caches/8.9/transforms/0c904728dc3a8d192cc0c0faeb598900/transformed/material-1.12.0/AndroidManifest.xml:22:5-20
 MERGED from [androidx.constraintlayout:constraintlayout:2.0.1] /home/runner/.gradle/caches/8.9/transforms/878e6606f0fa93cf854b981722e3b33e/transformed/constraintlayout-2.0.1/AndroidManifest.xml:9:5-20
@@ -196,39 +196,39 @@ ADDED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/Andr
 		ADDED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:28:51-75
 	android:name
 		ADDED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:28:19-50
+activity#com.example.creditcalculator.PersonalCabinetActivity
+ADDED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:29:9-129
+	android:windowSoftInputMode
+		ADDED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:29:84-126
+	android:exported
+		ADDED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:29:59-83
+	android:name
+		ADDED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:29:19-58
 activity#com.example.creditcalculator.TrashActivity
-ADDED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:29:9-119
+ADDED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:30:9-119
 	android:windowSoftInputMode
-		ADDED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:29:74-116
+		ADDED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:30:74-116
 	android:exported
-		ADDED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:29:49-73
+		ADDED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:30:49-73
 	android:name
-		ADDED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:29:19-48
+		ADDED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:30:19-48
 activity#com.example.creditcalculator.ArchiveActivity
-ADDED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:30:9-121
+ADDED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:31:9-121
 	android:windowSoftInputMode
-		ADDED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:30:76-118
+		ADDED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:31:76-118
 	android:exported
-		ADDED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:30:51-75
+		ADDED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:31:51-75
 	android:name
-		ADDED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:30:19-50
+		ADDED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:31:19-50
 activity#com.example.creditcalculator.PaymentDetailsActivity
-ADDED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:31:9-128
+ADDED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:32:9-128
 	android:windowSoftInputMode
-		ADDED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:31:83-125
+		ADDED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:32:83-125
 	android:exported
-		ADDED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:31:58-82
+		ADDED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:32:58-82
 	android:name
-		ADDED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:31:19-57
+		ADDED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:32:19-57
 activity#com.example.creditcalculator.PaymentsActivity
-ADDED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:32:9-122
-	android:windowSoftInputMode
-		ADDED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:32:77-119
-	android:exported
-		ADDED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:32:52-76
-	android:name
-		ADDED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:32:19-51
-activity#com.example.creditcalculator.SettingsActivity
 ADDED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:33:9-122
 	android:windowSoftInputMode
 		ADDED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:33:77-119
@@ -236,62 +236,70 @@ ADDED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/Andr
 		ADDED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:33:52-76
 	android:name
 		ADDED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:33:19-51
+activity#com.example.creditcalculator.SettingsActivity
+ADDED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:34:9-122
+	android:windowSoftInputMode
+		ADDED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:34:77-119
+	android:exported
+		ADDED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:34:52-76
+	android:name
+		ADDED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:34:19-51
 activity#com.example.creditcalculator.AddReminderActivity
-ADDED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:34:9-125
+ADDED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:35:9-125
 	android:windowSoftInputMode
-		ADDED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:34:80-122
+		ADDED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:35:80-122
 	android:exported
-		ADDED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:34:55-79
+		ADDED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:35:55-79
 	android:name
-		ADDED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:34:19-54
+		ADDED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:35:19-54
 activity#com.example.creditcalculator.MainActivity
-ADDED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:36:9-44:20
+ADDED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:37:9-45:20
 	android:windowSoftInputMode
-		ADDED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:39:13-55
+		ADDED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:40:13-55
 	android:exported
-		ADDED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:38:13-36
+		ADDED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:39:13-36
 	android:name
-		ADDED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:37:13-41
+		ADDED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:38:13-41
 intent-filter#action:name:android.intent.action.MAIN+category:name:android.intent.category.LAUNCHER
-ADDED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:40:13-43:29
+ADDED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:41:13-44:29
 action#android.intent.action.MAIN
-ADDED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:41:17-69
+ADDED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:42:17-69
 	android:name
-		ADDED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:41:25-66
+		ADDED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:42:25-66
 category#android.intent.category.LAUNCHER
-ADDED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:42:17-77
+ADDED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:43:17-77
 	android:name
-		ADDED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:42:27-74
+		ADDED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:43:27-74
 receiver#com.example.creditcalculator.ReminderReceiver
-ADDED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:46:9-79
+ADDED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:47:9-79
 	android:exported
-		ADDED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:46:52-76
+		ADDED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:47:52-76
 	android:name
-		ADDED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:46:19-51
+		ADDED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:47:19-51
 receiver#com.example.creditcalculator.PaymentActionReceiver
-ADDED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:47:9-84
+ADDED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:48:9-84
 	android:exported
-		ADDED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:47:57-81
+		ADDED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:48:57-81
 	android:name
-		ADDED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:47:19-56
+		ADDED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:48:19-56
 receiver#com.example.creditcalculator.BootReceiver
-ADDED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:48:9-53:20
+ADDED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:49:9-54:20
 	android:enabled
-		ADDED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:48:48-70
+		ADDED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:49:48-70
 	android:exported
-		ADDED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:48:71-95
+		ADDED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:49:71-95
 	android:name
-		ADDED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:48:19-47
+		ADDED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:49:19-47
 intent-filter#action:name:android.intent.action.BOOT_COMPLETED+action:name:android.intent.action.MY_PACKAGE_REPLACED
-ADDED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:49:13-52:29
+ADDED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:50:13-53:29
 action#android.intent.action.BOOT_COMPLETED
-ADDED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:50:17-79
+ADDED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:51:17-79
 	android:name
-		ADDED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:50:25-76
+		ADDED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:51:25-76
 action#android.intent.action.MY_PACKAGE_REPLACED
-ADDED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:51:17-84
+ADDED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:52:17-84
 	android:name
-		ADDED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:51:25-81
+		ADDED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:52:25-81
 uses-sdk
 INJECTED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml reason: use-sdk injection requested
 INJECTED from /home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml

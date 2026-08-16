@@ -32,6 +32,12 @@ public final class AppPreferences {
     private static final String KEY_SECURITY_HASH = "security_hash";
     private static final String KEY_BIOMETRIC = "biometric_enabled";
     private static final String KEY_LOCK_TIMEOUT = "lock_timeout_minutes";
+    private static final String KEY_PAYMENTS_DISCLAIMER = "payments_disclaimer_accepted";
+    private static final String KEY_MONTHLY_INCOME = "monthly_income";
+    private static final String KEY_OTHER_OBLIGATIONS = "other_obligations";
+    private static final String KEY_OFFICIAL_BKI_RATING = "official_bki_rating";
+    private static final String KEY_CREDIT_APPLICATIONS = "credit_applications";
+    private static final String KEY_CREDIT_REJECTIONS = "credit_rejections";
 
     private AppPreferences() {}
 
@@ -78,6 +84,20 @@ public final class AppPreferences {
 
     public static String getPaymentsFilter(Context context) { return prefs(context).getString(KEY_PAYMENTS_FILTER, "all"); }
     public static void setPaymentsFilter(Context context, String value) { prefs(context).edit().putString(KEY_PAYMENTS_FILTER, value == null ? "all" : value).apply(); }
+    public static boolean isPaymentsDisclaimerAccepted(Context context) { return prefs(context).getBoolean(KEY_PAYMENTS_DISCLAIMER, false); }
+    public static void setPaymentsDisclaimerAccepted(Context context, boolean accepted) { prefs(context).edit().putBoolean(KEY_PAYMENTS_DISCLAIMER, accepted).apply(); }
+    private static double getDouble(Context context,String key){try{return Double.parseDouble(prefs(context).getString(key,"0"));}catch(Exception e){return 0;}}
+    private static void putDouble(Context context,String key,double value){prefs(context).edit().putString(key,String.valueOf(Math.max(0,value))).apply();}
+    public static double getMonthlyIncome(Context context){return getDouble(context,KEY_MONTHLY_INCOME);}
+    public static void setMonthlyIncome(Context context,double value){putDouble(context,KEY_MONTHLY_INCOME,value);}
+    public static double getOtherObligations(Context context){return getDouble(context,KEY_OTHER_OBLIGATIONS);}
+    public static void setOtherObligations(Context context,double value){putDouble(context,KEY_OTHER_OBLIGATIONS,value);}
+    public static int getOfficialBkiRating(Context context){return prefs(context).getInt(KEY_OFFICIAL_BKI_RATING,0);}
+    public static void setOfficialBkiRating(Context context,int value){prefs(context).edit().putInt(KEY_OFFICIAL_BKI_RATING,Math.max(0,Math.min(999,value))).apply();}
+    public static int getCreditApplications(Context context){return prefs(context).getInt(KEY_CREDIT_APPLICATIONS,0);}
+    public static void setCreditApplications(Context context,int value){prefs(context).edit().putInt(KEY_CREDIT_APPLICATIONS,Math.max(0,value)).apply();}
+    public static int getCreditRejections(Context context){return prefs(context).getInt(KEY_CREDIT_REJECTIONS,0);}
+    public static void setCreditRejections(Context context,int value){prefs(context).edit().putInt(KEY_CREDIT_REJECTIONS,Math.max(0,value)).apply();}
     /** Kept for compatibility. Sorting is session-only from v1.9. */
     public static String getPaymentsSort(Context context) { return "nearest"; }
     public static void setPaymentsSort(Context context, String value) { /* intentionally not persisted */ }

@@ -431,8 +431,13 @@ public final class ReminderScheduler {
 
     public static List<BenefitEvent> benefits(PaymentReminder r){List<BenefitEvent> out=new ArrayList<>();if(r==null)return out;try{JSONArray a=new JSONArray(r.benefitJson==null||r.benefitJson.trim().isEmpty()?"[]":r.benefitJson);for(int i=0;i<a.length();i++){JSONObject o=a.optJSONObject(i);if(o==null)continue;BenefitEvent e=new BenefitEvent();e.time=o.optLong("time",r.updatedAt);e.type=o.optString("type",HISTORY_EARLY);e.reminderTitle=o.optString("reminderTitle",r.title);e.savings=o.optDouble("savings",0);e.actionAmount=o.optDouble("actionAmount",0);e.paymentBefore=o.optDouble("paymentBefore",0);e.paymentAfter=o.optDouble("paymentAfter",0);e.monthsBefore=o.optInt("monthsBefore",0);e.monthsAfter=o.optInt("monthsAfter",0);e.rateBefore=o.optDouble("rateBefore",0);e.rateAfter=o.optDouble("rateAfter",0);out.add(e);}}catch(Exception ignored){}return out;}
     public static List<BenefitEvent> allBenefits(Context c){List<BenefitEvent> out=new ArrayList<>();for(PaymentReminder r:loadAll(c))out.addAll(benefits(r));return out;}
+    public static List<BenefitEvent> activeBenefits(Context c){List<BenefitEvent> out=new ArrayList<>();for(PaymentReminder r:load(c))out.addAll(benefits(r));return out;}
+    public static List<BenefitEvent> archivedBenefits(Context c){List<BenefitEvent> out=new ArrayList<>();for(PaymentReminder r:listByStatus(c,STATUS_ARCHIVE))out.addAll(benefits(r));return out;}
     public static double totalBenefit(PaymentReminder r){double t=0;for(BenefitEvent e:benefits(r))t+=e.savings;return t;}
-    public static double totalBenefit(Context c){double t=0;for(BenefitEvent e:allBenefits(c))t+=e.savings;return t;}
+    /** Active savings only. Archived savings remain in archive/history but do not affect My payments. */
+    public static double totalBenefit(Context c){double t=0;for(PaymentReminder r:load(c))t+=totalBenefit(r);return t;}
+    public static double totalBenefitAll(Context c){double t=0;for(BenefitEvent e:allBenefits(c))t+=e.savings;return t;}
+    public static double archivedBenefit(Context c){double t=0;for(BenefitEvent e:archivedBenefits(c))t+=e.savings;return t;}
     private static void appendBenefit(PaymentReminder r,long time,String type,double savings,double actionAmount,double paymentBefore,double paymentAfter,int monthsBefore,int monthsAfter,double rateBefore,double rateAfter){try{JSONArray a=new JSONArray(r.benefitJson==null||r.benefitJson.trim().isEmpty()?"[]":r.benefitJson);JSONObject o=new JSONObject();o.put("time",time);o.put("type",type);o.put("reminderTitle",r.title);o.put("savings",savings);o.put("actionAmount",actionAmount);o.put("paymentBefore",paymentBefore);o.put("paymentAfter",paymentAfter);o.put("monthsBefore",monthsBefore);o.put("monthsAfter",monthsAfter);o.put("rateBefore",rateBefore);o.put("rateAfter",rateAfter);a.put(o);r.benefitJson=a.toString();}catch(Exception ignored){}}
 
     // -------- Ledger / schedule --------
