@@ -15,6 +15,7 @@ public final class AppPreferences {
     public static final String PREFS_NAME = "app_preferences";
     public static final String SECURITY_PIN = "pin";
     public static final String SECURITY_PASSWORD = "password";
+    public static final String SECURITY_PATTERN = "pattern";
     public static final String SECURITY_DEVICE = "device";
     private static final String KEY_LANGUAGE = "language";
     private static final String KEY_LANGUAGE_CHOSEN = "language_chosen";
@@ -85,17 +86,21 @@ public final class AppPreferences {
     public static void setSecurityEnabled(Context context, boolean enabled) { prefs(context).edit().putBoolean(KEY_SECURITY_ENABLED, enabled).apply(); }
     public static String getSecurityKind(Context context) {
         String kind=prefs(context).getString(KEY_SECURITY_KIND, SECURITY_PIN);
-        if(SECURITY_PASSWORD.equals(kind)||SECURITY_DEVICE.equals(kind))return kind;
+        if(SECURITY_PASSWORD.equals(kind)||SECURITY_PATTERN.equals(kind)||SECURITY_DEVICE.equals(kind))return kind;
         return SECURITY_PIN;
     }
     public static boolean isDeviceCredentialSecurity(Context context){return SECURITY_DEVICE.equals(getSecurityKind(context));}
+    public static boolean isPatternSecurity(Context context){return SECURITY_PATTERN.equals(getSecurityKind(context));}
     public static boolean isBiometricEnabled(Context context) { return prefs(context).getBoolean(KEY_BIOMETRIC, false); }
     public static void setBiometricEnabled(Context context, boolean enabled) { prefs(context).edit().putBoolean(KEY_BIOMETRIC, enabled).apply(); }
     public static int getLockTimeoutMinutes(Context context) { return prefs(context).getInt(KEY_LOCK_TIMEOUT, 0); }
     public static void setLockTimeoutMinutes(Context context, int minutes) { prefs(context).edit().putInt(KEY_LOCK_TIMEOUT, Math.max(0, minutes)).apply(); }
 
     public static void setAppSecret(Context context, String kind, String secret) {
-        String normalizedKind = SECURITY_PASSWORD.equals(kind) ? SECURITY_PASSWORD : SECURITY_PIN;
+        String normalizedKind;
+        if (SECURITY_PASSWORD.equals(kind)) normalizedKind = SECURITY_PASSWORD;
+        else if (SECURITY_PATTERN.equals(kind)) normalizedKind = SECURITY_PATTERN;
+        else normalizedKind = SECURITY_PIN;
         prefs(context).edit()
                 .putString(KEY_SECURITY_KIND, normalizedKind)
                 .putString(KEY_SECURITY_HASH, hash(secret == null ? "" : secret))
