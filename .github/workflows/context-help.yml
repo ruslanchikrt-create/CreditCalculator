@@ -1,0 +1,92 @@
+name: Apply contextual help
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Add contextual help to calculation fields
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          # Main calculator fields.
+          p=Path('app/src/main/java/com/example/creditcalculator/MainActivity.java')
+          s=p.read_text(encoding='utf-8')
+          if 'import androidx.appcompat.app.AlertDialog;' not in s:
+              s=s.replace('import androidx.appcompat.app.AppCompatActivity;','import androidx.appcompat.app.AlertDialog;\nimport androidx.appcompat.app.AppCompatActivity;')
+          s=s.replace('amountInput=field(iconHint("▣",amountHint()));','amountInput=field(iconHint("▣",amountHint()),AppPreferences.tr(this,"Укажите основную сумму по договору. Для ипотеки и автокредита это полная стоимость до вычета первоначального взноса; для вклада — сумма вклада.","Enter the main contract amount. For mortgage and auto loan this is the full price before the down payment; for a deposit it is the deposit amount."));')
+          s=s.replace('downInput=field(iconHint("◩",AppPreferences.tr(this,"Первоначальный взнос, ₽","Down payment, ₽")));','downInput=field(iconHint("◩",AppPreferences.tr(this,"Первоначальный взнос, ₽","Down payment, ₽")),AppPreferences.tr(this,"Сумма, которую вы вносите сразу. Она должна быть меньше полной стоимости.","The amount paid upfront. It must be less than the full price."));')
+          s=s.replace('termInput=termField();','termInput=termField(AppPreferences.tr(this,"Введите срок и выберите справа месяцы или годы. От срока зависит количество платежей и итоговая переплата.","Enter the term and choose months or years on the right. The term affects the number of payments and total interest."));')
+          s=s.replace('rateInput=field(iconHint("%",AppPreferences.tr(this,"Ставка, % годовых","Interest rate, % per year")));','rateInput=field(iconHint("%",AppPreferences.tr(this,"Ставка, % годовых","Interest rate, % per year")),AppPreferences.tr(this,"Введите годовую процентную ставку из условий банка.","Enter the annual interest rate from the bank terms."));')
+          s=s.replace('insuranceInput=field(iconHint("◇",AppPreferences.tr(this,"Страховка, ₽","Insurance, ₽")));','insuranceInput=field(iconHint("◇",AppPreferences.tr(this,"Страховка, ₽","Insurance, ₽")),AppPreferences.tr(this,"Введите стоимость страховки. Переключатель ниже определяет, включать ли её в сумму кредита или оплачивать отдельно.","Enter the insurance cost. The switch below controls whether it is financed or paid separately."));')
+          old='private TextInputEditText field(String hint){TextInputLayout l=inputLayout(hint);'
+          new='private TextInputEditText field(String hint,String help){TextInputLayout l=inputLayout(hint);attachInfo(l,hint,help);'
+          s=s.replace(old,new)
+          s=s.replace('private TextInputEditText termField(){LinearLayout row=', 'private TextInputEditText termField(String help){LinearLayout row=')
+          s=s.replace('TextInputLayout l=inputLayout(iconHint("◷",AppPreferences.tr(this,"Срок","Term")));TextInputEditText e=', 'TextInputLayout l=inputLayout(iconHint("◷",AppPreferences.tr(this,"Срок","Term")));attachInfo(l,AppPreferences.tr(this,"Срок","Term"),help);TextInputEditText e=')
+          old='TextView pl=text(AppPreferences.tr(this,"Тип платежей","Payment type"),14,R.color.text_secondary,true);'
+          new='TextView pl=text(AppPreferences.tr(this,"Тип платежей","Payment type")+"  ⓘ",14,R.color.text_secondary,true);pl.setClickable(true);pl.setOnClickListener(v->showInfo(AppPreferences.tr(this,"Тип платежей","Payment type"),AppPreferences.tr(this,"Аннуитетный платёж примерно одинаковый каждый месяц. При дифференцированном основной долг гасится равными частями, поэтому платёж постепенно уменьшается.","Annuity payments are roughly equal each month. With differential payments the principal is repaid in equal portions, so the payment gradually decreases.")));'
+          s=s.replace(old,new)
+          marker='    private TextInputLayout inputLayout(String hint)'
+          helper='''    private void attachInfo(TextInputLayout layout,String title,String message){layout.setEndIconMode(TextInputLayout.END_ICON_CUSTOM);layout.setEndIconDrawable(android.R.drawable.ic_dialog_info);layout.setEndIconTintList(ColorStateList.valueOf(ContextCompat.getColor(this,R.color.primary)));layout.setEndIconContentDescription(AppPreferences.tr(this,"Подсказка","Help"));layout.setEndIconOnClickListener(v->showInfo(title,message));}\n    private void showInfo(String title,String message){new AlertDialog.Builder(this).setTitle(title).setMessage(message).setPositiveButton(AppPreferences.tr(this,"Понятно","OK"),null).show();}\n'''
+          if marker in s and 'private void attachInfo(TextInputLayout layout' not in s:
+              s=s.replace(marker,helper+marker)
+          p.write_text(s,encoding='utf-8')
+
+          # Early repayment fields and comparison explanation.
+          p=Path('app/src/main/java/com/example/creditcalculator/EarlyRepaymentActivity.java')
+          s=p.read_text(encoding='utf-8')
+          if 'import androidx.appcompat.app.AlertDialog;' not in s:
+              s=s.replace('import androidx.appcompat.app.AppCompatActivity;','import androidx.appcompat.app.AlertDialog;\nimport androidx.appcompat.app.AppCompatActivity;')
+          s=s.replace('amountInput=field(content,AppPreferences.tr(this,"Сумма досрочного погашения, ₽","Early repayment amount, ₽"),InputType.TYPE_CLASS_NUMBER|InputType.TYPE_NUMBER_FLAG_DECIMAL);','amountInput=field(content,AppPreferences.tr(this,"Сумма досрочного погашения, ₽","Early repayment amount, ₽"),InputType.TYPE_CLASS_NUMBER|InputType.TYPE_NUMBER_FLAG_DECIMAL,AppPreferences.tr(this,"Введите сумму, которую собираетесь внести сверх обычного графика. Она не должна превышать текущий остаток долга.","Enter the amount you plan to pay ahead of schedule. It must not exceed the current balance."));')
+          s=s.replace('dateInput=field(content,AppPreferences.tr(this,"Дата досрочного погашения","Early repayment date"),InputType.TYPE_NULL);','dateInput=field(content,AppPreferences.tr(this,"Дата досрочного погашения","Early repayment date"),InputType.TYPE_NULL,AppPreferences.tr(this,"Укажите дату фактического досрочного платежа. От неё пересчитываются остаток, срок и проценты.","Choose the actual early repayment date. Balance, term and interest are recalculated from this date."));')
+          s=s.replace('TextView choose=text(AppPreferences.tr(this,"Что изменить после погашения?","What should change after repayment?"),18,R.color.text_main,true);','TextView choose=text(AppPreferences.tr(this,"Что изменить после погашения?","What should change after repayment?")+"  ⓘ",18,R.color.text_main,true);choose.setClickable(true);choose.setOnClickListener(v->showInfo(AppPreferences.tr(this,"Сравнение вариантов","Compare options"),AppPreferences.tr(this,"Слева можно уменьшить ежемесячный платёж, справа — сократить срок. Платёж и срок можно вручную поправить по данным банка. Зелёная рамка показывает вариант с большей расчётной экономией на процентах.","The left option reduces the monthly payment; the right option shortens the term. You can edit payment and term to match bank figures. The green frame marks the option with greater estimated interest savings.")));')
+          s=s.replace('private TextInputEditText field(LinearLayout p,String hint,int type){TextInputLayout l=', 'private TextInputEditText field(LinearLayout p,String hint,int type,String help){TextInputLayout l=')
+          s=s.replace('l.setBoxCornerRadii(dp(14),dp(14),dp(14),dp(14));TextInputEditText e=', 'l.setBoxCornerRadii(dp(14),dp(14),dp(14),dp(14));attachInfo(l,hint,help);TextInputEditText e=')
+          marker='    private TextInputEditText field(LinearLayout p,String hint,int type,String help)'
+          helper='''    private void attachInfo(TextInputLayout layout,String title,String message){layout.setEndIconMode(TextInputLayout.END_ICON_CUSTOM);layout.setEndIconDrawable(android.R.drawable.ic_dialog_info);layout.setEndIconTintList(ColorStateList.valueOf(ContextCompat.getColor(this,R.color.primary)));layout.setEndIconContentDescription(AppPreferences.tr(this,"Подсказка","Help"));layout.setEndIconOnClickListener(v->showInfo(title,message));}\n    private void showInfo(String title,String message){new AlertDialog.Builder(this).setTitle(title).setMessage(message).setPositiveButton(AppPreferences.tr(this,"Понятно","OK"),null).show();}\n'''
+          if marker in s and 'private void attachInfo(TextInputLayout layout' not in s:
+              s=s.replace(marker,helper+marker)
+          p.write_text(s,encoding='utf-8')
+
+          # Refinancing fields.
+          p=Path('app/src/main/java/com/example/creditcalculator/RefinanceActivity.java')
+          s=p.read_text(encoding='utf-8')
+          if 'import androidx.appcompat.app.AlertDialog;' not in s:
+              s=s.replace('import androidx.appcompat.app.AppCompatActivity;','import androidx.appcompat.app.AlertDialog;\nimport androidx.appcompat.app.AppCompatActivity;')
+          repl=[
+            ('rateInput=field(content,AppPreferences.tr(this,"Новая ставка, %","New rate, %"),InputType.TYPE_CLASS_NUMBER|InputType.TYPE_NUMBER_FLAG_DECIMAL);','rateInput=field(content,AppPreferences.tr(this,"Новая ставка, %","New rate, %"),InputType.TYPE_CLASS_NUMBER|InputType.TYPE_NUMBER_FLAG_DECIMAL,AppPreferences.tr(this,"Введите годовую ставку, которую предлагает новый банк.","Enter the annual rate offered by the new bank."));'),
+            ('monthsInput=field(content,AppPreferences.tr(this,"Новый срок, мес.","New term, months"),InputType.TYPE_CLASS_NUMBER);','monthsInput=field(content,AppPreferences.tr(this,"Новый срок, мес.","New term, months"),InputType.TYPE_CLASS_NUMBER,AppPreferences.tr(this,"Введите новый срок кредита в месяцах.","Enter the new loan term in months."));'),
+            ('commissionInput=field(content,AppPreferences.tr(this,"Комиссия, ₽","Commission, ₽"),InputType.TYPE_CLASS_NUMBER|InputType.TYPE_NUMBER_FLAG_DECIMAL);','commissionInput=field(content,AppPreferences.tr(this,"Комиссия, ₽","Commission, ₽"),InputType.TYPE_CLASS_NUMBER|InputType.TYPE_NUMBER_FLAG_DECIMAL,AppPreferences.tr(this,"Укажите разовую комиссию за рефинансирование. Если её нет, оставьте 0.","Enter any one-time refinancing fee. Leave 0 if there is none."));'),
+            ('insuranceInput=field(content,AppPreferences.tr(this,"Страховка нового кредита, ₽","New loan insurance, ₽"),InputType.TYPE_CLASS_NUMBER|InputType.TYPE_NUMBER_FLAG_DECIMAL);','insuranceInput=field(content,AppPreferences.tr(this,"Страховка нового кредита, ₽","New loan insurance, ₽"),InputType.TYPE_CLASS_NUMBER|InputType.TYPE_NUMBER_FLAG_DECIMAL,AppPreferences.tr(this,"Укажите стоимость новой страховки, если она требуется при рефинансировании.","Enter the new insurance cost if refinancing requires it."));'),
+            ('principalInput=field(content,AppPreferences.tr(this,"Новая сумма кредита, ₽","New loan amount, ₽"),InputType.TYPE_CLASS_NUMBER|InputType.TYPE_NUMBER_FLAG_DECIMAL);','principalInput=field(content,AppPreferences.tr(this,"Новая сумма кредита, ₽","New loan amount, ₽"),InputType.TYPE_CLASS_NUMBER|InputType.TYPE_NUMBER_FLAG_DECIMAL,AppPreferences.tr(this,"Обычно это остаток долга плюс расходы, которые новый банк включает в кредит. Поле можно изменить по предложению банка.","Usually this is the current balance plus costs financed by the new bank. You can edit it to match the bank offer."));'),
+            ('dateInput=field(content,AppPreferences.tr(this,"Дата рефинансирования","Refinancing date"),InputType.TYPE_NULL);','dateInput=field(content,AppPreferences.tr(this,"Дата рефинансирования","Refinancing date"),InputType.TYPE_NULL,AppPreferences.tr(this,"Укажите предполагаемую дату перехода на новый кредит. От неё рассчитывается остаток текущего кредита.","Choose the planned refinancing date. The current-loan balance is calculated for that date."));')
+          ]
+          for a,b in repl:s=s.replace(a,b)
+          s=s.replace('TextView ptl=text(AppPreferences.tr(this,"Тип платежей нового кредита","New loan payment type"),14,R.color.text_secondary,true);','TextView ptl=text(AppPreferences.tr(this,"Тип платежей нового кредита","New loan payment type")+"  ⓘ",14,R.color.text_secondary,true);ptl.setClickable(true);ptl.setOnClickListener(v->showInfo(AppPreferences.tr(this,"Тип платежей","Payment type"),AppPreferences.tr(this,"Аннуитетный платёж примерно одинаковый каждый месяц. Дифференцированный начинается выше и постепенно уменьшается.","Annuity payments are roughly equal each month. Differential payments start higher and gradually decrease.")));')
+          s=s.replace('private TextInputEditText field(LinearLayout p,String hint,int type){TextInputLayout l=', 'private TextInputEditText field(LinearLayout p,String hint,int type,String help){TextInputLayout l=')
+          s=s.replace('l.setBoxCornerRadii(dp(14),dp(14),dp(14),dp(14));TextInputEditText e=', 'l.setBoxCornerRadii(dp(14),dp(14),dp(14),dp(14));attachInfo(l,hint,help);TextInputEditText e=')
+          marker='    private TextInputEditText field(LinearLayout p,String hint,int type,String help)'
+          helper='''    private void attachInfo(TextInputLayout layout,String title,String message){layout.setEndIconMode(TextInputLayout.END_ICON_CUSTOM);layout.setEndIconDrawable(android.R.drawable.ic_dialog_info);layout.setEndIconTintList(ColorStateList.valueOf(ContextCompat.getColor(this,R.color.primary)));layout.setEndIconContentDescription(AppPreferences.tr(this,"Подсказка","Help"));layout.setEndIconOnClickListener(v->showInfo(title,message));}\n    private void showInfo(String title,String message){new AlertDialog.Builder(this).setTitle(title).setMessage(message).setPositiveButton(AppPreferences.tr(this,"Понятно","OK"),null).show();}\n'''
+          if marker in s and 'private void attachInfo(TextInputLayout layout' not in s:
+              s=s.replace(marker,helper+marker)
+          p.write_text(s,encoding='utf-8')
+          PY
+      - name: Commit contextual help
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet; then exit 0; fi
+          git add app/src/main/java/com/example/creditcalculator/MainActivity.java app/src/main/java/com/example/creditcalculator/EarlyRepaymentActivity.java app/src/main/java/com/example/creditcalculator/RefinanceActivity.java
+          git commit -m "Add contextual help to financial fields"
+          git push
