@@ -30,11 +30,13 @@ public class ReminderReceiver extends BroadcastReceiver {
         long dueDate = ReminderScheduler.buildDueDate(r, index).getTimeInMillis();
         boolean today = ReminderScheduler.isToday(r,index);
         boolean overdue = ReminderScheduler.isOverdue(r,index);
+        boolean silentDay = "day".equals(kind);
+        boolean soundAlarm = "alarm".equals(kind);
         boolean snoozed = "snooze".equals(kind);
-        boolean sound = AppPreferences.isSoundEnabled(context) && r.soundEnabled;
-        boolean vibration = AppPreferences.isVibrationEnabled(context);
-        Uri soundUri = resolveSound(context, sound);
-        String channel = createChannel(context, sound, vibration, soundUri);
+        boolean allowSound = !silentDay && AppPreferences.isSoundEnabled(context) && r.soundEnabled;
+        boolean allowVibration = !silentDay && AppPreferences.isVibrationEnabled(context);
+        Uri soundUri = resolveSound(context, allowSound);
+        String channel = silentDay ? createSilentDayChannel(context) : createSoundChannel(context, allowSound, allowVibration, soundUri, soundAlarm);
         int notificationId = PaymentNotificationHelper.notificationId(id,index);
 
         Intent open = new Intent(context, PaymentDetailsActivity.class);
@@ -50,11 +52,17 @@ public class ReminderReceiver extends BroadcastReceiver {
         String title;
         String content;
         if (overdue) {
-            title = AppPreferences.tr(context, "Платёж просрочен", "Payment overdue");
+            title = soundAlarm ? AppPreferences.tr(context, "Платёж просрочен — пора оплатить", "Payment overdue — time to pay") : AppPreferences.tr(context, "Платёж просрочен", "Payment overdue");
             content = r.title + " — " + FormatUtils.money(context, amount) + " · " + FormatUtils.date(context, dueDate);
+        } else if (today && silentDay) {
+            title = AppPreferences.tr(context, "Сегодня платёж", "Payment due today");
+            content = r.title + " — " + FormatUtils.money(context, amount) + "\n" + AppPreferences.tr(context, "Уведомление будет висеть до вашего решения", "This notice stays until you decide what to do");
+        } else if (today && soundAlarm) {
+            title = AppPreferences.tr(context, "Время платежа", "Payment time");
+            content = r.title + " — " + FormatUtils.money(context, amount) + "\n" + AppPreferences.tr(context, "Платёж ещё не отмечен оплаченным", "Payment has not been marked paid yet");
         } else if (today) {
             title = AppPreferences.tr(context, "Платёж сегодня", "Payment due today");
-            content = r.title + " — " + FormatUtils.money(context, amount) + "\n" + AppPreferences.tr(context, "Срок оплаты: сегодня", "Due: today");
+            content = r.title + " — " + FormatUtils.money(context, amount);
         } else if(snoozed){
             title = AppPreferences.tr(context,"Напоминание о платеже","Payment reminder");
             content = r.title + " — " + FormatUtils.money(context, amount) + " · " + FormatUtils.date(context, dueDate);
@@ -68,15 +76,15 @@ public class ReminderReceiver extends BroadcastReceiver {
                 .setContentTitle(title)
                 .setContentText(content.replace("\n", " · "))
                 .setStyle(new NotificationCompat.BigTextStyle().bigText(content))
-                .setPriority(NotificationCompat.PRIORITY_MAX)
-                .setCategory(NotificationCompat.CATEGORY_ALARM)
+                .setPriority(silentDay ? NotificationCompat.PRIORITY_DEFAULT : NotificationCompat.PRIORITY_MAX)
+                .setCategory(silentDay ? NotificationCompat.CATEGORY_REMINDER : (soundAlarm ? NotificationCompat.CATEGORY_ALARM : NotificationCompat.CATEGORY_REMINDER))
                 .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
-                .setAutoCancel(!today)
-                .setOngoing(today)
+                .setAutoCancel(!(today || overdue))
+                .setOngoing(today || overdue)
+                .setOnlyAlertOnce(silentDay)
                 .setContentIntent(contentIntent);
 
-        // "Already paid" is deliberately shown only on the actual due date.
-        if(today){
+        if(today || overdue){
             PendingIntent paidIntent;
             if (AppPreferences.hasConfiguredSecurity(context)) {
                 Intent paidOpen = new Intent(context, PaymentDetailsActivity.class);
@@ -90,20 +98,42 @@ public class ReminderReceiver extends BroadcastReceiver {
                 paidIntent = PendingIntent.getBroadcast(context, notificationId + 100000, paid, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
             }
             b.addAction(0, AppPreferences.tr(context, "✓ Уже оплачено", "✓ Already paid"), paidIntent);
-            PaymentNotificationHelper.scheduleEndOfDayClear(context,id,index);
         }
         b.addAction(0, AppPreferences.tr(context, "Напомнить позже", "Remind later"), snoozeIntent);
 
         if (today || overdue) b.setColor(ContextCompat.getColor(context, R.color.danger));
         else b.setColor(ContextCompat.getColor(context, R.color.primary));
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
-            if (sound && soundUri != null) b.setSound(soundUri);
-            if (vibration) b.setVibrate(new long[]{0,350,180,350,180,500});
+            if (allowSound && soundUri != null) b.setSound(soundUri);
+            if (allowVibration) b.setVibrate(new long[]{0,350,180,350,180,500});
         }
         NotificationManagerCompat.from(context).notify(notificationId, b.build());
         ReminderScheduler.scheduleFollowing(context, r, index);
     }
 
     private Uri resolveSound(Context c,boolean enabled){if(!enabled)return null;String saved=AppPreferences.getSoundUri(c);if(saved==null||saved.isEmpty())return RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM);try{return Uri.parse(saved);}catch(Exception e){return RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM);}}
-    private String createChannel(Context c,boolean sound,boolean vibration,Uri uri){String key=String.valueOf(uri)+"_"+sound+"_"+vibration;String id="payment_alarm_"+Integer.toHexString(key.hashCode());if(Build.VERSION.SDK_INT>=26){NotificationChannel ch=new NotificationChannel(id,AppPreferences.tr(c,"Напоминания о платежах","Payment reminders"),NotificationManager.IMPORTANCE_HIGH);ch.setDescription(AppPreferences.tr(c,"Напоминания до платежа и в день оплаты","Reminders before and on payment day"));ch.enableVibration(vibration);if(vibration)ch.setVibrationPattern(new long[]{0,350,180,350});if(sound&&uri!=null){AudioAttributes a=new AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_ALARM).build();ch.setSound(uri,a);}else ch.setSound(null,null);NotificationManager nm=c.getSystemService(NotificationManager.class);if(nm!=null)nm.createNotificationChannel(ch);}return id;}
+
+    private String createSilentDayChannel(Context c){
+        String id="payment_day_silent_v2";
+        if(Build.VERSION.SDK_INT>=26){
+            NotificationChannel ch=new NotificationChannel(id,AppPreferences.tr(c,"Платёж сегодня — без звука","Payment due today — silent"),NotificationManager.IMPORTANCE_DEFAULT);
+            ch.setDescription(AppPreferences.tr(c,"Постоянное беззвучное уведомление с 00:00 в день платежа","Persistent silent notice from 00:00 on the payment day"));
+            ch.enableVibration(false);ch.setSound(null,null);ch.setShowBadge(true);
+            NotificationManager nm=c.getSystemService(NotificationManager.class);if(nm!=null)nm.createNotificationChannel(ch);
+        }
+        return id;
+    }
+
+    private String createSoundChannel(Context c,boolean sound,boolean vibration,Uri uri,boolean alarm){
+        String key=String.valueOf(uri)+"_"+sound+"_"+vibration+"_"+alarm;
+        String id=(alarm?"payment_alarm_v2_":"payment_reminder_v2_")+Integer.toHexString(key.hashCode());
+        if(Build.VERSION.SDK_INT>=26){
+            NotificationChannel ch=new NotificationChannel(id,alarm?AppPreferences.tr(c,"Звуковые напоминания о платеже","Payment sound reminders"):AppPreferences.tr(c,"Напоминания о платежах","Payment reminders"),NotificationManager.IMPORTANCE_HIGH);
+            ch.setDescription(alarm?AppPreferences.tr(c,"Звуковое напоминание в выбранное время, если платёж ещё не отмечен","Sound reminder at the selected time if the payment is still unresolved"):AppPreferences.tr(c,"Напоминания до платежа","Reminders before payment"));
+            ch.enableVibration(vibration);if(vibration)ch.setVibrationPattern(new long[]{0,350,180,350});
+            if(sound&&uri!=null){AudioAttributes a=new AudioAttributes.Builder().setUsage(alarm?AudioAttributes.USAGE_ALARM:AudioAttributes.USAGE_NOTIFICATION).build();ch.setSound(uri,a);}else ch.setSound(null,null);
+            NotificationManager nm=c.getSystemService(NotificationManager.class);if(nm!=null)nm.createNotificationChannel(ch);
+        }
+        return id;
+    }
 }
