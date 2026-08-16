@@ -18,114 +18,74 @@ import androidx.core.app.NotificationManagerCompat;
 import androidx.core.content.ContextCompat;
 
 public class ReminderReceiver extends BroadcastReceiver {
+    @Override public void onReceive(Context context, Intent intent) {
+        if (Build.VERSION.SDK_INT >= 33 && ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) return;
+        long id = intent.getLongExtra("reminder_id", -1L);
+        int index = intent.getIntExtra("payment_index", -1);
+        String kind = intent.getStringExtra("reminder_kind");
+        ReminderScheduler.PaymentReminder r = ReminderScheduler.findById(context, id);
+        if (r == null || !ReminderScheduler.STATUS_ACTIVE.equals(r.status) || index < 0 || index >= r.months || ReminderScheduler.isPaid(r, index)) return;
 
-    @Override
-    public void onReceive(Context context, Intent intent) {
-        if (Build.VERSION.SDK_INT >= 33
-                && ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS)
-                != PackageManager.PERMISSION_GRANTED) {
-            return;
-        }
+        double amount = ReminderScheduler.paymentAmount(r, index);
+        long dueDate = ReminderScheduler.buildDueDate(r, index).getTimeInMillis();
+        boolean dueDay = "due".equals(kind) || "snooze".equals(kind) || ReminderScheduler.isToday(r,index) || ReminderScheduler.isOverdue(r,index);
+        boolean sound = AppPreferences.isSoundEnabled(context) && r.soundEnabled;
+        boolean vibration = AppPreferences.isVibrationEnabled(context);
+        Uri soundUri = resolveSound(context, sound);
+        String channel = createChannel(context, sound, vibration, soundUri);
+        int notificationId = notificationId(id,index);
 
-        String title = intent.getStringExtra("title");
-        double amount = intent.getDoubleExtra("amount", 0.0);
-        long dueDate = intent.getLongExtra("due_date", 0L);
-        int daysBefore = intent.getIntExtra("days_before", 1);
-        long reminderId = intent.getLongExtra("reminder_id", -1L);
-
-        boolean itemSoundEnabled = true;
-        if (reminderId > 0) {
-            ReminderScheduler.PaymentReminder saved = ReminderScheduler.findById(context, reminderId);
-            if (saved == null || !ReminderScheduler.STATUS_ACTIVE.equals(saved.status)) return;
-            itemSoundEnabled = saved.soundEnabled;
-            title = saved.title;
-            amount = saved.amount;
-            daysBefore = saved.daysBefore;
-        }
-
-        boolean soundEnabled = AppPreferences.isSoundEnabled(context) && itemSoundEnabled;
-        boolean vibrationEnabled = AppPreferences.isVibrationEnabled(context);
-        Uri soundUri = resolveSoundUri(context, soundEnabled);
-        String channelId = createChannel(context, soundEnabled, vibrationEnabled, soundUri);
-
-        String content = AppPreferences.isEnglish(context)
-                ? "Payment " + FormatUtils.money(context, amount) + " is due on " + FormatUtils.date(context, dueDate)
-                    + ". Reminder " + daysBefore + (daysBefore == 1 ? " day before." : " days before.")
-                : "Платёж " + FormatUtils.money(context, amount) + " — " + FormatUtils.date(context, dueDate)
-                    + ". Напоминание за " + daysBefore + " дн.";
-
-        Intent open = reminderId > 0
-                ? new Intent(context, PaymentDetailsActivity.class)
-                : new Intent(context, MainActivity.class);
-        if (reminderId > 0) open.putExtra(PaymentDetailsActivity.EXTRA_REMINDER_ID, reminderId);
+        Intent open = new Intent(context, PaymentDetailsActivity.class);
+        open.putExtra(PaymentDetailsActivity.EXTRA_REMINDER_ID, id);
         open.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
-        PendingIntent contentIntent = PendingIntent.getActivity(
-                context,
-                (int) (System.currentTimeMillis() & 0x7fffffff),
-                open,
-                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
-        );
+        PendingIntent contentIntent = PendingIntent.getActivity(context, notificationId, open, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
 
-        NotificationCompat.Builder builder = new NotificationCompat.Builder(context, channelId)
+        Intent paid = new Intent(context, PaymentActionReceiver.class);
+        paid.setAction(PaymentActionReceiver.ACTION_MARK_PAID);
+        paid.putExtra("reminder_id", id); paid.putExtra("payment_index", index); paid.putExtra("notification_id", notificationId);
+        PendingIntent paidIntent = PendingIntent.getBroadcast(context, notificationId + 100000, paid, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+
+        Intent snooze = new Intent(context, SnoozeActivity.class);
+        snooze.putExtra("reminder_id", id); snooze.putExtra("payment_index", index); snooze.putExtra("notification_id", notificationId);
+        snooze.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+        PendingIntent snoozeIntent = PendingIntent.getActivity(context, notificationId + 200000, snooze, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+
+        String title;
+        String content;
+        if (ReminderScheduler.isOverdue(r,index)) {
+            title = AppPreferences.tr(context, "Платёж просрочен", "Payment overdue");
+            content = r.title + " — " + FormatUtils.money(context, amount) + " · " + FormatUtils.date(context, dueDate);
+        } else if (dueDay) {
+            title = AppPreferences.tr(context, "Платёж сегодня", "Payment due today");
+            content = r.title + " — " + FormatUtils.money(context, amount) + "\n" + AppPreferences.tr(context, "Срок оплаты: сегодня", "Due: today");
+        } else {
+            title = r.title;
+            content = AppPreferences.tr(context, "Скоро платёж", "Payment coming up") + ": " + FormatUtils.money(context, amount) + " · " + FormatUtils.date(context, dueDate);
+        }
+
+        NotificationCompat.Builder b = new NotificationCompat.Builder(context, channel)
                 .setSmallIcon(R.drawable.ic_notification)
-                .setContentTitle(title == null || title.trim().isEmpty()
-                        ? AppPreferences.tr(context, "Платёж", "Payment")
-                        : title)
-                .setContentText(content)
+                .setContentTitle(title)
+                .setContentText(content.replace("\n", " · "))
                 .setStyle(new NotificationCompat.BigTextStyle().bigText(content))
-                .setPriority(NotificationCompat.PRIORITY_HIGH)
-                .setAutoCancel(true)
-                .setContentIntent(contentIntent);
-
+                .setPriority(NotificationCompat.PRIORITY_MAX)
+                .setCategory(NotificationCompat.CATEGORY_ALARM)
+                .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
+                .setAutoCancel(false)
+                .setOnlyAlertOnce(false)
+                .setContentIntent(contentIntent)
+                .addAction(0, AppPreferences.tr(context, "Платёж оплачен", "Payment paid"), paidIntent)
+                .addAction(0, AppPreferences.tr(context, "Напомнить позже", "Remind later"), snoozeIntent);
+        if (dueDay) b.setColor(ContextCompat.getColor(context, R.color.danger));
+        else b.setColor(ContextCompat.getColor(context, R.color.primary));
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
-            if (soundEnabled && soundUri != null) builder.setSound(soundUri);
-            if (vibrationEnabled) builder.setVibrate(new long[]{0, 250, 150, 250});
-            else builder.setVibrate(new long[]{0L});
+            if (sound && soundUri != null) b.setSound(soundUri);
+            if (vibration) b.setVibrate(new long[]{0,350,180,350,180,500});
         }
-
-        int notificationId = (int) (System.currentTimeMillis() & 0x7fffffff);
-        NotificationManagerCompat.from(context).notify(notificationId, builder.build());
+        NotificationManagerCompat.from(context).notify(notificationId, b.build());
     }
 
-    private Uri resolveSoundUri(Context context, boolean enabled) {
-        if (!enabled) return null;
-        String saved = AppPreferences.getSoundUri(context);
-        if (saved == null || saved.trim().isEmpty()) {
-            return RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
-        }
-        try {
-            return Uri.parse(saved);
-        } catch (Exception e) {
-            return RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
-        }
-    }
-
-    private String createChannel(Context context, boolean soundEnabled, boolean vibrationEnabled, Uri soundUri) {
-        String key = String.valueOf(soundUri) + "_" + soundEnabled + "_" + vibrationEnabled;
-        String channelId = "payment_reminders_" + Integer.toHexString(key.hashCode());
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            NotificationChannel channel = new NotificationChannel(
-                    channelId,
-                    AppPreferences.tr(context, "Напоминания о платежах", "Payment reminders"),
-                    NotificationManager.IMPORTANCE_HIGH
-            );
-            channel.setDescription(AppPreferences.tr(context,
-                    "Напоминания о предстоящих платежах",
-                    "Upcoming payment reminders"));
-            channel.enableVibration(vibrationEnabled);
-            if (vibrationEnabled) channel.setVibrationPattern(new long[]{0, 250, 150, 250});
-            if (soundEnabled && soundUri != null) {
-                AudioAttributes attributes = new AudioAttributes.Builder()
-                        .setUsage(AudioAttributes.USAGE_NOTIFICATION)
-                        .build();
-                channel.setSound(soundUri, attributes);
-            } else {
-                channel.setSound(null, null);
-            }
-            NotificationManager manager = context.getSystemService(NotificationManager.class);
-            if (manager != null) manager.createNotificationChannel(channel);
-        }
-        return channelId;
-    }
+    private int notificationId(long id,int index){int base=(int)(id^(id>>>32));return Math.abs(31*base+index);}
+    private Uri resolveSound(Context c,boolean enabled){if(!enabled)return null;String saved=AppPreferences.getSoundUri(c);if(saved==null||saved.isEmpty())return RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM);try{return Uri.parse(saved);}catch(Exception e){return RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM);}}
+    private String createChannel(Context c,boolean sound,boolean vibration,Uri uri){String key=String.valueOf(uri)+"_"+sound+"_"+vibration;String id="payment_alarm_"+Integer.toHexString(key.hashCode());if(Build.VERSION.SDK_INT>=26){NotificationChannel ch=new NotificationChannel(id,AppPreferences.tr(c,"Напоминания о платежах","Payment reminders"),NotificationManager.IMPORTANCE_HIGH);ch.setDescription(AppPreferences.tr(c,"Напоминания до платежа и в день оплаты","Reminders before and on payment day"));ch.enableVibration(vibration);if(vibration)ch.setVibrationPattern(new long[]{0,350,180,350});if(sound&&uri!=null){AudioAttributes a=new AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_ALARM).build();ch.setSound(uri,a);}else ch.setSound(null,null);NotificationManager nm=c.getSystemService(NotificationManager.class);if(nm!=null)nm.createNotificationChannel(ch);}return id;}
 }
