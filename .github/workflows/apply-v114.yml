@@ -1,0 +1,403 @@
+name: Apply v1.14 math audit
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Apply math and reminder fixes
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          def read(path): return Path(path).read_text(encoding='utf-8')
+          def write(path, text): Path(path).write_text(text, encoding='utf-8')
+          def replace_once(text, old, new, label):
+              if old not in text:
+                  raise SystemExit(f'Missing patch target: {label}')
+              return text.replace(old, new, 1)
+          def sub_once(text, pattern, repl, label):
+              out, n = re.subn(pattern, repl, text, count=1, flags=re.S)
+              if n != 1:
+                  raise SystemExit(f'Patch target {label}: expected 1, got {n}')
+              return out
+
+          # Central, pure financial math used by app code and unit tests.
+          finance_math = r'''package com.example.creditcalculator;
+
+/** Pure financial formulas. All rates are nominal annual percentages, e.g. 24 means 24% p.a. */
+public final class FinanceMath {
+    private static final double CENT_EPS = 0.005;
+    private FinanceMath() {}
+
+    public static final class Plan {
+        public final int monthsUsed;
+        public final double interest;
+        public final double totalPaid;
+        public final double finalPayment;
+        public final double remainingBalance;
+        Plan(int monthsUsed,double interest,double totalPaid,double finalPayment,double remainingBalance){
+            this.monthsUsed=monthsUsed;this.interest=interest;this.totalPaid=totalPaid;this.finalPayment=finalPayment;this.remainingBalance=remainingBalance;
+        }
+    }
+
+    private static double monthlyRate(double annualRatePercent){
+        if(!Double.isFinite(annualRatePercent)||annualRatePercent<0)throw new IllegalArgumentException("rate");
+        return annualRatePercent/100d/12d;
+    }
+    private static void principalMonths(double principal,int months){
+        if(!Double.isFinite(principal)||principal<=0||months<=0)throw new IllegalArgumentException("principal/months");
+    }
+
+    public static double annuityPayment(double principal,int months,double annualRatePercent){
+        principalMonths(principal,months);double m=monthlyRate(annualRatePercent);if(m==0)return principal/months;
+        double factor=Math.pow(1d+m,months);return principal*m*factor/(factor-1d);
+    }
+    public static double annuityInterest(double principal,int months,double annualRatePercent){
+        return Math.max(0,annuityPayment(principal,months,annualRatePercent)*months-principal);
+    }
+    public static double differentialFirstPayment(double principal,int months,double annualRatePercent){
+        principalMonths(principal,months);double m=monthlyRate(annualRatePercent);return principal/months+principal*m;
+    }
+    public static double differentialLastPayment(double principal,int months,double annualRatePercent){
+        principalMonths(principal,months);double part=principal/months;return part+part*monthlyRate(annualRatePercent);
+    }
+    public static double differentialTotalInterest(double principal,int months,double annualRatePercent){
+        principalMonths(principal,months);double m=monthlyRate(annualRatePercent);return Math.max(0,principal*m*(months+1d)/2d);
+    }
+
+    /**
+     * A fixed-payment plan with a contractual maximum term. If the regular payment does not
+     * close the balance exactly, the last payment is adjusted to the exact balance + interest.
+     * If the regular payment closes the debt earlier, the plan stops earlier.
+     */
+    public static Plan fixedPaymentPlan(double principal,int months,double annualRatePercent,double regularPayment){
+        principalMonths(principal,months);if(!Double.isFinite(regularPayment)||regularPayment<=0)throw new IllegalArgumentException("payment");
+        double m=monthlyRate(annualRatePercent),balance=principal,totalInterest=0,totalPaid=0,finalPayment=0;int used=0;
+        for(int i=0;i<months&&balance>CENT_EPS;i++){
+            double interest=balance*m;double due=balance+interest;double payment;
+            if(i==months-1)payment=due;
+            else{
+                if(regularPayment<=interest+1e-9)throw new IllegalArgumentException("payment does not amortize principal");
+                payment=Math.min(regularPayment,due);
+            }
+            double principalPart=Math.max(0,payment-interest);
+            totalInterest+=interest;totalPaid+=payment;finalPayment=payment;used=i+1;
+            balance=Math.max(0,balance-principalPart);
+        }
+        return new Plan(used,Math.max(0,totalInterest),Math.max(0,totalPaid),Math.max(0,finalPayment),Math.max(0,balance));
+    }
+
+    public static int monthsToPayoff(double principal,double annualRatePercent,double regularPayment,int maxMonths){
+        if(!Double.isFinite(principal)||principal<=0)return 0;if(maxMonths<=0||!Double.isFinite(regularPayment)||regularPayment<=0)return -1;
+        double m=monthlyRate(annualRatePercent),balance=principal;
+        for(int n=1;n<=maxMonths;n++){
+            double interest=balance*m;if(regularPayment<=interest+1e-9)return -1;
+            double due=balance+interest;double payment=Math.min(regularPayment,due);balance=Math.max(0,due-payment);
+            if(balance<=CENT_EPS)return n;
+        }
+        return -1;
+    }
+
+    public static double fixedPaymentInterest(double principal,int months,double annualRatePercent,double regularPayment){
+        return fixedPaymentPlan(principal,months,annualRatePercent,regularPayment).interest;
+    }
+
+    /** Differential plan where firstPayment determines the regular principal part; last month closes any remainder. */
+    public static double differentialInterestWithFirstPayment(double principal,int months,double annualRatePercent,double firstPayment){
+        principalMonths(principal,months);double m=monthlyRate(annualRatePercent),firstInterest=principal*m;
+        double principalPart=firstPayment>firstInterest+CENT_EPS?firstPayment-firstInterest:principal/months;
+        if(principalPart<=0)throw new IllegalArgumentException("payment");
+        double balance=principal,total=0;
+        for(int i=0;i<months&&balance>CENT_EPS;i++){
+            total+=balance*m;
+            if(i==months-1){balance=0;break;}
+            balance=Math.max(0,balance-Math.min(principalPart,balance));
+        }
+        return Math.max(0,total);
+    }
+
+    public static double simpleDepositInterest(double principal,int months,double annualRatePercent){
+        principalMonths(principal,months);return Math.max(0,principal*annualRatePercent/100d*(months/12d));
+    }
+    public static double monthlyCompoundDepositFinal(double principal,int months,double annualRatePercent){
+        principalMonths(principal,months);double m=monthlyRate(annualRatePercent);return principal*Math.pow(1d+m,months);
+    }
+    public static double scheduledTotal(double principal,int months,double annualRatePercent,boolean differential){
+        if(differential)return principal+differentialTotalInterest(principal,months,annualRatePercent);
+        return annuityPayment(principal,months,annualRatePercent)*months;
+    }
+
+    public static double financedCosts(double currentBalance,double newPrincipal,double fees){
+        return Math.max(0,Math.min(Math.max(0,fees),Math.max(0,newPrincipal-currentBalance)));
+    }
+    public static double cashOut(double currentBalance,double newPrincipal,double fees){
+        return Math.max(0,Math.max(0,newPrincipal-currentBalance)-financedCosts(currentBalance,newPrincipal,fees));
+    }
+    public static double outOfPocketCosts(double currentBalance,double newPrincipal,double fees){
+        return Math.max(0,Math.max(0,fees)-financedCosts(currentBalance,newPrincipal,fees));
+    }
+    /** Comparable future cash cost, excluding cash-out principal because that is money received by the borrower. */
+    public static double comparableRefinanceFutureCost(double currentBalance,double newPrincipal,double fees,double newScheduledTotal){
+        return Math.max(0,newScheduledTotal-cashOut(currentBalance,newPrincipal,fees)+outOfPocketCosts(currentBalance,newPrincipal,fees));
+    }
+}
+'''
+          Path('app/src/main/java/com/example/creditcalculator/FinanceMath.java').write_text(finance_math,encoding='utf-8')
+
+          test = r'''package com.example.creditcalculator;
+
+import org.junit.Test;
+import static org.junit.Assert.*;
+
+public class FinanceMathTest {
+    private static void near(double expected,double actual,double tolerance){assertEquals(expected,actual,tolerance);}
+
+    @Test public void annuityKnownCase(){
+        near(12505.9593225,FinanceMath.annuityPayment(300000,33,24),0.01);
+        near(112696.657643,FinanceMath.annuityInterest(300000,33,24),0.02);
+    }
+    @Test public void zeroRate(){near(6944.444444,FinanceMath.annuityPayment(250000,36,0),0.001);}
+    @Test public void differentialKnownCase(){
+        near(15090.909091,FinanceMath.differentialFirstPayment(300000,33,24),0.01);
+        near(9272.727273,FinanceMath.differentialLastPayment(300000,33,24),0.01);
+        near(102000.0,FinanceMath.differentialTotalInterest(300000,33,24),0.01);
+    }
+    @Test public void fixedPlanAdjustsLastPaymentInsteadOfMultiplyingRegularPayment(){
+        FinanceMath.Plan p=FinanceMath.fixedPaymentPlan(209841.41,30,24,9539.18);
+        assertEquals(30,p.monthsUsed);near(69446.449036,p.interest,0.02);near(2651.639036,p.finalPayment,0.02);near(0,p.remainingBalance,0.01);
+    }
+    @Test public void reduceTermSavesMoreThanReducePaymentForStandardAnnuity(){
+        double balance=219841.41,prepay=10000,rate=24,currentPayment=9539.18;int remaining=32;
+        double oldInterest=FinanceMath.fixedPaymentInterest(balance,remaining,rate,currentPayment);
+        double newBalance=balance-prepay;
+        double reducedPayment=FinanceMath.annuityPayment(newBalance,remaining,rate);
+        double reducePaymentInterest=FinanceMath.fixedPaymentInterest(newBalance,remaining,rate,reducedPayment);
+        int shorter=FinanceMath.monthsToPayoff(newBalance,rate,currentPayment,1200);
+        double reduceTermInterest=FinanceMath.fixedPaymentInterest(newBalance,shorter,rate,currentPayment);
+        assertEquals(30,shorter);
+        near(1537.187129,oldInterest-reducePaymentInterest,0.03);
+        near(8376.365666,oldInterest-reduceTermInterest,0.03);
+        assertTrue(reduceTermInterest<reducePaymentInterest);
+    }
+    @Test public void longMortgageLargeSavingIsMathematicallyPossible(){
+        double balance=2700635.48,rate=18,payment=40691.31,prepay=100000;
+        int oldMonths=FinanceMath.monthsToPayoff(balance,rate,payment,1200);
+        int newMonths=FinanceMath.monthsToPayoff(balance-prepay,rate,payment,1200);
+        assertEquals(364,oldMonths);assertEquals(215,newMonths);
+        double oldI=FinanceMath.fixedPaymentInterest(balance,oldMonths,rate,payment);
+        double newI=FinanceMath.fixedPaymentInterest(balance-prepay,newMonths,rate,payment);
+        assertTrue(oldI-newI>5_000_000);
+    }
+    @Test public void refinanceIncludesFeesAndDoesNotTreatCashOutPrincipalAsACost(){
+        double balance=1_000_000,oldRate=20,newRate=15;int months=36;
+        double oldFuture=FinanceMath.scheduledTotal(balance,months,oldRate,false);
+        double newPrincipal=1_030_000,fees=30_000;
+        double newScheduled=FinanceMath.scheduledTotal(newPrincipal,months,newRate,false);
+        double comparable=FinanceMath.comparableRefinanceFutureCost(balance,newPrincipal,fees,newScheduled);
+        near(52498.620015,oldFuture-comparable,0.05);
+        double cashPrincipal=1_130_000;
+        double cashScheduled=FinanceMath.scheduledTotal(cashPrincipal,months,newRate,false);
+        near(100000,FinanceMath.cashOut(balance,cashPrincipal,fees),0.01);
+        assertTrue(FinanceMath.comparableRefinanceFutureCost(balance,cashPrincipal,fees,cashScheduled)<cashScheduled);
+    }
+    @Test public void deposits(){
+        near(24000,FinanceMath.simpleDepositInterest(100000,24,12),0.01);
+        near(126973.464,FinanceMath.monthlyCompoundDepositFinal(100000,24,12),0.1);
+    }
+}
+'''
+          test_path=Path('app/src/test/java/com/example/creditcalculator/FinanceMathTest.java');test_path.parent.mkdir(parents=True,exist_ok=True);test_path.write_text(test,encoding='utf-8')
+
+          # ReminderScheduler: exact schedule math, historical monthly paid amount and restructuring math.
+          p='app/src/main/java/com/example/creditcalculator/ReminderScheduler.java';s=read(p)
+          s=replace_once(s,'        public double savings;\n        public long firstNewPayment;','        public double savings;\n        public double newTotalPayments;\n        public double outOfPocketCosts;\n        public double cashOut;\n        public long firstNewPayment;','refinance result fields')
+
+          new_payment_parts=r'''public static PaymentParts paymentParts(PaymentReminder r,int wanted){
+        PaymentParts empty=new PaymentParts();if(r==null||wanted<0||wanted>=r.months)return empty;
+        if(r.partsCache!=null&&r.partsCache.length==r.months&&r.partsCache[wanted]!=null)return r.partsCache[wanted];
+        PaymentParts[] parts=new PaymentParts[r.months];double balance=r.principal;double monthly=r.annualRate/100d/12d;List<InstallmentEntry> l=ledger(r);
+        for(int i=0;i<r.months;i++){
+            InstallmentEntry e=null;for(InstallmentEntry x:l)if(x.index==i){e=x;break;}
+            double interest=balance>0?Math.max(0,balance*monthly):0;double amount=0;double principalPart=0;
+            if(balance>.005){
+                if(PAYMENT_DIFFERENTIAL.equals(normalizePaymentType(r.paymentType))&&!TYPE_INSTALLMENT.equals(normalizeType(r.type))){
+                    double theoretical=r.months<=0?balance:r.principal/r.months;double firstInterest=Math.max(0,r.principal*monthly);double fixed=r.amount>firstInterest+.005?r.amount-firstInterest:theoretical;if(fixed<=0)fixed=theoretical;
+                    principalPart=Math.min(balance,fixed);amount=principalPart+interest;
+                    if(e!=null&&e.plannedOverride>0){amount=e.plannedOverride;principalPart=Math.max(0,Math.min(balance,amount-interest));}
+                    if(i==r.months-1&&balance>principalPart+.005){principalPart=balance;amount=balance+interest;}
+                }else{
+                    amount=e!=null&&e.plannedOverride>0?e.plannedOverride:r.amount;
+                    if(i==r.months-1){principalPart=balance;amount=balance+interest;}
+                    else{
+                        principalPart=monthly<=0?Math.min(balance,amount):Math.max(0,Math.min(balance,amount-interest));
+                        if(principalPart>=balance-.005){principalPart=balance;amount=balance+interest;}
+                    }
+                }
+            }
+            PaymentParts part=new PaymentParts();part.index=i;part.dueDate=buildDueDate(r,i).getTimeInMillis();part.balanceBefore=balance;part.amount=Math.max(0,amount);part.interestPart=Math.min(part.amount,interest);part.principalPart=Math.max(0,Math.min(balance,principalPart));part.balanceAfter=Math.max(0,balance-part.principalPart);balance=part.balanceAfter;parts[i]=part;
+        }
+        r.partsCache=parts;return parts[wanted];
+    }
+    public static double paymentAmount'''
+          s=sub_once(s,r'public static PaymentParts paymentParts\(PaymentReminder r,int wanted\)\{.*?\}\n    public static double paymentAmount',new_payment_parts,'paymentParts')
+
+          s=replace_once(s,'public static int nextPaymentIndex(PaymentReminder r){if(r==null||TYPE_DEPOSIT.equals(normalizeType(r.type)))return -1;for(int i=0;i<r.months;i++)if(!isPaid(r,i))return i;return -1;}\n    public static long nextPaymentMillis(PaymentReminder r){int i=nextPaymentIndex(r);return i<0?Long.MAX_VALUE:buildDueDate(r,i).getTimeInMillis();}\n    public static int paidPaymentCount(PaymentReminder r){int n=0;if(r!=null)for(int i=0;i<r.months;i++)if(isPaid(r,i))n++;return n;}',
+'''public static int nextPaymentIndex(PaymentReminder r){if(r==null||TYPE_DEPOSIT.equals(normalizeType(r.type)))return -1;for(int i=0;i<r.months;i++)if(paymentAmount(r,i)>.005&&!isPaid(r,i))return i;return -1;}\n    public static int lastPlannedPaymentIndex(PaymentReminder r){if(r==null)return -1;for(int i=r.months-1;i>=0;i--)if(paymentAmount(r,i)>.005)return i;return -1;}\n    public static int remainingPaymentCount(PaymentReminder r){if(r==null)return 0;int n=0;for(int i=0;i<r.months;i++)if(paymentAmount(r,i)>.005&&!isPaid(r,i))n++;return n;}\n    public static long nextPaymentMillis(PaymentReminder r){int i=nextPaymentIndex(r);return i<0?Long.MAX_VALUE:buildDueDate(r,i).getTimeInMillis();}\n    public static int paidPaymentCount(PaymentReminder r){int n=0;if(r!=null)for(int i=0;i<r.months;i++)if(paymentAmount(r,i)>.005&&isPaid(r,i))n++;return n;}''','payment index helpers')
+
+          s=replace_once(s,'public static int remainingPaymentsAfterDate(PaymentReminder r,long date){int n=0;for(int i=0;i<r.months;i++)if(buildDueDate(r,i).getTimeInMillis()>=date&&!isPaid(r,i))n++;return n;}\n    private static long firstDueOnOrAfter(PaymentReminder r,long date){for(int i=0;i<r.months;i++){long d=buildDueDate(r,i).getTimeInMillis();if(d>=date&&!isPaid(r,i))return d;}Calendar c=Calendar.getInstance();c.setTimeInMillis(date);c.add(Calendar.MONTH,1);return c.getTimeInMillis();}',
+'''public static int remainingPaymentsAfterDate(PaymentReminder r,long date){int n=0;for(int i=0;i<r.months;i++)if(paymentAmount(r,i)>.005&&buildDueDate(r,i).getTimeInMillis()>=date&&!isPaid(r,i))n++;return n;}\n    private static long firstDueOnOrAfter(PaymentReminder r,long date){for(int i=0;i<r.months;i++){long d=buildDueDate(r,i).getTimeInMillis();if(paymentAmount(r,i)>.005&&d>=date&&!isPaid(r,i))return d;}Calendar c=Calendar.getInstance();c.setTimeInMillis(date);c.add(Calendar.MONTH,1);return c.getTimeInMillis();}''','remaining payment date helpers')
+
+          # Remaining interest from the selected action date, not from today when modelling a future action.
+          s=replace_once(s,'public static double remainingInterest(PaymentReminder r){if(r==null||TYPE_DEPOSIT.equals(normalizeType(r.type)))return 0;double t=0;for(int i=0;i<r.months;i++){PaymentParts p=paymentParts(r,i);t+=Math.max(0,p.interestPart-actualInterestPaid(r,i));}return Math.max(0,t);}',
+'''public static double remainingInterest(PaymentReminder r){if(r==null||TYPE_DEPOSIT.equals(normalizeType(r.type)))return 0;double t=0;for(int i=0;i<r.months;i++){PaymentParts p=paymentParts(r,i);if(p.amount<=.005)continue;t+=Math.max(0,p.interestPart-actualInterestPaid(r,i));}return Math.max(0,t);}\n    public static double remainingInterestFromDate(PaymentReminder r,long date){if(r==null||TYPE_DEPOSIT.equals(normalizeType(r.type)))return 0;double t=0;for(int i=0;i<r.months;i++){PaymentParts p=paymentParts(r,i);if(p.amount<=.005||p.dueDate<date)continue;t+=Math.max(0,p.interestPart-actualInterestPaid(r,i));}return Math.max(0,t);}''','remaining interest by date')
+
+          # Recover actual paid-in-month from the durable history as well as the current schedule ledger.
+          old_paid='public static double paidThisMonth(PaymentReminder r){if(r==null)return 0;Calendar n=Calendar.getInstance();double t=0;for(int i=0;i<r.months;i++){long at=paidAt(r,i);if(at<=0)continue;Calendar d=Calendar.getInstance();d.setTimeInMillis(at);if(d.get(Calendar.YEAR)==n.get(Calendar.YEAR)&&d.get(Calendar.MONTH)==n.get(Calendar.MONTH))t+=paidAmount(r,i);}return Math.max(0,t);}'
+          new_paid=r'''private static class HistoricalPaid{long paidAt;double amount;HistoricalPaid(long paidAt,double amount){this.paidAt=paidAt;this.amount=amount;}}
+    private static long parseHistoryDate(String value){try{java.text.SimpleDateFormat f=new java.text.SimpleDateFormat("dd.MM.yyyy",java.util.Locale.US);f.setLenient(false);return f.parse(value).getTime();}catch(Exception e){return 0;}}
+    public static double paidThisMonth(PaymentReminder r){
+        if(r==null)return 0;java.util.LinkedHashMap<String,HistoricalPaid> state=new java.util.LinkedHashMap<>();
+        try{JSONArray a=new JSONArray(r.historyJson==null||r.historyJson.trim().isEmpty()?"[]":r.historyJson);java.util.regex.Pattern paidPattern=java.util.regex.Pattern.compile("Платёж от (\\d{2}\\.\\d{2}\\.\\d{4}) оплачен (\\d{2}\\.\\d{2}\\.\\d{4})\\. Сумма: ([0-9]+(?:\\.[0-9]+)?) ₽");java.util.regex.Pattern undoPattern=java.util.regex.Pattern.compile("С платежа (\\d{2}\\.\\d{2}\\.\\d{4}) снята отметка");for(int i=0;i<a.length();i++){JSONObject o=a.optJSONObject(i);if(o==null||!HISTORY_PAYMENT.equals(o.optString("type","")))continue;String details=o.optString("detailsRu","");java.util.regex.Matcher paid=paidPattern.matcher(details);if(paid.find()){long at=parseHistoryDate(paid.group(2));double amount=Double.parseDouble(paid.group(3));if(at>0)state.put(paid.group(1),new HistoricalPaid(at,amount));continue;}java.util.regex.Matcher undo=undoPattern.matcher(details);if(undo.find())state.remove(undo.group(1));}}catch(Exception ignored){}
+        for(int i=0;i<r.months;i++){long at=paidAt(r,i);if(at<=0)continue;state.put(dateText(buildDueDate(r,i).getTimeInMillis()),new HistoricalPaid(at,paidAmount(r,i)));}
+        Calendar now=Calendar.getInstance();double total=0;for(HistoricalPaid x:state.values()){Calendar d=Calendar.getInstance();d.setTimeInMillis(x.paidAt);if(d.get(Calendar.YEAR)==now.get(Calendar.YEAR)&&d.get(Calendar.MONTH)==now.get(Calendar.MONTH))total+=Math.max(0,x.amount);}return Math.max(0,total);
+    }'''
+          s=replace_once(s,old_paid,new_paid,'paid this month history')
+
+          # Ensure bulk migration creates recoverable per-payment history before a later restructuring clears the ledger.
+          s=replace_once(s,'if(e.paidAt<=0){e.paidAt=buildDueDate(r,i).getTimeInMillis();e.paidAmount=paymentAmount(r,i);}',
+'''if(e.paidAt<=0){long dueMillis=buildDueDate(r,i).getTimeInMillis();e.paidAt=dueMillis;e.paidAmount=paymentAmount(r,i);appendHistory(r,now,HISTORY_PAYMENT,"Платёж оплачен","Payment paid","Платёж от "+dateText(dueMillis)+" оплачен "+dateText(e.paidAt)+". Сумма: "+round2(e.paidAmount)+" ₽","Payment due "+dateText(dueMillis)+" marked paid. Amount: "+round2(e.paidAmount)+" ₽");}''','bulk paid history')
+
+          s=s.replace('s.oldRemainingInterest=remainingInterest(r);','s.oldRemainingInterest=remainingInterestFromDate(r,date);',1)
+          s=s.replace('s.oldRemainingOverpayment=remainingInterest(r);','s.oldRemainingOverpayment=remainingInterestFromDate(r,date);',1)
+
+          refi_block=r'''if(PAYMENT_DIFFERENTIAL.equals(s.paymentType)){s.newPayment=differentialFirstPayment(s.newPrincipal,newMonths,newRate);s.newTotalPayments=s.newPrincipal+differentialTotalInterest(s.newPrincipal,newMonths,newRate);}else{s.newPayment=annuity(s.newPrincipal,newMonths,newRate);s.newTotalPayments=s.newPayment*newMonths;}double fees=commission+insurance;s.outOfPocketCosts=FinanceMath.outOfPocketCosts(s.balance,s.newPrincipal,fees);s.cashOut=FinanceMath.cashOut(s.balance,s.newPrincipal,fees);double comparable=FinanceMath.comparableRefinanceFutureCost(s.balance,s.newPrincipal,fees,s.newTotalPayments);s.newOverpayment=comparable-s.balance;s.savings=(s.balance+s.oldRemainingOverpayment)-comparable;Calendar cal='''
+          s=sub_once(s,r'if\(PAYMENT_DIFFERENTIAL\.equals\(s\.paymentType\)\)\{.*?\}s\.savings=s\.oldRemainingOverpayment-s\.newOverpayment;Calendar cal=',refi_block,'refinance comparison math')
+
+          # Custom values entered on the early repayment screen must record the savings for those actual values.
+          s=s.replace('saving=sim.savingsWithReducedTerm;appendHistory', 'saving=sim.oldRemainingInterest-interestForPaymentPlan(r,sim.newBalance,r.months,r.amount);appendHistory',1)
+          s=s.replace('saving=sim.savingsWithReducedPayment;appendHistory', 'saving=sim.oldRemainingInterest-interestForPaymentPlan(r,sim.newBalance,r.months,r.amount);appendHistory',1)
+
+          math_wrappers=r'''public static double annuity(double principal,int months,double rate){return principal<=0||months<=0?0:FinanceMath.annuityPayment(principal,months,rate);}
+    public static double differentialFirstPayment(double principal,int months,double rate){return principal<=0||months<=0?0:FinanceMath.differentialFirstPayment(principal,months,rate);}
+    public static double differentialLastPayment(double principal,int months,double rate){return principal<=0||months<=0?0:FinanceMath.differentialLastPayment(principal,months,rate);}
+    public static double differentialTotalInterest(double principal,int months,double rate){return principal<=0||months<=0?0:FinanceMath.differentialTotalInterest(principal,months,rate);}
+    public static double differentialInterestWithFirstPayment(double principal,int months,double rate,double firstPayment){return principal<=0||months<=0?0:FinanceMath.differentialInterestWithFirstPayment(principal,months,rate,firstPayment);}
+    public static double interestForPaymentPlan(PaymentReminder r,double principal,int months,double payment){if(r==null||principal<=0||months<=0||payment<=0)return 0;return PAYMENT_DIFFERENTIAL.equals(normalizePaymentType(r.paymentType))?FinanceMath.differentialInterestWithFirstPayment(principal,months,r.annualRate,payment):FinanceMath.fixedPaymentInterest(principal,months,r.annualRate,payment);}
+    private static int monthsForPayment(double balance,double rate,double payment,int fallback){int n=FinanceMath.monthsToPayoff(balance,rate,payment,1200);return n>0?n:Math.max(1,fallback);}
+    private static double futureInterest(double balance,double rate,double payment,int months){if(balance<=0||payment<=0||months<=0)return 0;try{return FinanceMath.fixedPaymentInterest(balance,months,rate,payment);}catch(IllegalArgumentException e){return Double.POSITIVE_INFINITY;}}
+
+    public static double depositExpectedIncome(PaymentReminder r){if(r==null||!TYPE_DEPOSIT.equals(normalizeType(r.type)))return 0;return Math.max(0,FinanceMath.simpleDepositInterest(r.principal,r.months,r.annualRate));}
+    public static double depositFinalAmount(PaymentReminder r){return r==null?0:Math.max(0,r.principal+depositExpectedIncome(r));}
+
+    public static String normalizeType'''
+          s=sub_once(s,r'public static double annuity\(double principal,int months,double rate\)\{.*?\n\n    public static String normalizeType',math_wrappers,'finance math wrappers')
+
+          # Do not ring immediately if the configured sound time has already passed today.
+          s=s.replace('            else if(allowImmediateToday&&isSameDay(due,nowCal))scheduleAlarmNow(c,am,r,i,due,now+1400L,"alarm",false);','            // If today\'s configured sound time has already passed, do not ring immediately. The silent day notice stays visible.',1)
+          write(p,s)
+
+          # Early repayment page: exact monthly-balance interest, not payment*months - principal.
+          p='app/src/main/java/com/example/creditcalculator/EarlyRepaymentActivity.java';s=read(p)
+          s=replace_once(s,'double li=diff?ReminderScheduler.differentialInterestWithFirstPayment(sim.newBalance,lm,reminder.annualRate,lp):Math.max(0,lp*lm-sim.newBalance),ri=diff?ReminderScheduler.differentialInterestWithFirstPayment(sim.newBalance,rm,reminder.annualRate,rp):Math.max(0,rp*rm-sim.newBalance),ls=sim.oldRemainingInterest-li,rs=sim.oldRemainingInterest-ri;',
+'''double li=ReminderScheduler.interestForPaymentPlan(reminder,sim.newBalance,lm,lp),ri=ReminderScheduler.interestForPaymentPlan(reminder,sim.newBalance,rm,rp),ls=sim.oldRemainingInterest-li,rs=sim.oldRemainingInterest-ri;''','early repayment display math')
+          # The variable is no longer needed.
+          s=s.replace('boolean diff=ReminderScheduler.PAYMENT_DIFFERENTIAL.equals(ReminderScheduler.normalizePaymentType(reminder.paymentType));','',1)
+          write(p,s)
+
+          # Advisor: show enough baseline data to make very large savings understandable and auditable.
+          p='app/src/main/java/com/example/creditcalculator/EarlyPaymentAdvisorActivity.java';s=read(p)
+          needle='b.addView(text(FormatUtils.typeLabel(this,o.reminder.type)+" · "+rate(o.reminder.annualRate)+"%",13,R.color.text_secondary,false));LinearLayout.LayoutParams gap='
+          repl='b.addView(text(FormatUtils.typeLabel(this,o.reminder.type)+" · "+rate(o.reminder.annualRate)+"%",13,R.color.text_secondary,false));long now=System.currentTimeMillis();double currentBalance=ReminderScheduler.balanceAtDate(o.reminder,now);int currentMonths=ReminderScheduler.remainingPaymentsAfterDate(o.reminder,now);int proposedMonths=o.reduceTerm?o.sim.reducedMonths:o.sim.remainingMonths;b.addView(text(AppPreferences.tr(this,"Текущий остаток: ","Current balance: ")+FormatUtils.money(this,currentBalance),13,R.color.text_secondary,false));b.addView(text(AppPreferences.tr(this,"Осталось по текущему графику: ","Current remaining term: ")+currentMonths+AppPreferences.tr(this," мес."," mo."),13,R.color.text_secondary,false));LinearLayout.LayoutParams gap='
+          s=replace_once(s,needle,repl,'advisor baseline')
+          needle='b.addView(text(AppPreferences.tr(this,"Новый срок: ","New term: ")+newMonths+AppPreferences.tr(this," мес."," mo."),13,R.color.text_secondary,false));MaterialButton open='
+          repl='b.addView(text(AppPreferences.tr(this,"Новый срок: ","New term: ")+newMonths+AppPreferences.tr(this," мес."," mo."),13,R.color.text_secondary,false));b.addView(text(AppPreferences.tr(this,"Сокращение срока: ","Term reduction: ")+Math.max(0,currentMonths-newMonths)+AppPreferences.tr(this," мес."," mo."),13,R.color.text_secondary,false));MaterialButton open='
+          s=replace_once(s,needle,repl,'advisor term reduction')
+          write(p,s)
+
+          # Refinance UI: differential totals are not firstPayment * months; use exact scheduled total.
+          p='app/src/main/java/com/example/creditcalculator/RefinanceActivity.java';s=read(p)
+          s=replace_once(s,'double currentFuture=sim.balance+sim.oldRemainingOverpayment;double newFuture=sim.newPayment*sim.newMonths;',
+'''double currentFuture=sim.balance+sim.oldRemainingOverpayment;double newFuture=sim.newTotalPayments+sim.outOfPocketCosts;''','refinance future total')
+          write(p,s)
+
+          # Payment details: effective remaining term follows the actual non-zero schedule.
+          p='app/src/main/java/com/example/creditcalculator/PaymentDetailsActivity.java';s=read(p)
+          s=replace_once(s,'int remaining=Math.max(0,reminder.months-ReminderScheduler.paidPaymentCount(reminder));long end=ReminderScheduler.buildDueDate(reminder,Math.max(0,reminder.months-1)).getTimeInMillis();',
+'''int remaining=ReminderScheduler.remainingPaymentCount(reminder);int lastIndex=ReminderScheduler.lastPlannedPaymentIndex(reminder);long end=lastIndex>=0?ReminderScheduler.buildDueDate(reminder,lastIndex).getTimeInMillis():System.currentTimeMillis();''','details effective term')
+          write(p,s)
+
+          # Validation: an interest-bearing regular payment must reduce principal.
+          p='app/src/main/java/com/example/creditcalculator/AddReminderActivity.java';s=read(p)
+          needle='double payment=ReminderScheduler.TYPE_DEPOSIT.equals(type)?0:requiredPositive(paymentLayout,paymentInput,AppPreferences.tr(this,"Укажите сумму платежа больше 0","Enter a payment amount greater than 0"));'
+          repl=needle+'\n            if(!ReminderScheduler.TYPE_DEPOSIT.equals(type)&&!ReminderScheduler.TYPE_INSTALLMENT.equals(type)){double firstInterest=principal*rate/100d/12d;if(payment<=firstInterest+.01)throw fieldError(paymentLayout,AppPreferences.tr(this,"Платёж слишком маленький: он должен быть больше процентов за первый месяц","Payment is too small: it must exceed the first month interest"));}'
+          s=replace_once(s,needle,repl,'payment amortization validation')
+          write(p,s)
+
+          # Persistent day notification: force silent + non-clearable; snooze belongs only to the sound reminder.
+          p='app/src/main/java/com/example/creditcalculator/ReminderReceiver.java';s=read(p)
+          if 'import android.app.Notification;' not in s:s=s.replace('import android.app.NotificationChannel;','import android.app.Notification;\nimport android.app.NotificationChannel;',1)
+          s=s.replace('String id="payment_day_silent_v2";','String id="payment_day_silent_v3";',1)
+          s=s.replace('NotificationManager.IMPORTANCE_DEFAULT','NotificationManager.IMPORTANCE_LOW',1)
+          s=replace_once(s,'        b.addAction(0, AppPreferences.tr(context, "Напомнить позже", "Remind later"), snoozeIntent);','        if(!silentDay)b.addAction(0, AppPreferences.tr(context, "Напомнить позже", "Remind later"), snoozeIntent);','silent day snooze')
+          s=replace_once(s,'                .setOnlyAlertOnce(silentDay)\n                .setContentIntent(contentIntent);','                .setOnlyAlertOnce(silentDay)\n                .setSilent(silentDay)\n                .setContentIntent(contentIntent);','force silent day')
+          s=replace_once(s,'        NotificationManagerCompat.from(context).notify(notificationId, b.build());','        Notification notification=b.build();if(persistentDay)notification.flags|=Notification.FLAG_ONGOING_EVENT|Notification.FLAG_NO_CLEAR;NotificationManagerCompat.from(context).notify(notificationId, notification);','no-clear day notification')
+          write(p,s)
+
+          # Main calculator uses the same tested deposit formulas.
+          p='app/src/main/java/com/example/creditcalculator/MainActivity.java';s=read(p)
+          s=replace_once(s,'double finalAmount=capitalizationSwitch!=null&&capitalizationSwitch.isChecked()?principal*Math.pow(1+rate/100d/12d,months):principal+principal*rate/100d*(months/12d);',
+'''double finalAmount=capitalizationSwitch!=null&&capitalizationSwitch.isChecked()?FinanceMath.monthlyCompoundDepositFinal(principal,months,rate):principal+FinanceMath.simpleDepositInterest(principal,months,rate);''','deposit calculator math')
+          write(p,s)
+
+          # Instruction: document exact intent and corrected notification/monthly-paid behaviour.
+          p='app/src/main/java/com/example/creditcalculator/InstructionActivity.java';s=read(p)
+          s=s.replace('В день платежа с 00:00 в шторке появляется постоянное беззвучное уведомление — это не будильник. Оно не звенит, не заменяется звуковым уведомлением и остаётся в шторке, пока вы не отметите платёж оплаченным. «Напомнить позже» переносит звуковое напоминание, но не убирает постоянное беззвучное уведомление. Если к выбранному времени платёж ещё не отмечен, приложение запускает отдельное звуковое напоминание.', 'В день платежа с 00:00 в шторке появляется постоянное беззвучное уведомление — это не будильник. Оно принудительно без звука, не убирается свайпом и закрывается только после отметки «Оплачено». В выбранное время запускается отдельное звуковое напоминание, только если платёж ещё не отмечен. Если приложение запущено уже после выбранного времени, пропущенный будильник не запускается задним числом.')
+          s=s.replace('В «Мои платежи» показаны общий остаток долга, сумма к оплате в этом месяце, оплаченные по графику платежи, остаток и просрочка.', 'В «Мои платежи» показаны общий остаток долга, сумма к оплате в этом месяце, фактически оплаченные в текущем месяце платежи, остаток и просрочка. Сумма «Оплачено по графику» сохраняется в истории и не пропадает после досрочного погашения или рефинансирования.')
+          s=s.replace('Слева и справа сравниваются уменьшение ежемесячного платежа и сокращение срока. Можно поправить рассчитанные платёж и срок по данным банка. Зелёная рамка показывает более выгодный по процентам вариант, красная — меньшую экономию.', 'Слева и справа сравниваются уменьшение ежемесячного платежа и сокращение срока. Проценты считаются помесячно от фактического остатка долга; последний платёж корректируется до точной суммы остатка, поэтому для сокращения срока нельзя просто умножать обычный платёж на количество месяцев. Можно поправить рассчитанные платёж и срок по данным банка — экономия пересчитается по введённым значениям. Зелёная рамка показывает более выгодный по процентам вариант, красная — меньшую экономию.')
+          s=s.replace('Приложение сравнит текущий кредит и рефинансирование, включая дополнительные расходы и будущие выплаты.', 'Приложение сравнит текущий кредит и рефинансирование, включая комиссию, страховку, тип платежей и точную сумму будущих выплат. Для дифференцированного кредита учитывается уменьшающийся платёж, а не первый платёж, умноженный на весь срок.')
+          write(p,s)
+
+          # Version, unit-test dependency and CI math gate.
+          p='app/build.gradle';s=read(p);s=re.sub(r'versionCode\s+\d+','versionCode 14',s);s=re.sub(r'versionName\s+"[^"]+"','versionName "1.14"',s)
+          if "testImplementation 'junit:junit:4.13.2'" not in s:s=s.replace("implementation 'com.google.android.material:material:1.12.0'","implementation 'com.google.android.material:material:1.12.0'\n    testImplementation 'junit:junit:4.13.2'")
+          write(p,s)
+          p='.github/workflows/build-apk.yml';s=read(p);s=s.replace('run: gradle assembleDebug','run: gradle testDebugUnitTest assembleDebug');write(p,s)
+          PY
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+      - name: Install Android SDK packages
+        run: |
+          yes | sdkmanager --licenses
+          sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+      - name: Set up Gradle 8.9
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.9"
+      - name: Run financial tests and compile APK
+        run: gradle testDebugUnitTest assembleDebug
+
+      - name: Commit audited changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app .github/workflows/build-apk.yml
+          git commit -m "Audit financial math and reminders v1.14"
+          git push
