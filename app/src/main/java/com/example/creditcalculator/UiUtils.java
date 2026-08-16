@@ -1,14 +1,19 @@
 package com.example.creditcalculator;
 
 import android.content.Context;
+import android.graphics.Rect;
 import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
 import android.graphics.drawable.LayerDrawable;
 import android.net.Uri;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
+import android.widget.EditText;
+import android.widget.ScrollView;
 import android.widget.Spinner;
 import android.widget.TextView;
 
@@ -35,6 +40,79 @@ public final class UiUtils {
     public static ArrayAdapter<String> spinnerAdapter(Context context,String[] values){List<String> l=new ArrayList<>();if(values!=null)for(String v:values)l.add(v);return spinnerAdapter(context,l);}
     public static void styleSpinner(Context context,Spinner spinner){if(spinner==null)return;GradientDrawable bg=new GradientDrawable();bg.setColor(ContextCompat.getColor(context,R.color.card_background));bg.setCornerRadius(dp(context,12));bg.setStroke(dp(context,1),ContextCompat.getColor(context,R.color.border));spinner.setBackground(bg);spinner.setPadding(dp(context,12),0,dp(context,12),0);}
     private static void styleSpinnerText(Context context,View view,boolean dropdown){if(!(view instanceof TextView))return;TextView t=(TextView)view;t.setTextColor(ContextCompat.getColor(context,R.color.text_main));t.setTextSize(16);t.setBackgroundColor(ContextCompat.getColor(context,R.color.card_background));t.setPadding(dp(context,12),dropdown?dp(context,10):0,dp(context,12),dropdown?dp(context,10):0);if(dropdown)t.setMinHeight(dp(context,48));}
+
+    /**
+     * Formats editable money values with spaces between thousands while keeping the decimal separator.
+     * The spaces are visual only; calculation code removes them before parsing.
+     */
+    public static void attachMoneyFormatting(EditText editText){
+        if(editText==null)return;
+        editText.addTextChangedListener(new TextWatcher(){
+            private boolean changing;
+            @Override public void beforeTextChanged(CharSequence s,int start,int count,int after){}
+            @Override public void onTextChanged(CharSequence s,int start,int before,int count){}
+            @Override public void afterTextChanged(Editable editable){
+                if(changing)return;
+                String old=editable==null?"":editable.toString();
+                String formatted=formatEditableMoney(old);
+                if(old.equals(formatted))return;
+                changing=true;
+                editText.setText(formatted);
+                editText.setSelection(formatted.length());
+                changing=false;
+            }
+        });
+    }
+
+    public static String formatEditableMoney(String value){
+        if(value==null)return "";
+        String s=value.replace("\u00A0","").replace("\u202F","").replace(" ","").trim();
+        if(s.isEmpty())return "";
+        int comma=s.lastIndexOf(','),dot=s.lastIndexOf('.'),sep=Math.max(comma,dot);
+        char sepChar=comma>=dot?',':'.';
+        String whole=sep>=0?s.substring(0,sep):s;
+        String frac=sep>=0?s.substring(sep+1):"";
+        whole=whole.replaceAll("[^0-9]","");
+        frac=frac.replaceAll("[^0-9]","");
+        if(whole.isEmpty())whole="0";
+        int first=0;while(first<whole.length()-1&&whole.charAt(first)=='0')first++;whole=whole.substring(first);
+        StringBuilder grouped=new StringBuilder();
+        for(int i=0;i<whole.length();i++){
+            if(i>0&&(whole.length()-i)%3==0)grouped.append(' ');
+            grouped.append(whole.charAt(i));
+        }
+        if(sep>=0){grouped.append(sepChar);grouped.append(frac);}
+        return grouped.toString();
+    }
+
+    /** Bind a field so it is automatically scrolled above the software keyboard when focused. */
+    public static void keepFieldVisibleOnFocus(ScrollView scroll,View field){
+        if(scroll==null||field==null)return;
+        View.OnFocusChangeListener previous=field.getOnFocusChangeListener();
+        field.setOnFocusChangeListener((v,hasFocus)->{
+            if(previous!=null)previous.onFocusChange(v,hasFocus);
+            if(hasFocus)v.postDelayed(()->scrollFieldIntoView(scroll,v),220);
+        });
+    }
+
+    /** Re-check the currently focused field after IME insets/layout have changed. */
+    public static void ensureFocusedFieldVisible(ScrollView scroll){
+        if(scroll==null)return;
+        View focused=scroll.findFocus();
+        if(focused!=null)scroll.post(()->scrollFieldIntoView(scroll,focused));
+    }
+
+    private static void scrollFieldIntoView(ScrollView scroll,View field){
+        if(scroll==null||field==null||!field.isShown())return;
+        try{
+            Rect rect=new Rect();
+            field.getDrawingRect(rect);
+            scroll.offsetDescendantRectToMyCoords(field,rect);
+            int margin=dp(scroll.getContext(),96);
+            int target=Math.max(0,rect.bottom-scroll.getHeight()+margin);
+            if(target>scroll.getScrollY())scroll.smoothScrollTo(0,target);
+        }catch(Exception ignored){}
+    }
 
     public static String formatMoney(Context context,double value){return FormatUtils.money(context,value);}
     public static String termUnit(Context context,int value,boolean years){String l=AppPreferences.getLanguage(context);if("en".equals(l)){if(years)return value==1?"year":"years";return value==1?"month":"months";}if("tr".equals(l))return years?"yıl":"ay";if("es".equals(l)){if(years)return value==1?"año":"años";return value==1?"mes":"meses";}return years?russianYears(value):russianMonths(value);}
