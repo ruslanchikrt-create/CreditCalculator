@@ -1,8 +1,11 @@
 package com.example.creditcalculator;
 
+import android.app.KeyguardManager;
 import android.content.Context;
+import android.content.Intent;
 import android.content.res.ColorStateList;
 import android.graphics.Color;
+import android.os.Build;
 import android.os.Bundle;
 import android.text.InputType;
 import android.view.Gravity;
@@ -30,8 +33,10 @@ import com.google.android.material.textfield.TextInputLayout;
 import java.util.concurrent.Executor;
 
 public class LockActivity extends AppCompatActivity {
+    private static final int REQUEST_DEVICE_CREDENTIAL=6301;
     private TextInputEditText secretInput;
     private int failures;
+    private boolean deviceMode;
 
     @Override protected void attachBaseContext(Context newBase) { super.attachBaseContext(AppPreferences.wrapLocale(newBase)); }
 
@@ -40,8 +45,10 @@ public class LockActivity extends AppCompatActivity {
         AppPreferences.applyNightMode(this);
         super.onCreate(savedInstanceState);
         WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
+        deviceMode=AppPreferences.isDeviceCredentialSecurity(this);
         setContentView(build());
-        if (AppPreferences.isBiometricEnabled(this)) secretInput.postDelayed(this::showBiometric, 250);
+        if(deviceMode) getWindow().getDecorView().postDelayed(this::showDeviceAuthentication,250);
+        else if (AppPreferences.isBiometricEnabled(this)) getWindow().getDecorView().postDelayed(this::showBiometric, 250);
     }
 
     private View build() {
@@ -51,16 +58,23 @@ public class LockActivity extends AppCompatActivity {
         LinearLayout box = new LinearLayout(this); box.setOrientation(LinearLayout.VERTICAL); box.setPadding(dp(22), dp(24), dp(22), dp(22)); card.addView(box); root.addView(card, new LinearLayout.LayoutParams(-1, -2));
 
         TextView icon = text("🔒", 42, R.color.text_main, false); icon.setGravity(Gravity.CENTER); box.addView(icon);
-        boolean pin = !"password".equals(AppPreferences.getSecurityKind(this));
-        TextView title = text(AppPreferences.tr(this, pin ? "Введите PIN-код" : "Введите пароль", pin ? "Enter PIN" : "Enter password"), 24, R.color.text_main, true); title.setGravity(Gravity.CENTER);
+        boolean pin = AppPreferences.SECURITY_PIN.equals(AppPreferences.getSecurityKind(this));
+        String titleText=deviceMode?AppPreferences.tr(this,"Разблокировка устройства","Device authentication"):AppPreferences.tr(this, pin ? "Введите PIN-код приложения" : "Введите пароль приложения", pin ? "Enter app PIN" : "Enter app password");
+        TextView title = text(titleText, 24, R.color.text_main, true); title.setGravity(Gravity.CENTER);
         LinearLayout.LayoutParams tp = new LinearLayout.LayoutParams(-1, -2); tp.setMargins(0, dp(8), 0, dp(18)); box.addView(title, tp);
 
-        TextInputLayout layout = new TextInputLayout(this); layout.setBoxBackgroundMode(TextInputLayout.BOX_BACKGROUND_OUTLINE); layout.setBoxStrokeColor(ContextCompat.getColor(this, R.color.primary)); layout.setBoxCornerRadii(dp(14),dp(14),dp(14),dp(14));
-        secretInput = new TextInputEditText(this); secretInput.setSingleLine(true); secretInput.setTextColor(ContextCompat.getColor(this, R.color.text_main)); secretInput.setInputType(pin ? InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_VARIATION_PASSWORD : InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD); secretInput.setImeOptions(EditorInfo.IME_ACTION_DONE); secretInput.setOnEditorActionListener((v, actionId, event) -> { if (actionId == EditorInfo.IME_ACTION_DONE) { unlock(); return true; } return false; });
-        layout.addView(secretInput, new TextInputLayout.LayoutParams(-1, dp(58))); box.addView(layout, new LinearLayout.LayoutParams(-1, -2));
+        if(deviceMode){
+            TextView note=text(AppPreferences.tr(this,"Используется PIN, графический ключ или пароль экрана вашего телефона.","Your phone PIN, pattern, or screen-lock password is used."),14,R.color.text_secondary,false);note.setGravity(Gravity.CENTER);box.addView(note);
+            MaterialButton device = new MaterialButton(this); device.setText(AppPreferences.tr(this,"Разблокировать устройством","Use device credential")); device.setAllCaps(false); device.setTextSize(17); device.setTextColor(Color.WHITE); device.setBackgroundTintList(ColorStateList.valueOf(ContextCompat.getColor(this, R.color.primary))); device.setCornerRadius(dp(14)); device.setOnClickListener(v -> showDeviceAuthentication());
+            LinearLayout.LayoutParams dpv = new LinearLayout.LayoutParams(-1, dp(56)); dpv.setMargins(0, dp(16), 0, 0); box.addView(device, dpv);
+        }else{
+            TextInputLayout layout = new TextInputLayout(this); layout.setBoxBackgroundMode(TextInputLayout.BOX_BACKGROUND_OUTLINE); layout.setBoxStrokeColor(ContextCompat.getColor(this, R.color.primary)); layout.setBoxCornerRadii(dp(14),dp(14),dp(14),dp(14));
+            secretInput = new TextInputEditText(this); secretInput.setSingleLine(true); secretInput.setTextColor(ContextCompat.getColor(this, R.color.text_main)); secretInput.setInputType(pin ? InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_VARIATION_PASSWORD : InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD); secretInput.setImeOptions(EditorInfo.IME_ACTION_DONE); secretInput.setOnEditorActionListener((v, actionId, event) -> { if (actionId == EditorInfo.IME_ACTION_DONE) { unlock(); return true; } return false; });
+            layout.addView(secretInput, new TextInputLayout.LayoutParams(-1, dp(58))); box.addView(layout, new LinearLayout.LayoutParams(-1, -2));
 
-        MaterialButton unlock = new MaterialButton(this); unlock.setText(AppPreferences.tr(this, "Разблокировать", "Unlock")); unlock.setAllCaps(false); unlock.setTextSize(17); unlock.setTextColor(Color.WHITE); unlock.setBackgroundTintList(ColorStateList.valueOf(ContextCompat.getColor(this, R.color.primary))); unlock.setCornerRadius(dp(14)); unlock.setOnClickListener(v -> unlock());
-        LinearLayout.LayoutParams up = new LinearLayout.LayoutParams(-1, dp(56)); up.setMargins(0, dp(14), 0, 0); box.addView(unlock, up);
+            MaterialButton unlock = new MaterialButton(this); unlock.setText(AppPreferences.tr(this, "Разблокировать", "Unlock")); unlock.setAllCaps(false); unlock.setTextSize(17); unlock.setTextColor(Color.WHITE); unlock.setBackgroundTintList(ColorStateList.valueOf(ContextCompat.getColor(this, R.color.primary))); unlock.setCornerRadius(dp(14)); unlock.setOnClickListener(v -> unlock());
+            LinearLayout.LayoutParams up = new LinearLayout.LayoutParams(-1, dp(56)); up.setMargins(0, dp(14), 0, 0); box.addView(unlock, up);
+        }
 
         if (AppPreferences.isBiometricEnabled(this) && canUseBiometric()) {
             MaterialButton bio = new MaterialButton(this); bio.setText(AppPreferences.tr(this, "Использовать биометрию", "Use biometrics")); bio.setAllCaps(false); bio.setTextColor(ContextCompat.getColor(this, R.color.primary)); bio.setBackgroundTintList(ColorStateList.valueOf(ContextCompat.getColor(this, R.color.card_background))); bio.setStrokeColor(ColorStateList.valueOf(ContextCompat.getColor(this, R.color.primary))); bio.setStrokeWidth(dp(1)); bio.setCornerRadius(dp(14)); bio.setOnClickListener(v -> showBiometric());
@@ -72,6 +86,7 @@ public class LockActivity extends AppCompatActivity {
     }
 
     private void unlock() {
+        if(deviceMode||secretInput==null)return;
         if (failures >= 5) {
             secretInput.setEnabled(false);
             secretInput.postDelayed(() -> { failures = 0; secretInput.setEnabled(true); }, 10_000);
@@ -100,11 +115,28 @@ public class LockActivity extends AppCompatActivity {
         BiometricPrompt.PromptInfo info = new BiometricPrompt.PromptInfo.Builder()
                 .setTitle(AppPreferences.tr(this, "Разблокировать приложение", "Unlock app"))
                 .setSubtitle(AppPreferences.tr(this, "Подтвердите личность", "Confirm your identity"))
-                .setNegativeButtonText(AppPreferences.tr(this, "Использовать PIN/пароль", "Use PIN/password"))
+                .setNegativeButtonText(AppPreferences.tr(this, deviceMode?"Использовать пароль устройства":"Использовать PIN/пароль приложения", deviceMode?"Use device credential":"Use app PIN/password"))
                 .setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_WEAK | BiometricManager.Authenticators.BIOMETRIC_STRONG)
                 .build();
         prompt.authenticate(info);
     }
+
+    private void showDeviceAuthentication(){
+        if(!deviceMode||isFinishing())return;
+        KeyguardManager km=(KeyguardManager)getSystemService(KEYGUARD_SERVICE);if(km==null||!km.isDeviceSecure()){Toast.makeText(this,AppPreferences.tr(this,"Защита экрана устройства не настроена","Device screen lock is not configured"),Toast.LENGTH_LONG).show();return;}
+        if(Build.VERSION.SDK_INT>=30){
+            Executor executor=ContextCompat.getMainExecutor(this);
+            int auth=BiometricManager.Authenticators.DEVICE_CREDENTIAL;
+            if(AppPreferences.isBiometricEnabled(this)&&canUseBiometric())auth|=BiometricManager.Authenticators.BIOMETRIC_WEAK;
+            BiometricPrompt prompt=new BiometricPrompt(this,executor,new BiometricPrompt.AuthenticationCallback(){@Override public void onAuthenticationSucceeded(@NonNull BiometricPrompt.AuthenticationResult result){super.onAuthenticationSucceeded(result);success();}});
+            BiometricPrompt.PromptInfo info=new BiometricPrompt.PromptInfo.Builder().setTitle(AppPreferences.tr(this,"Разблокировать приложение","Unlock app")).setSubtitle(AppPreferences.tr(this,"Используйте защиту экрана устройства","Use your device screen lock")).setAllowedAuthenticators(auth).build();
+            prompt.authenticate(info);
+        }else{
+            Intent intent=km.createConfirmDeviceCredentialIntent(AppPreferences.tr(this,"Разблокировать приложение","Unlock app"),AppPreferences.tr(this,"Введите PIN, графический ключ или пароль устройства","Enter device PIN, pattern, or password"));if(intent!=null)startActivityForResult(intent,REQUEST_DEVICE_CREDENTIAL);
+        }
+    }
+
+    @Override protected void onActivityResult(int requestCode,int resultCode,Intent data){super.onActivityResult(requestCode,resultCode,data);if(requestCode==REQUEST_DEVICE_CREDENTIAL&&resultCode==RESULT_OK)success();}
 
     private void success() {
         if (getApplication() instanceof CreditApplication) ((CreditApplication) getApplication()).markUnlocked();
