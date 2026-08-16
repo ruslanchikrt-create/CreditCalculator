@@ -54,6 +54,10 @@ public class FinanceMathTest {
         near(100000,FinanceMath.cashOut(balance,cashPrincipal,fees),0.01);
         assertTrue(FinanceMath.comparableRefinanceFutureCost(balance,cashPrincipal,fees,cashScheduled)<cashScheduled);
     }
+    @Test public void totalOverpaymentIncludesInsuranceAndFees(){
+        near(142000,FinanceMath.totalOverpayment(102000,30000,10000),0.001);
+        near(30000,FinanceMath.totalOverpayment(0,30000,0),0.001);
+    }
     @Test public void deposits(){
         near(24000,FinanceMath.simpleDepositInterest(100000,24,12),0.01);
         near(126973.464,FinanceMath.monthlyCompoundDepositFinal(100000,24,12),0.1);

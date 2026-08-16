@@ -103,6 +103,13 @@ public final class FinanceMath {
         return annuityPayment(principal,months,annualRatePercent)*months;
     }
 
+    /** Total borrower overpayment above the financed purchase/loan amount: interest + insurance + one-time fees. */
+    public static double totalOverpayment(double interest,double insurance,double fees){
+        if(!Double.isFinite(interest)||!Double.isFinite(insurance)||!Double.isFinite(fees)||interest<0||insurance<0||fees<0)
+            throw new IllegalArgumentException("overpayment components");
+        return interest+insurance+fees;
+    }
+
     public static double financedCosts(double currentBalance,double newPrincipal,double fees){
         return Math.max(0,Math.min(Math.max(0,fees),Math.max(0,newPrincipal-currentBalance)));
     }

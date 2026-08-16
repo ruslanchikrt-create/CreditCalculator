@@ -38,6 +38,12 @@ public class FinancialStatsActivity extends AppCompatActivity {
         double interestPaidAll;
         double interestPaidArchived;
         double futureInterestActive;
+        double insuranceAll;
+        double insuranceActive;
+        double commissionsAll;
+        double commissionsActive;
+        double overpaymentAll;
+        double overpaymentActive;
         double activeDebt;
         double savingsAll;
         double savingsActive;
@@ -96,13 +102,18 @@ public class FinancialStatsActivity extends AppCompatActivity {
                 {AppPreferences.tr(this,"Досрочно погашено","Early repayments"),FormatUtils.money(this,s.earlyPaidAll),AppPreferences.tr(this,"Сумма зарегистрированных досрочных погашений по активным и архивным кредитам за всё время.","Registered early repayments across active and archived loans over time.")},
                 {AppPreferences.tr(this,"Уже выплачено процентов","Interest already paid"),FormatUtils.money(this,s.interestPaidAll),AppPreferences.tr(this,"Расчётная сумма процентов, уже пришедшаяся на отмеченные оплаченные платежи активных и архивных кредитов.","Estimated interest already included in recorded paid installments of active and archived loans.")},
                 {AppPreferences.tr(this,"В том числе по архивным кредитам","Including archived loans"),FormatUtils.money(this,s.interestPaidArchived),AppPreferences.tr(this,"Часть уже выплаченных процентов, относящаяся к кредитам, которые сейчас находятся в архиве.","Part of already paid interest belonging to loans currently in archive.")},
-                {AppPreferences.tr(this,"Сэкономлено за всё время","Lifetime savings"),FormatUtils.money(this,s.savingsAll),AppPreferences.tr(this,"Расчётная экономия от зарегистрированных досрочных погашений и рефинансирования по активным и архивным кредитам.","Estimated savings from recorded early repayments and refinancing across active and archived loans.")}
+                {AppPreferences.tr(this,"Страховка по кредитам","Loan insurance"),FormatUtils.money(this,s.insuranceAll),AppPreferences.tr(this,"Сумма страховок, указанных в кредитных записях, включая страховки применённых рефинансирований. Она входит в общую переплату.","Insurance entered for loan records, including insurance from applied refinancings. It is included in total overpayment.")},
+                {AppPreferences.tr(this,"Комиссии рефинансирования","Refinancing fees"),FormatUtils.money(this,s.commissionsAll),AppPreferences.tr(this,"Разовые комиссии применённых рефинансирований. Они входят в общую переплату.","One-time fees from applied refinancings. They are included in total overpayment.")},
+                {AppPreferences.tr(this,"Общая переплата: проценты + страховка + комиссии","Total overpayment: interest + insurance + fees"),FormatUtils.money(this,s.overpaymentAll),AppPreferences.tr(this,"Сумма расчётных процентов за весь срок, страховок и комиссий рефинансирования по активным и архивным кредитам. Штрафы и пени сюда не включаются.","Estimated lifetime interest plus insurance and refinancing fees for active and archived loans. Penalties are excluded.")},
+                {AppPreferences.tr(this,"Сэкономлено за всё время","Lifetime savings"),FormatUtils.money(this,s.savingsAll),AppPreferences.tr(this,"Расчётная экономия от зарегистрированных досрочных погашений и рефинансирования по активным и архивным кредитам. Страховка не считается сэкономленной автоматически.","Estimated savings from recorded early repayments and refinancing across active and archived loans. Insurance is not automatically treated as saved.")}
         }));
 
         content.addView(sectionTitle(AppPreferences.tr(this,"Активные кредиты — что впереди","Active loans — ahead")));
         content.addView(card(new String[][]{
                 {AppPreferences.tr(this,"Текущий общий долг","Current total debt"),FormatUtils.money(this,s.activeDebt),AppPreferences.tr(this,"Остаток основного долга только по активным кредитам. Архив не входит.","Remaining principal for active loans only. Archive is excluded.")},
                 {AppPreferences.tr(this,"Будущие проценты","Future interest"),FormatUtils.money(this,s.futureInterestActive),AppPreferences.tr(this,"Сколько расчётных процентов ещё предстоит выплатить по текущим активным графикам, если условия не менять.","Estimated interest still to be paid under current active schedules if terms do not change.")},
+                {AppPreferences.tr(this,"Общая переплата активных кредитов","Active-loan total overpayment"),FormatUtils.money(this,s.overpaymentActive),AppPreferences.tr(this,"Расчётные проценты за весь срок плюс страховка и комиссии рефинансирования по кредитам, которые сейчас активны.","Estimated lifetime interest plus insurance and refinancing fees for currently active loans.")},
+                {AppPreferences.tr(this,"Страховка активных кредитов","Active-loan insurance"),FormatUtils.money(this,s.insuranceActive),AppPreferences.tr(this,"Страховка учитывается в общей переплате независимо от того, была она включена в кредит или оплачена отдельно.","Insurance is included in total overpayment whether it was financed or paid separately.")},
                 {AppPreferences.tr(this,"Досрочно погашено по активным","Early repaid on active loans"),FormatUtils.money(this,s.earlyPaidActive),AppPreferences.tr(this,"Все зарегистрированные досрочные погашения только по кредитам, которые сейчас активны. После переноса кредита в архив эта сумма переходит в историческую статистику.","All registered early repayments for loans that are currently active. Once a loan moves to archive, this amount moves to historical statistics.")},
                 {AppPreferences.tr(this,"Выгода по активным кредитам","Savings on active loans"),FormatUtils.money(this,s.savingsActive),AppPreferences.tr(this,"Расчётная экономия по активным кредитам. Выгода архивных кредитов здесь не учитывается.","Estimated savings for active loans. Archived-loan savings are excluded.")},
                 {AppPreferences.tr(this,"Активных кредитов","Active loans"),String.valueOf(s.activeLoans),AppPreferences.tr(this,"Количество активных кредитных записей без вкладов.","Number of active credit records, excluding deposits.")}
@@ -141,8 +152,9 @@ public class FinancialStatsActivity extends AppCompatActivity {
                 else{s.archivedDeposits++;s.archivedDepositPrincipal+=r.principal;s.archivedDepositIncome+=income;}
                 continue;
             }
-            if(active){s.activeLoans++;s.activeDebt+=ReminderScheduler.remainingDebt(r);s.futureInterestActive+=ReminderScheduler.remainingInterest(r);}
+            if(active){s.activeLoans++;s.activeDebt+=ReminderScheduler.remainingDebt(r);s.futureInterestActive+=ReminderScheduler.remainingInterest(r);s.insuranceActive+=ReminderScheduler.totalInsuranceCosts(r);s.commissionsActive+=ReminderScheduler.totalCommissionCosts(r);s.overpaymentActive+=ReminderScheduler.totalOverpayment(r);}
             else s.archivedLoans++;
+            s.insuranceAll+=ReminderScheduler.totalInsuranceCosts(r);s.commissionsAll+=ReminderScheduler.totalCommissionCosts(r);s.overpaymentAll+=ReminderScheduler.totalOverpayment(r);
             double pi=ReminderScheduler.paidInterest(r);s.interestPaidAll+=pi;if(archived)s.interestPaidArchived+=pi;
             for(ReminderScheduler.InstallmentEntry e:ReminderScheduler.ledger(r))if(e!=null&&e.index>=0&&e.paidAt>0){double paid=e.paidAmount>0?e.paidAmount:ReminderScheduler.paymentAmount(r,e.index);s.scheduledPaidAll+=Math.max(0,paid);}
             for(ReminderScheduler.BenefitEvent e:ReminderScheduler.benefits(r)){

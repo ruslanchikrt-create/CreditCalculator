@@ -60,6 +60,9 @@ public final class Translations {
         add("Первый платёж", "İlk ödeme", "Primer pago");
         add("Последний платёж", "Son ödeme", "Último pago");
         add("Общая сумма выплат", "Toplam ödeme", "Total de pagos");
+        add("Общая сумма выплат с учётом страховки", "Sigorta dahil toplam ödeme", "Total de pagos con seguro");
+        add("Общая переплата (страховка)", "Toplam fazla ödeme (sigorta)", "Sobrecoste total (seguro)");
+        add("Общая переплата (проценты + страховка)", "Toplam fazla ödeme (faiz + sigorta)", "Sobrecoste total (intereses + seguro)");
         add("Переплата", "Fazla ödeme", "Sobrecoste");
         add("Переплата по процентам", "Faiz maliyeti", "Intereses totales");
         add("Всего выплат банку", "Bankaya toplam ödeme", "Total pagado al banco");
@@ -124,8 +127,11 @@ public final class Translations {
         add("Процентная ставка — больше сначала", "Faiz — yüksekten düşüğe", "Interés — mayor primero");
         add("Процентная ставка — меньше сначала", "Faiz — düşükten yükseğe", "Interés — menor primero");
         add("По типу", "Türe göre", "Por tipo");
-        add("Переплата по активным кредитам", "Aktif kredilerin faiz maliyeti", "Intereses de préstamos activos");
-        add("Общая переплата", "Toplam faiz", "Intereses totales");
+        add("Переплата по активным кредитам", "Aktif kredilerin toplam fazla ödemesi", "Sobrecoste de créditos activos");
+        add("Общая переплата", "Toplam fazla ödeme", "Sobrecoste total");
+        add("В том числе проценты", "Faiz dahil", "Incluidos intereses");
+        add("В том числе страховка", "Sigorta dahil", "Incluido seguro");
+        add("В том числе комиссии", "Komisyonlar dahil", "Incluidas comisiones");
         add("Уже выплачено процентов", "Ödenen faiz", "Intereses pagados");
         add("Осталось выплатить процентов", "Kalan faiz", "Intereses pendientes");
         add("Активные вклады", "Aktif mevduatlar", "Depósitos activos");
@@ -135,13 +141,18 @@ public final class Translations {
         add("Исходная сумма: ", "Başlangıç tutarı: ", "Importe inicial: ");
         add("Остаток долга: ", "Kalan borç: ", "Deuda restante: ");
         add("Ежемесячно: ", "Aylık: ", "Mensual: ");
-        add("Переплата: ", "Faiz: ", "Intereses: ");
+        add("Переплата: ", "Fazla ödeme: ", "Sobrecoste: ");
         add("Следующий платёж: ", "Sonraki ödeme: ", "Próximo pago: ");
         add("Срок завершён", "Vade tamamlandı", "Plazo finalizado");
 
         // Details/schedule
         add("Условия кредита", "Kredi koşulları", "Condiciones del préstamo");
         add("Проценты и переплата", "Faiz ve maliyet", "Intereses y sobrecoste");
+        add("Проценты, страховка и переплата", "Faiz, sigorta ve fazla ödeme", "Intereses, seguro y sobrecoste");
+        add("Проценты за весь срок", "Tüm vade faizi", "Intereses de todo el plazo");
+        add("Страховка — всего", "Toplam sigorta", "Seguro total");
+        add("Комиссии рефинансирования", "Yeniden finansman komisyonları", "Comisiones de refinanciación");
+        add("Финансируемая сумма", "Finanse edilen tutar", "Importe financiado");
         add("Остаток долга", "Kalan borç", "Deuda restante");
         add("Дата платежа", "Ödeme tarihi", "Fecha de pago");
         add("Ставка", "Faiz", "Interés");
@@ -196,6 +207,7 @@ public final class Translations {
         add("Дата рефинансирования", "Yeniden finansman tarihi", "Fecha de refinanciación");
         add("Новая сумма кредита, ₽", "Yeni kredi tutarı, ₽", "Nuevo importe del préstamo, ₽");
         add("Дополнительные расходы", "Ek masraflar", "Gastos adicionales");
+        add("Новая переплата с расходами: ", "Masraflar dahil yeni fazla ödeme: ", "Nuevo sobrecoste con gastos: ");
         add("Всего будущих выплат", "Gelecek toplam ödemeler", "Pagos futuros totales");
         add("Экономия", "Tasarruf", "Ahorro");
 
@@ -284,6 +296,13 @@ public final class Translations {
         add("Сэкономлено за всё время", "Toplam tasarruf", "Ahorro histórico");
         add("Ожидаемый доход по активным вкладам", "Aktif mevduat beklenen getirisi", "Ingreso esperado de depósitos activos");
         add("Доход завершённых вкладов", "Tamamlanan mevduat getirisi", "Ingreso de depósitos finalizados");
+        add("Страховка по кредитам", "Kredi sigortaları", "Seguro de créditos");
+        add("Общая переплата: проценты + страховка + комиссии", "Toplam fazla ödeme: faiz + sigorta + komisyon", "Sobrecoste total: intereses + seguro + comisiones");
+        add("Общая переплата активных кредитов", "Aktif kredilerin toplam fazla ödemesi", "Sobrecoste total de créditos activos");
+        add("Страховка активных кредитов", "Aktif kredi sigortaları", "Seguro de créditos activos");
+        add("Переплата архивных кредитов: ", "Arşiv kredilerinin fazla ödemesi: ", "Sobrecoste de créditos archivados: ");
+        add("В том числе страховка: ", "Sigorta dahil: ", "Incluido seguro: ");
+        add("В том числе комиссии: ", "Komisyonlar dahil: ", "Incluidas comisiones: ");
         add("Разработчик", "Geliştirici", "Desarrollador");
         add("Версия", "Sürüm", "Versión");
     }

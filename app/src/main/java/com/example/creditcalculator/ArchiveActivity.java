@@ -91,11 +91,14 @@ public class ArchiveActivity extends AppCompatActivity {
     }
 
     private View archiveSummary(List<ReminderScheduler.PaymentReminder> items){
-        double original=0,benefit=0;for(ReminderScheduler.PaymentReminder r:items){original+=r.baseAmount>0?r.baseAmount:ReminderScheduler.progressOriginalPrincipal(r);benefit+=ReminderScheduler.totalBenefit(r);}
+        double original=0,benefit=0,overpayment=0,insurance=0,commissions=0;for(ReminderScheduler.PaymentReminder r:items){original+=r.baseAmount>0?r.baseAmount:ReminderScheduler.progressOriginalPrincipal(r);benefit+=ReminderScheduler.totalBenefit(r);if(!ReminderScheduler.TYPE_DEPOSIT.equals(ReminderScheduler.normalizeType(r.type))){overpayment+=ReminderScheduler.totalOverpayment(r);insurance+=ReminderScheduler.totalInsuranceCosts(r);commissions+=ReminderScheduler.totalCommissionCosts(r);}}
         MaterialCardView card=new MaterialCardView(this);card.setCardBackgroundColor(ContextCompat.getColor(this,R.color.card_background));card.setRadius(dp(18));card.setStrokeColor(ContextCompat.getColor(this,R.color.border));card.setStrokeWidth(dp(1));LinearLayout b=new LinearLayout(this);b.setOrientation(LinearLayout.VERTICAL);b.setPadding(dp(18),dp(16),dp(18),dp(16));card.addView(b);
         TextView h=text(AppPreferences.tr(this,"Архивная сводка","Archive summary")+"  ⓘ",19,R.color.text_main,true);h.setClickable(true);h.setOnClickListener(v->new AlertDialog.Builder(this).setTitle(AppPreferences.tr(this,"Архивная сводка","Archive summary")).setMessage(AppPreferences.tr(this,"Здесь сохраняются данные закрытых и вручную архивированных записей. Они не участвуют в активной сводке и активной «Вашей выгоде», но история и накопленная выгода не удаляются.","Closed and manually archived items are preserved here. They are excluded from active summary and active savings, while their history and accumulated savings remain stored.")).setPositiveButton(AppPreferences.tr(this,"Понятно","OK"),null).show());b.addView(h);
         b.addView(text(AppPreferences.tr(this,"Записей в архиве: ","Archived items: ")+items.size(),14,R.color.text_secondary,false));
         b.addView(text(AppPreferences.tr(this,"Исходная сумма архивных записей: ","Original archived amount: ")+FormatUtils.money(this,original),15,R.color.text_main,true));
+        b.addView(text(AppPreferences.tr(this,"Переплата архивных кредитов: ","Archived-loan overpayment: ")+FormatUtils.money(this,overpayment),15,R.color.text_main,true));
+        if(insurance>0)b.addView(text(AppPreferences.tr(this,"В том числе страховка: ","Including insurance: ")+FormatUtils.money(this,insurance),14,R.color.text_secondary,false));
+        if(commissions>0)b.addView(text(AppPreferences.tr(this,"В том числе комиссии: ","Including fees: ")+FormatUtils.money(this,commissions),14,R.color.text_secondary,false));
         b.addView(text(AppPreferences.tr(this,"Сохранённая выгода: ","Saved benefit: ")+FormatUtils.money(this,benefit),17,benefit>=0?R.color.success:R.color.danger,true));
         LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);lp.setMargins(0,0,0,dp(16));card.setLayoutParams(lp);return card;
     }
@@ -125,6 +128,7 @@ public class ArchiveActivity extends AppCompatActivity {
 
         box.addView(text(reminder.title, 20, R.color.text_main, true));
         box.addView(text(AppPreferences.tr(this, "Исходная сумма: ", "Original amount: ") + FormatUtils.money(this, reminder.baseAmount>0?reminder.baseAmount:ReminderScheduler.progressOriginalPrincipal(reminder)), 15, R.color.text_secondary, false));
+        if(!ReminderScheduler.TYPE_DEPOSIT.equals(ReminderScheduler.normalizeType(reminder.type)))box.addView(text(AppPreferences.tr(this,"Переплата: ","Overpayment: ")+FormatUtils.money(this,ReminderScheduler.totalOverpayment(reminder)),15,R.color.text_secondary,false));
         box.addView(text(AppPreferences.tr(this, "Сохранённая выгода: ", "Saved benefit: ") + FormatUtils.money(this, ReminderScheduler.totalBenefit(reminder)), 15, ReminderScheduler.totalBenefit(reminder)>=0?R.color.success:R.color.danger, true));
         box.addView(text(AppPreferences.tr(this, "Срок: ", "Term: ") + UiUtils.termText(this, reminder.months), 15, R.color.text_secondary, false));
 
