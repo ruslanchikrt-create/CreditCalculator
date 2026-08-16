@@ -42,10 +42,22 @@ jobs:
       - name: Test math and build APK
         run: gradle testDebugUnitTest assembleDebug
 
-      - name: Commit audited app
+      - name: Commit audited app source only
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add app .github/workflows/build-apk.yml
+          git add \
+            app/build.gradle \
+            app/src/main/java/com/example/creditcalculator/FinanceMath.java \
+            app/src/main/java/com/example/creditcalculator/ReminderScheduler.java \
+            app/src/main/java/com/example/creditcalculator/EarlyRepaymentActivity.java \
+            app/src/main/java/com/example/creditcalculator/EarlyPaymentAdvisorActivity.java \
+            app/src/main/java/com/example/creditcalculator/RefinanceActivity.java \
+            app/src/main/java/com/example/creditcalculator/PaymentDetailsActivity.java \
+            app/src/main/java/com/example/creditcalculator/AddReminderActivity.java \
+            app/src/main/java/com/example/creditcalculator/ReminderReceiver.java \
+            app/src/main/java/com/example/creditcalculator/MainActivity.java \
+            app/src/main/java/com/example/creditcalculator/InstructionActivity.java \
+            app/src/test/java/com/example/creditcalculator/FinanceMathTest.java
           git commit -m "Audit financial math and reminders v1.14"
           git push
