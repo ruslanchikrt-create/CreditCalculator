@@ -39,7 +39,7 @@ public class CreditApplication extends Application implements Application.Activi
             handler.postDelayed(() -> gateLaunching = false, 500);
             return;
         }
-        if (!AppPreferences.isSecurityEnabled(this) || !AppPreferences.hasAppSecret(this)) return;
+        if (!AppPreferences.hasConfiguredSecurity(this)) return;
         int timeout = AppPreferences.getLockTimeoutMinutes(this);
         long elapsed = backgroundAt <= 0 ? Long.MAX_VALUE : System.currentTimeMillis() - backgroundAt;
         boolean needsLock = !unlockedThisForeground && (backgroundAt <= 0 || timeout == 0 || elapsed >= timeout * 60_000L);
