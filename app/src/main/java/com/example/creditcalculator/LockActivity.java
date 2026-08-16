@@ -111,6 +111,7 @@ public class LockActivity extends AppCompatActivity {
         finish();
     }
 
+    @android.annotation.SuppressLint("MissingSuperCall")
     @Override public void onBackPressed() { moveTaskToBack(true); }
     private TextView text(String s, int size, int color, boolean bold) { TextView t = new TextView(this); t.setText(s); t.setTextSize(size); t.setTextColor(ContextCompat.getColor(this,color)); if (bold) t.setTypeface(null, android.graphics.Typeface.BOLD); return t; }
     private int dp(int v) { return Math.round(v * getResources().getDisplayMetrics().density); }
