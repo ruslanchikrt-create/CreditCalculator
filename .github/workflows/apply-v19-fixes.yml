@@ -1,0 +1,50 @@
+name: Apply v1.9 fixes
+
+on:
+  push:
+    branches:
+      - v1.9-work
+    paths:
+      - .github/v19-fix-trigger.txt
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: v1.9-work
+      - name: Apply fixes
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          p = Path('app/src/main/java/com/example/creditcalculator/MainActivity.java')
+          s = p.read_text()
+          s = s.replace('private View buildDrawer(){', 'private LinearLayout buildDrawer(){')
+          p.write_text(s)
+
+          p = Path('app/src/main/java/com/example/creditcalculator/PaymentsActivity.java')
+          s = p.read_text()
+          s = s.replace('return c==R.color.danger?"☹":c==R.color.warning?"◉":"☺";', 'return c==R.color.danger?"☹":c==R.color.warning?"☻":"☺";')
+          p.write_text(s)
+
+          p = Path('app/src/main/java/com/example/creditcalculator/PaymentActionReceiver.java')
+          s = p.read_text()
+          old = '''        ReminderScheduler.PaymentReminder r = ReminderScheduler.findById(context, id);\n        if (r == null || index < 0 || index >= r.months) return;\n        ReminderScheduler.markPaid(context, id, index, System.currentTimeMillis(), ReminderScheduler.paymentAmount(r, index), 0);\n        if (notificationId >= 0) NotificationManagerCompat.from(context).cancel(notificationId);'''
+          new = '''        ReminderScheduler.PaymentReminder r = ReminderScheduler.findById(context, id);\n        if (r == null || index < 0 || index >= r.months) return;\n        // When app protection is enabled, never change financial data from the lock screen.\n        // Open the protected payment page instead; CreditApplication puts LockActivity on top.\n        if (AppPreferences.isSecurityEnabled(context)) {\n            Intent open = new Intent(context, PaymentDetailsActivity.class);\n            open.putExtra(PaymentDetailsActivity.EXTRA_REMINDER_ID, id);\n            open.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);\n            context.startActivity(open);\n            return;\n        }\n        ReminderScheduler.markPaid(context, id, index, System.currentTimeMillis(), ReminderScheduler.paymentAmount(r, index), 0);\n        if (notificationId >= 0) NotificationManagerCompat.from(context).cancel(notificationId);'''
+          if old not in s:
+              raise SystemExit('PaymentActionReceiver target not found')
+          p.write_text(s.replace(old, new))
+          PY
+      - name: Commit fixes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/src/main/java/com/example/creditcalculator
+          git diff --cached --quiet && exit 0
+          git commit -m "fix: v1.9 compile and security adjustments"
+          git push origin HEAD:v1.9-work
