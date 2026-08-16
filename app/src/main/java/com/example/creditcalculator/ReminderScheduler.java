@@ -41,6 +41,9 @@ public final class ReminderScheduler {
     public static final long TRASH_RETENTION_MILLIS = 30L * 24L * 60L * 60L * 1000L;
     public static final String PREFS_NAME = "payment_reminders";
     public static final String KEY_ITEMS = "items";
+    private static final Object STORE_LOCK = new Object();
+    /** Keep alarm count comfortably below OEM per-app limits even for long mortgages and many records. */
+    private static final int SCHEDULE_WINDOW_INSTALLMENTS = 4;
 
     private ReminderScheduler() {}
 
@@ -204,49 +207,49 @@ public final class ReminderScheduler {
     }
 
     public static List<PaymentReminder> loadAll(Context context) {
-        List<PaymentReminder> result = new ArrayList<>();
-        String json = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).getString(KEY_ITEMS, "[]");
-        boolean changed = false;
-        long now = System.currentTimeMillis();
-        try {
-            JSONArray array = new JSONArray(json);
-            for (int i = 0; i < array.length(); i++) {
-                JSONObject o = array.getJSONObject(i);
-                double amount = o.optDouble("amount", 0);
-                int months = Math.max(1, o.optInt("months", 1));
-                double principal = o.has("principal") ? o.optDouble("principal", 0) : amount * months;
-                double baseAmount = o.has("baseAmount") ? o.optDouble("baseAmount", principal) : principal;
-                String status = normalizeStatus(o.optString("status", STATUS_ACTIVE));
-                long deletedAt = o.optLong("deletedAt", 0);
-                if (STATUS_TRASH.equals(status) && deletedAt > 0 && now - deletedAt >= TRASH_RETENTION_MILLIS) { changed = true; continue; }
-                long id = o.optLong("id", now + i);
-                long createdAt = o.optLong("createdAt", id > 0 ? id : now);
-                PaymentReminder r = new PaymentReminder(
-                        id, o.optString("type", TYPE_CREDIT), o.optString("title", "Кредит"),
-                        baseAmount, o.optDouble("downPayment", 0), o.optDouble("insurance", 0),
-                        o.optBoolean("insuranceFinanced", true), principal,
-                        o.optDouble("annualRate", 0), amount, o.optString("paymentType", PAYMENT_ANNUITY),
-                        o.optLong("firstPaymentMillis", now), months, o.optInt("daysBefore", 3),
-                        o.optInt("reminderHour", 9), o.optInt("reminderMinute", 0), status, deletedAt,
-                        o.optBoolean("soundEnabled", true), createdAt, o.optLong("updatedAt", createdAt),
-                        o.optDouble("interestPaidBefore", 0), o.optString("history", ""), o.optString("ledger", "")
-                );
-                // v1.8 and older did not store per-installment payment status. Preserve the old
-                // behaviour on upgrade by marking already elapsed installments as paid once.
-                if (!o.has("ledger") && !TYPE_DEPOSIT.equals(normalizeType(r.type))) {
-                    migrateLegacyPastPaid(r, now);
-                    changed = true;
+        synchronized (STORE_LOCK) {
+            List<PaymentReminder> result = new ArrayList<>();
+            String json = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).getString(KEY_ITEMS, "[]");
+            boolean changed = false;
+            long now = System.currentTimeMillis();
+            try {
+                JSONArray array = new JSONArray(json);
+                for (int i = 0; i < array.length(); i++) {
+                    JSONObject o = array.getJSONObject(i);
+                    double amount = o.optDouble("amount", 0);
+                    int months = Math.max(1, o.optInt("months", 1));
+                    double principal = o.has("principal") ? o.optDouble("principal", 0) : amount * months;
+                    double baseAmount = o.has("baseAmount") ? o.optDouble("baseAmount", principal) : principal;
+                    String status = normalizeStatus(o.optString("status", STATUS_ACTIVE));
+                    long deletedAt = o.optLong("deletedAt", 0);
+                    if (STATUS_TRASH.equals(status) && deletedAt > 0 && now - deletedAt >= TRASH_RETENTION_MILLIS) { changed = true; continue; }
+                    long id = o.optLong("id", now + i);
+                    long createdAt = o.optLong("createdAt", id > 0 ? id : now);
+                    PaymentReminder r = new PaymentReminder(
+                            id, o.optString("type", TYPE_CREDIT), o.optString("title", "Кредит"),
+                            baseAmount, o.optDouble("downPayment", 0), o.optDouble("insurance", 0),
+                            o.optBoolean("insuranceFinanced", true), principal,
+                            o.optDouble("annualRate", 0), amount, o.optString("paymentType", PAYMENT_ANNUITY),
+                            o.optLong("firstPaymentMillis", now), months, o.optInt("daysBefore", 3),
+                            o.optInt("reminderHour", 9), o.optInt("reminderMinute", 0), status, deletedAt,
+                            o.optBoolean("soundEnabled", true), createdAt, o.optLong("updatedAt", createdAt),
+                            o.optDouble("interestPaidBefore", 0), o.optString("history", ""), o.optString("ledger", "")
+                    );
+                    if (!o.has("ledger") && !TYPE_DEPOSIT.equals(normalizeType(r.type))) {
+                        migrateLegacyPastPaid(r, now);
+                        changed = true;
+                    }
+                    if (r.historyJson.trim().isEmpty()) {
+                        appendHistory(r, r.createdAt, HISTORY_CREATED, "Создана запись", "Item created",
+                                "Создана запись «" + r.title + "».", "Created “" + r.title + "”.");
+                        changed = true;
+                    }
+                    result.add(r);
                 }
-                if (r.historyJson.trim().isEmpty()) {
-                    appendHistory(r, r.createdAt, HISTORY_CREATED, "Создана запись", "Item created",
-                            "Создана запись «" + r.title + "».", "Created “" + r.title + "”.");
-                    changed = true;
-                }
-                result.add(r);
-            }
-        } catch (Exception ignored) {}
-        if (changed) saveRaw(context, result);
-        return result;
+            } catch (Exception ignored) {}
+            if (changed) saveRaw(context, result);
+            return result;
+        }
     }
 
     private static void migrateLegacyPastPaid(PaymentReminder r, long now) {
@@ -273,23 +276,28 @@ public final class ReminderScheduler {
     }
 
     private static void saveRaw(Context context, List<PaymentReminder> reminders) {
-        JSONArray array = new JSONArray();
-        try {
-            for (PaymentReminder r : reminders) {
-                JSONObject o = new JSONObject();
-                o.put("id", r.id); o.put("type", normalizeType(r.type)); o.put("title", r.title);
-                o.put("baseAmount", r.baseAmount); o.put("downPayment", r.downPayment); o.put("insurance", r.insurance);
-                o.put("insuranceFinanced", r.insuranceFinanced); o.put("principal", r.principal);
-                o.put("annualRate", r.annualRate); o.put("amount", r.amount); o.put("paymentType", normalizePaymentType(r.paymentType));
-                o.put("firstPaymentMillis", r.firstPaymentMillis); o.put("months", r.months); o.put("daysBefore", r.daysBefore);
-                o.put("reminderHour", r.reminderHour); o.put("reminderMinute", r.reminderMinute);
-                o.put("status", normalizeStatus(r.status)); o.put("deletedAt", r.deletedAt); o.put("soundEnabled", r.soundEnabled);
-                o.put("createdAt", r.createdAt); o.put("updatedAt", r.updatedAt); o.put("interestPaidBefore", r.interestPaidBefore);
-                o.put("history", r.historyJson == null ? "" : r.historyJson); o.put("ledger", r.ledgerJson == null ? "" : r.ledgerJson);
-                array.put(o);
+        synchronized (STORE_LOCK) {
+            JSONArray array = new JSONArray();
+            try {
+                for (PaymentReminder r : reminders) {
+                    JSONObject o = new JSONObject();
+                    o.put("id", r.id); o.put("type", normalizeType(r.type)); o.put("title", r.title);
+                    o.put("baseAmount", r.baseAmount); o.put("downPayment", r.downPayment); o.put("insurance", r.insurance);
+                    o.put("insuranceFinanced", r.insuranceFinanced); o.put("principal", r.principal);
+                    o.put("annualRate", r.annualRate); o.put("amount", r.amount); o.put("paymentType", normalizePaymentType(r.paymentType));
+                    o.put("firstPaymentMillis", r.firstPaymentMillis); o.put("months", r.months); o.put("daysBefore", r.daysBefore);
+                    o.put("reminderHour", r.reminderHour); o.put("reminderMinute", r.reminderMinute);
+                    o.put("status", normalizeStatus(r.status)); o.put("deletedAt", r.deletedAt); o.put("soundEnabled", r.soundEnabled);
+                    o.put("createdAt", r.createdAt); o.put("updatedAt", r.updatedAt); o.put("interestPaidBefore", r.interestPaidBefore);
+                    o.put("history", r.historyJson == null ? "" : r.historyJson); o.put("ledger", r.ledgerJson == null ? "" : r.ledgerJson);
+                    array.put(o);
+                }
+            } catch (Exception e) {
+                throw new IllegalStateException("Unable to serialize payment reminders", e);
             }
-        } catch (Exception ignored) {}
-        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit().putString(KEY_ITEMS, array.toString()).apply();
+            boolean ok=context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit().putString(KEY_ITEMS, array.toString()).commit();
+            if(!ok)throw new IllegalStateException("Unable to persist payment reminders");
+        }
     }
 
     public static String exportPaymentsJson(Context context) { return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).getString(KEY_ITEMS, "[]"); }
@@ -301,10 +309,15 @@ public final class ReminderScheduler {
     }
 
     public static void add(Context context, PaymentReminder r) {
-        List<PaymentReminder> items = loadAll(context); long now = System.currentTimeMillis();
-        r.status = STATUS_ACTIVE; r.deletedAt = 0; r.createdAt = r.createdAt > 0 ? r.createdAt : now; r.updatedAt = now;
-        if (r.historyJson == null || r.historyJson.trim().isEmpty()) appendHistory(r, r.createdAt, HISTORY_CREATED, "Создана запись", "Item created", "Создана запись «" + r.title + "».", "Created “" + r.title + "”.");
-        items.add(r); saveRaw(context, items); schedule(context, r);
+        synchronized (STORE_LOCK) {
+            List<PaymentReminder> items = loadAll(context); long now = System.currentTimeMillis();
+            boolean duplicate=true;
+            while(duplicate){duplicate=false;for(PaymentReminder x:items)if(x.id==r.id){r.id=Math.max(now,r.id+1);duplicate=true;break;}}
+            r.status = STATUS_ACTIVE; r.deletedAt = 0; r.createdAt = r.createdAt > 0 ? r.createdAt : now; r.updatedAt = now;
+            if (r.historyJson == null || r.historyJson.trim().isEmpty()) appendHistory(r, r.createdAt, HISTORY_CREATED, "Создана запись", "Item created", "Создана запись «" + r.title + "».", "Created “" + r.title + "”.");
+            items.add(r); saveRaw(context, items);
+        }
+        schedule(context, r);
     }
 
     public static void updateEdited(Context context, PaymentReminder edited) {
@@ -366,7 +379,7 @@ public final class ReminderScheduler {
     public static boolean isToday(PaymentReminder r,int index){Calendar a=Calendar.getInstance(),b=buildDueDate(r,index);return a.get(Calendar.YEAR)==b.get(Calendar.YEAR)&&a.get(Calendar.DAY_OF_YEAR)==b.get(Calendar.DAY_OF_YEAR);}
     public static String paymentStatus(PaymentReminder r,int index){if(isPaid(r,index))return "paid";if(isOverdue(r,index))return "overdue";if(isToday(r,index))return "today";return "upcoming";}
 
-    public static void markPaid(Context c,long id,int index,long paidAt,double paidAmount,double penalty){List<PaymentReminder> items=loadAll(c);for(PaymentReminder r:items)if(r.id==id&&index>=0&&index<r.months){List<InstallmentEntry> l=ledger(r);InstallmentEntry e=mutableEntry(l,index);PaymentParts p=paymentParts(r,index);e.paidAt=paidAt>0?paidAt:System.currentTimeMillis();e.paidAmount=paidAmount>0?paidAmount:p.amount;e.penalty=Math.max(0,penalty);e.snoozeUntil=0;writeLedger(r,l);r.updatedAt=System.currentTimeMillis();long delayDays=Math.max(0,(e.paidAt-p.dueDate)/(24L*60L*60L*1000L));String late=delayDays>0?"\nПросрочка: "+delayDays+" дн.":"";appendHistory(r,r.updatedAt,HISTORY_PAYMENT,"Платёж оплачен","Payment paid","Платёж от "+dateText(p.dueDate)+" оплачен "+dateText(e.paidAt)+". Сумма: "+round2(e.paidAmount)+" ₽"+late+(e.penalty>0?"\nШтраф / пеня: "+round2(e.penalty)+" ₽":""),"Payment due "+dateText(p.dueDate)+" paid "+dateText(e.paidAt)+". Amount: "+round2(e.paidAmount)+" ₽"+(delayDays>0?"\nLate by "+delayDays+" days.":"")+(e.penalty>0?"\nPenalty: "+round2(e.penalty)+" ₽":""));cancelInstallment(c,r,index);break;}saveRaw(c,items);}
+    public static void markPaid(Context c,long id,int index,long paidAt,double paidAmount,double penalty){List<PaymentReminder> items=loadAll(c);PaymentReminder target=null;for(PaymentReminder r:items)if(r.id==id&&index>=0&&index<r.months){List<InstallmentEntry> l=ledger(r);InstallmentEntry e=mutableEntry(l,index);PaymentParts p=paymentParts(r,index);e.paidAt=paidAt>0?paidAt:System.currentTimeMillis();e.paidAmount=paidAmount>0?paidAmount:p.amount;e.penalty=Math.max(0,penalty);e.snoozeUntil=0;writeLedger(r,l);r.updatedAt=System.currentTimeMillis();long delayDays=Math.max(0,(e.paidAt-p.dueDate)/(24L*60L*60L*1000L));String late=delayDays>0?"\nПросрочка: "+delayDays+" дн.":"";appendHistory(r,r.updatedAt,HISTORY_PAYMENT,"Платёж оплачен","Payment paid","Платёж от "+dateText(p.dueDate)+" оплачен "+dateText(e.paidAt)+". Сумма: "+round2(e.paidAmount)+" ₽"+late+(e.penalty>0?"\nШтраф / пеня: "+round2(e.penalty)+" ₽":""),"Payment due "+dateText(p.dueDate)+" paid "+dateText(e.paidAt)+". Amount: "+round2(e.paidAmount)+" ₽"+(delayDays>0?"\nLate by "+delayDays+" days.":"")+(e.penalty>0?"\nPenalty: "+round2(e.penalty)+" ₽":""));cancelInstallment(c,r,index);target=r;break;}saveRaw(c,items);if(target!=null)schedule(c,target);}
 
     public static void unmarkPaid(Context c,long id,int index){List<PaymentReminder> items=loadAll(c);for(PaymentReminder r:items)if(r.id==id&&index>=0&&index<r.months){List<InstallmentEntry> l=ledger(r);InstallmentEntry e=mutableEntry(l,index);e.paidAt=0;e.paidAmount=0;e.penalty=0;e.snoozeUntil=0;writeLedger(r,l);r.updatedAt=System.currentTimeMillis();appendHistory(r,r.updatedAt,HISTORY_PAYMENT,"Снята отметка об оплате","Payment marked unpaid","С платежа "+dateText(buildDueDate(r,index).getTimeInMillis())+" снята отметка «Оплачен».","The paid mark was removed from the payment due "+dateText(buildDueDate(r,index).getTimeInMillis())+".");saveRaw(c,items);schedule(c,r);return;}}
 
@@ -403,10 +416,30 @@ public final class ReminderScheduler {
     public static double depositFinalAmount(PaymentReminder r){return r==null?0:Math.max(0,r.principal+depositExpectedIncome(r));}
 
     // -------- Notifications --------
-    public static void rescheduleAll(Context c){for(PaymentReminder r:load(c))schedule(c,r);}
-    public static void schedule(Context c,PaymentReminder r){if(r==null||!STATUS_ACTIVE.equals(r.status)||TYPE_DEPOSIT.equals(normalizeType(r.type)))return;AlarmManager am=(AlarmManager)c.getSystemService(Context.ALARM_SERVICE);if(am==null)return;long now=System.currentTimeMillis();for(int i=0;i<r.months;i++){if(isPaid(r,i))continue;Calendar due=buildDueDate(r,i);Calendar pre=(Calendar)due.clone();pre.add(Calendar.DAY_OF_MONTH,-r.daysBefore);if(pre.getTimeInMillis()>now)scheduleAlarm(c,am,r,i,due,pre.getTimeInMillis(),"pre",false);if(due.getTimeInMillis()>now)scheduleAlarm(c,am,r,i,due,due.getTimeInMillis(),"due",false);InstallmentEntry e=entry(r,i);if(e.snoozeUntil>now)scheduleAlarm(c,am,r,i,due,e.snoozeUntil,"snooze",false);}}
+    public static void rescheduleAll(Context c){for(PaymentReminder r:load(c)){cancel(c,r);schedule(c,r);}}
+    public static void schedule(Context c,PaymentReminder r){scheduleWindow(c,r,0,true);}
+    /** Called after an alarm fires to keep a small rolling future window without recreating the just-fired alarm. */
+    public static void scheduleFollowing(Context c,PaymentReminder r,int afterIndex){scheduleWindow(c,r,Math.max(0,afterIndex+1),false);}
+    private static void scheduleWindow(Context c,PaymentReminder r,int startIndex,boolean allowImmediateToday){
+        if(r==null||!STATUS_ACTIVE.equals(r.status)||TYPE_DEPOSIT.equals(normalizeType(r.type)))return;
+        AlarmManager am=(AlarmManager)c.getSystemService(Context.ALARM_SERVICE);if(am==null)return;
+        long now=System.currentTimeMillis();int scheduledInstallments=0;
+        for(int i=Math.max(0,startIndex);i<r.months&&scheduledInstallments<SCHEDULE_WINDOW_INSTALLMENTS;i++){
+            if(isPaid(r,i))continue;
+            Calendar due=buildDueDate(r,i);Calendar end=(Calendar)due.clone();end.set(Calendar.HOUR_OF_DAY,23);end.set(Calendar.MINUTE,59);end.set(Calendar.SECOND,59);
+            if(end.getTimeInMillis()<now)continue;
+            Calendar pre=(Calendar)due.clone();pre.add(Calendar.DAY_OF_MONTH,-r.daysBefore);
+            if(pre.getTimeInMillis()>now)scheduleAlarm(c,am,r,i,due,pre.getTimeInMillis(),"pre",false);
+            long dueTrigger=due.getTimeInMillis();
+            if(dueTrigger>now)scheduleAlarm(c,am,r,i,due,dueTrigger,"due",false);
+            else if(allowImmediateToday&&isSameDay(due,Calendar.getInstance()))scheduleAlarm(c,am,r,i,due,now+1200L,"due",false);
+            InstallmentEntry e=entry(r,i);if(e.snoozeUntil>now)scheduleAlarm(c,am,r,i,due,e.snoozeUntil,"snooze",false);
+            scheduledInstallments++;
+        }
+    }
+    private static boolean isSameDay(Calendar a,Calendar b){return a.get(Calendar.YEAR)==b.get(Calendar.YEAR)&&a.get(Calendar.DAY_OF_YEAR)==b.get(Calendar.DAY_OF_YEAR);}
     public static void snoozePayment(Context c,long id,int index,long when){List<PaymentReminder> items=loadAll(c);for(PaymentReminder r:items)if(r.id==id&&index>=0&&index<r.months){List<InstallmentEntry> l=ledger(r);mutableEntry(l,index).snoozeUntil=when;writeLedger(r,l);r.updatedAt=System.currentTimeMillis();saveRaw(c,items);AlarmManager am=(AlarmManager)c.getSystemService(Context.ALARM_SERVICE);if(am!=null)scheduleAlarm(c,am,r,index,buildDueDate(r,index),when,"snooze",false);return;}}
-    private static void scheduleAlarm(Context c,AlarmManager am,PaymentReminder r,int index,Calendar due,long trigger,String kind,boolean noCreate){PendingIntent pi=buildPendingIntent(c,r,index,due,kind,noCreate);if(pi==null)return;if(Build.VERSION.SDK_INT>=Build.VERSION_CODES.M)am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP,trigger,pi);else am.set(AlarmManager.RTC_WAKEUP,trigger,pi);}
+    private static void scheduleAlarm(Context c,AlarmManager am,PaymentReminder r,int index,Calendar due,long trigger,String kind,boolean noCreate){PendingIntent pi=buildPendingIntent(c,r,index,due,kind,noCreate);if(pi==null)return;try{if(Build.VERSION.SDK_INT>=Build.VERSION_CODES.M)am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP,trigger,pi);else am.set(AlarmManager.RTC_WAKEUP,trigger,pi);}catch(SecurityException|RuntimeException ignored){}}
     private static void cancel(Context c,PaymentReminder r){if(r==null)return;for(int i=0;i<r.months;i++)cancelInstallment(c,r,i);}
     private static void cancelInstallment(Context c,PaymentReminder r,int index){AlarmManager am=(AlarmManager)c.getSystemService(Context.ALARM_SERVICE);if(am==null)return;for(String kind:new String[]{"pre","due","snooze"}){PendingIntent pi=buildPendingIntent(c,r,index,buildDueDate(r,index),kind,true);if(pi!=null){am.cancel(pi);pi.cancel();}}}
     private static PendingIntent buildPendingIntent(Context c,PaymentReminder r,int index,Calendar due,String kind,boolean noCreate){Intent i=new Intent(c,ReminderReceiver.class);i.setAction("com.example.creditcalculator.PAYMENT_"+r.id+"_"+index+"_"+kind);i.putExtra("reminder_id",r.id);i.putExtra("payment_index",index);i.putExtra("title",r.title);i.putExtra("type",normalizeType(r.type));i.putExtra("amount",paymentAmount(r,index));i.putExtra("due_date",due.getTimeInMillis());i.putExtra("days_before",r.daysBefore);i.putExtra("reminder_kind",kind);i.putExtra("item_sound_enabled",r.soundEnabled);int flags=PendingIntent.FLAG_IMMUTABLE|(noCreate?PendingIntent.FLAG_NO_CREATE:PendingIntent.FLAG_UPDATE_CURRENT);return PendingIntent.getBroadcast(c,requestCode(r.id,index,kind),i,flags);}
