@@ -13,6 +13,9 @@ import java.util.Locale;
 public final class AppPreferences {
 
     public static final String PREFS_NAME = "app_preferences";
+    public static final String SECURITY_PIN = "pin";
+    public static final String SECURITY_PASSWORD = "password";
+    public static final String SECURITY_DEVICE = "device";
     private static final String KEY_LANGUAGE = "language";
     private static final String KEY_LANGUAGE_CHOSEN = "language_chosen";
     private static final String KEY_SOUND_ENABLED = "sound_enabled";
@@ -80,14 +83,19 @@ public final class AppPreferences {
 
     public static boolean isSecurityEnabled(Context context) { return prefs(context).getBoolean(KEY_SECURITY_ENABLED, false); }
     public static void setSecurityEnabled(Context context, boolean enabled) { prefs(context).edit().putBoolean(KEY_SECURITY_ENABLED, enabled).apply(); }
-    public static String getSecurityKind(Context context) { return prefs(context).getString(KEY_SECURITY_KIND, "pin"); }
+    public static String getSecurityKind(Context context) {
+        String kind=prefs(context).getString(KEY_SECURITY_KIND, SECURITY_PIN);
+        if(SECURITY_PASSWORD.equals(kind)||SECURITY_DEVICE.equals(kind))return kind;
+        return SECURITY_PIN;
+    }
+    public static boolean isDeviceCredentialSecurity(Context context){return SECURITY_DEVICE.equals(getSecurityKind(context));}
     public static boolean isBiometricEnabled(Context context) { return prefs(context).getBoolean(KEY_BIOMETRIC, false); }
     public static void setBiometricEnabled(Context context, boolean enabled) { prefs(context).edit().putBoolean(KEY_BIOMETRIC, enabled).apply(); }
     public static int getLockTimeoutMinutes(Context context) { return prefs(context).getInt(KEY_LOCK_TIMEOUT, 0); }
     public static void setLockTimeoutMinutes(Context context, int minutes) { prefs(context).edit().putInt(KEY_LOCK_TIMEOUT, Math.max(0, minutes)).apply(); }
 
     public static void setAppSecret(Context context, String kind, String secret) {
-        String normalizedKind = "password".equals(kind) ? "password" : "pin";
+        String normalizedKind = SECURITY_PASSWORD.equals(kind) ? SECURITY_PASSWORD : SECURITY_PIN;
         prefs(context).edit()
                 .putString(KEY_SECURITY_KIND, normalizedKind)
                 .putString(KEY_SECURITY_HASH, hash(secret == null ? "" : secret))
@@ -95,13 +103,26 @@ public final class AppPreferences {
                 .apply();
     }
 
+    public static void setDeviceCredentialSecurity(Context context){
+        prefs(context).edit()
+                .putString(KEY_SECURITY_KIND,SECURITY_DEVICE)
+                .remove(KEY_SECURITY_HASH)
+                .putBoolean(KEY_SECURITY_ENABLED,true)
+                .apply();
+    }
+
     public static boolean verifyAppSecret(Context context, String secret) {
+        if(isDeviceCredentialSecurity(context))return false;
         String saved = prefs(context).getString(KEY_SECURITY_HASH, "");
         return !saved.isEmpty() && saved.equals(hash(secret == null ? "" : secret));
     }
 
     public static boolean hasAppSecret(Context context) {
         return !prefs(context).getString(KEY_SECURITY_HASH, "").isEmpty();
+    }
+
+    public static boolean hasConfiguredSecurity(Context context){
+        return isSecurityEnabled(context) && (isDeviceCredentialSecurity(context) || hasAppSecret(context));
     }
 
     public static void clearSecurity(Context context) {
