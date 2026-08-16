@@ -11,6 +11,8 @@
     <color name="card_background">#FFFFFF</color>
     <color name="border">#DCE3EE</color>
     <color name="danger">#DC2626</color>
+    <color name="success">#16A34A</color>
+    <color name="warning">#D97706</color>
     <color name="result_card">#0F172A</color>
     <color name="result_secondary">#CBD5E1</color>
 </resources>
