@@ -23,6 +23,8 @@
         <activity android:name=".RefinanceActivity" android:exported="false" android:windowSoftInputMode="adjustResize" />
         <activity android:name=".InstructionActivity" android:exported="false" />
         <activity android:name=".AboutActivity" android:exported="false" />
+        <activity android:name=".FeedbackActivity" android:exported="false" android:windowSoftInputMode="adjustResize" />
+        <activity android:name=".FeedbackHistoryActivity" android:exported="false" />
         <activity android:name=".HistoryActivity" android:exported="false" />
 
         <activity android:name=".ProfileActivity" android:exported="false" android:windowSoftInputMode="adjustResize" />

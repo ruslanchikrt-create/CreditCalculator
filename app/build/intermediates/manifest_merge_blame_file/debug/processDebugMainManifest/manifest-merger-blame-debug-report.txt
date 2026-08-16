@@ -1,8 +1,8 @@
 1<?xml version="1.0" encoding="utf-8"?>
 2<manifest xmlns:android="http://schemas.android.com/apk/res/android"
 3    package="com.example.creditcalculator"
-4    android:versionCode="18"
-5    android:versionName="1.18" >
+4    android:versionCode="19"
+5    android:versionName="1.19" >
 6
 7    <uses-sdk
 8        android:minSdkVersion="23"
@@ -33,7 +33,7 @@
 20-->[androidx.core:core:1.13.0] /home/runner/.gradle/caches/8.9/transforms/b203f511e6f88234a93304f4ae9934a6/transformed/core-1.13.0/AndroidManifest.xml:26:22-94
 21
 22    <application
-22-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:8:5-53:19
+22-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:8:5-55:19
 23        android:name="com.example.creditcalculator.CreditApplication"
 23-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:9:9-42
 24        android:allowBackup="true"
@@ -123,191 +123,205 @@
 67            android:exported="false" />
 67-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:25:49-73
 68        <activity
-68-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:26:9-78
-69            android:name="com.example.creditcalculator.HistoryActivity"
-69-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:26:19-50
-70            android:exported="false" />
-70-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:26:51-75
-71        <activity
-71-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:28:9-121
-72            android:name="com.example.creditcalculator.ProfileActivity"
-72-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:28:19-50
-73            android:exported="false"
-73-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:28:51-75
-74            android:windowSoftInputMode="adjustResize" />
-74-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:28:76-118
+68-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:26:9-122
+69            android:name="com.example.creditcalculator.FeedbackActivity"
+69-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:26:19-51
+70            android:exported="false"
+70-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:26:52-76
+71            android:windowSoftInputMode="adjustResize" />
+71-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:26:77-119
+72        <activity
+72-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:27:9-86
+73            android:name="com.example.creditcalculator.FeedbackHistoryActivity"
+73-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:27:19-58
+74            android:exported="false" />
+74-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:27:59-83
 75        <activity
-75-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:29:9-129
-76            android:name="com.example.creditcalculator.PersonalCabinetActivity"
-76-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:29:19-58
-77            android:exported="false"
-77-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:29:59-83
-78            android:windowSoftInputMode="adjustResize" />
-78-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:29:84-126
-79        <activity
-79-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:30:9-119
-80            android:name="com.example.creditcalculator.TrashActivity"
-80-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:30:19-48
-81            android:exported="false"
-81-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:30:49-73
-82            android:windowSoftInputMode="adjustResize" />
-82-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:30:74-116
-83        <activity
-83-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:31:9-121
-84            android:name="com.example.creditcalculator.ArchiveActivity"
-84-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:31:19-50
-85            android:exported="false"
-85-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:31:51-75
-86            android:windowSoftInputMode="adjustResize" />
-86-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:31:76-118
-87        <activity
-87-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:32:9-128
-88            android:name="com.example.creditcalculator.PaymentDetailsActivity"
-88-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:32:19-57
-89            android:exported="false"
-89-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:32:58-82
-90            android:windowSoftInputMode="adjustResize" />
-90-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:32:83-125
-91        <activity
-91-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:33:9-38:20
-92            android:name="com.example.creditcalculator.PaymentsActivity"
-92-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:33:19-51
-93            android:exported="true"
-93-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:33:52-75
-94            android:windowSoftInputMode="adjustResize" >
-94-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:33:76-118
-95            <intent-filter>
-95-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:34:13-37:29
-96                <action android:name="android.intent.action.MAIN" />
-96-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:35:17-69
-96-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:35:25-66
-97
-98                <category android:name="android.intent.category.LAUNCHER" />
-98-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:36:17-77
-98-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:36:27-74
-99            </intent-filter>
-100        </activity>
-101        <activity
-101-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:39:9-122
-102            android:name="com.example.creditcalculator.SettingsActivity"
-102-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:39:19-51
-103            android:exported="false"
-103-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:39:52-76
-104            android:windowSoftInputMode="adjustResize" />
-104-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:39:77-119
-105        <activity
-105-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:40:9-125
-106            android:name="com.example.creditcalculator.AddReminderActivity"
-106-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:40:19-54
-107            android:exported="false"
-107-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:40:55-79
-108            android:windowSoftInputMode="adjustResize" />
-108-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:40:80-122
-109        <activity
-109-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:42:9-118
-110            android:name="com.example.creditcalculator.MainActivity"
-110-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:42:19-47
-111            android:exported="false"
-111-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:42:48-72
-112            android:windowSoftInputMode="adjustResize" />
-112-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:42:73-115
-113
-114        <receiver
-114-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:44:9-79
-115            android:name="com.example.creditcalculator.ReminderReceiver"
-115-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:44:19-51
-116            android:exported="false" />
-116-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:44:52-76
-117        <receiver
-117-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:45:9-84
-118            android:name="com.example.creditcalculator.PaymentActionReceiver"
-118-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:45:19-56
-119            android:exported="false" />
-119-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:45:57-81
-120        <receiver
-120-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:46:9-51:20
-121            android:name="com.example.creditcalculator.BootReceiver"
-121-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:46:19-47
-122            android:enabled="true"
-122-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:46:48-70
-123            android:exported="false" >
-123-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:46:71-95
-124            <intent-filter>
-124-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:47:13-50:29
-125                <action android:name="android.intent.action.BOOT_COMPLETED" />
-125-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:48:17-79
-125-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:48:25-76
-126                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
-126-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:49:17-84
-126-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:49:25-81
-127            </intent-filter>
-128        </receiver>
-129
-130        <provider
-130-->[androidx.emoji2:emoji2:1.3.0] /home/runner/.gradle/caches/8.9/transforms/4b2e9da422399d3b8d0c0b44a59c7b60/transformed/jetified-emoji2-1.3.0/AndroidManifest.xml:24:9-32:20
-131            android:name="androidx.startup.InitializationProvider"
-131-->[androidx.emoji2:emoji2:1.3.0] /home/runner/.gradle/caches/8.9/transforms/4b2e9da422399d3b8d0c0b44a59c7b60/transformed/jetified-emoji2-1.3.0/AndroidManifest.xml:25:13-67
-132            android:authorities="com.example.creditcalculator.androidx-startup"
-132-->[androidx.emoji2:emoji2:1.3.0] /home/runner/.gradle/caches/8.9/transforms/4b2e9da422399d3b8d0c0b44a59c7b60/transformed/jetified-emoji2-1.3.0/AndroidManifest.xml:26:13-68
-133            android:exported="false" >
-133-->[androidx.emoji2:emoji2:1.3.0] /home/runner/.gradle/caches/8.9/transforms/4b2e9da422399d3b8d0c0b44a59c7b60/transformed/jetified-emoji2-1.3.0/AndroidManifest.xml:27:13-37
-134            <meta-data
-134-->[androidx.emoji2:emoji2:1.3.0] /home/runner/.gradle/caches/8.9/transforms/4b2e9da422399d3b8d0c0b44a59c7b60/transformed/jetified-emoji2-1.3.0/AndroidManifest.xml:29:13-31:52
-135                android:name="androidx.emoji2.text.EmojiCompatInitializer"
-135-->[androidx.emoji2:emoji2:1.3.0] /home/runner/.gradle/caches/8.9/transforms/4b2e9da422399d3b8d0c0b44a59c7b60/transformed/jetified-emoji2-1.3.0/AndroidManifest.xml:30:17-75
-136                android:value="androidx.startup" />
-136-->[androidx.emoji2:emoji2:1.3.0] /home/runner/.gradle/caches/8.9/transforms/4b2e9da422399d3b8d0c0b44a59c7b60/transformed/jetified-emoji2-1.3.0/AndroidManifest.xml:31:17-49
-137            <meta-data
-137-->[androidx.lifecycle:lifecycle-process:2.6.2] /home/runner/.gradle/caches/8.9/transforms/5193079be698492964ca1d25f16a88eb/transformed/jetified-lifecycle-process-2.6.2/AndroidManifest.xml:29:13-31:52
-138                android:name="androidx.lifecycle.ProcessLifecycleInitializer"
-138-->[androidx.lifecycle:lifecycle-process:2.6.2] /home/runner/.gradle/caches/8.9/transforms/5193079be698492964ca1d25f16a88eb/transformed/jetified-lifecycle-process-2.6.2/AndroidManifest.xml:30:17-78
-139                android:value="androidx.startup" />
-139-->[androidx.lifecycle:lifecycle-process:2.6.2] /home/runner/.gradle/caches/8.9/transforms/5193079be698492964ca1d25f16a88eb/transformed/jetified-lifecycle-process-2.6.2/AndroidManifest.xml:31:17-49
-140            <meta-data
-140-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/runner/.gradle/caches/8.9/transforms/e28e33e85efdc50a2a6e89480e1ee163/transformed/jetified-profileinstaller-1.3.1/AndroidManifest.xml:29:13-31:52
-141                android:name="androidx.profileinstaller.ProfileInstallerInitializer"
-141-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/runner/.gradle/caches/8.9/transforms/e28e33e85efdc50a2a6e89480e1ee163/transformed/jetified-profileinstaller-1.3.1/AndroidManifest.xml:30:17-85
-142                android:value="androidx.startup" />
-142-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/runner/.gradle/caches/8.9/transforms/e28e33e85efdc50a2a6e89480e1ee163/transformed/jetified-profileinstaller-1.3.1/AndroidManifest.xml:31:17-49
-143        </provider>
-144
-145        <receiver
-145-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/runner/.gradle/caches/8.9/transforms/e28e33e85efdc50a2a6e89480e1ee163/transformed/jetified-profileinstaller-1.3.1/AndroidManifest.xml:34:9-52:20
-146            android:name="androidx.profileinstaller.ProfileInstallReceiver"
-146-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/runner/.gradle/caches/8.9/transforms/e28e33e85efdc50a2a6e89480e1ee163/transformed/jetified-profileinstaller-1.3.1/AndroidManifest.xml:35:13-76
-147            android:directBootAware="false"
-147-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/runner/.gradle/caches/8.9/transforms/e28e33e85efdc50a2a6e89480e1ee163/transformed/jetified-profileinstaller-1.3.1/AndroidManifest.xml:36:13-44
-148            android:enabled="true"
-148-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/runner/.gradle/caches/8.9/transforms/e28e33e85efdc50a2a6e89480e1ee163/transformed/jetified-profileinstaller-1.3.1/AndroidManifest.xml:37:13-35
-149            android:exported="true"
-149-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/runner/.gradle/caches/8.9/transforms/e28e33e85efdc50a2a6e89480e1ee163/transformed/jetified-profileinstaller-1.3.1/AndroidManifest.xml:38:13-36
-150            android:permission="android.permission.DUMP" >
-150-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/runner/.gradle/caches/8.9/transforms/e28e33e85efdc50a2a6e89480e1ee163/transformed/jetified-profileinstaller-1.3.1/AndroidManifest.xml:39:13-57
-151            <intent-filter>
-151-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/runner/.gradle/caches/8.9/transforms/e28e33e85efdc50a2a6e89480e1ee163/transformed/jetified-profileinstaller-1.3.1/AndroidManifest.xml:40:13-42:29
-152                <action android:name="androidx.profileinstaller.action.INSTALL_PROFILE" />
-152-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/runner/.gradle/caches/8.9/transforms/e28e33e85efdc50a2a6e89480e1ee163/transformed/jetified-profileinstaller-1.3.1/AndroidManifest.xml:41:17-91
-152-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/runner/.gradle/caches/8.9/transforms/e28e33e85efdc50a2a6e89480e1ee163/transformed/jetified-profileinstaller-1.3.1/AndroidManifest.xml:41:25-88
-153            </intent-filter>
-154            <intent-filter>
-154-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/runner/.gradle/caches/8.9/transforms/e28e33e85efdc50a2a6e89480e1ee163/transformed/jetified-profileinstaller-1.3.1/AndroidManifest.xml:43:13-45:29
-155                <action android:name="androidx.profileinstaller.action.SKIP_FILE" />
-155-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/runner/.gradle/caches/8.9/transforms/e28e33e85efdc50a2a6e89480e1ee163/transformed/jetified-profileinstaller-1.3.1/AndroidManifest.xml:44:17-85
-155-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/runner/.gradle/caches/8.9/transforms/e28e33e85efdc50a2a6e89480e1ee163/transformed/jetified-profileinstaller-1.3.1/AndroidManifest.xml:44:25-82
-156            </intent-filter>
-157            <intent-filter>
-157-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/runner/.gradle/caches/8.9/transforms/e28e33e85efdc50a2a6e89480e1ee163/transformed/jetified-profileinstaller-1.3.1/AndroidManifest.xml:46:13-48:29
-158                <action android:name="androidx.profileinstaller.action.SAVE_PROFILE" />
-158-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/runner/.gradle/caches/8.9/transforms/e28e33e85efdc50a2a6e89480e1ee163/transformed/jetified-profileinstaller-1.3.1/AndroidManifest.xml:47:17-88
-158-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/runner/.gradle/caches/8.9/transforms/e28e33e85efdc50a2a6e89480e1ee163/transformed/jetified-profileinstaller-1.3.1/AndroidManifest.xml:47:25-85
-159            </intent-filter>
-160            <intent-filter>
-160-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/runner/.gradle/caches/8.9/transforms/e28e33e85efdc50a2a6e89480e1ee163/transformed/jetified-profileinstaller-1.3.1/AndroidManifest.xml:49:13-51:29
-161                <action android:name="androidx.profileinstaller.action.BENCHMARK_OPERATION" />
-161-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/runner/.gradle/caches/8.9/transforms/e28e33e85efdc50a2a6e89480e1ee163/transformed/jetified-profileinstaller-1.3.1/AndroidManifest.xml:50:17-95
-161-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/runner/.gradle/caches/8.9/transforms/e28e33e85efdc50a2a6e89480e1ee163/transformed/jetified-profileinstaller-1.3.1/AndroidManifest.xml:50:25-92
-162            </intent-filter>
-163        </receiver>
-164    </application>
-165
-166</manifest>
+75-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:28:9-78
+76            android:name="com.example.creditcalculator.HistoryActivity"
+76-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:28:19-50
+77            android:exported="false" />
+77-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:28:51-75
+78        <activity
+78-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:30:9-121
+79            android:name="com.example.creditcalculator.ProfileActivity"
+79-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:30:19-50
+80            android:exported="false"
+80-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:30:51-75
+81            android:windowSoftInputMode="adjustResize" />
+81-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:30:76-118
+82        <activity
+82-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:31:9-129
+83            android:name="com.example.creditcalculator.PersonalCabinetActivity"
+83-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:31:19-58
+84            android:exported="false"
+84-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:31:59-83
+85            android:windowSoftInputMode="adjustResize" />
+85-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:31:84-126
+86        <activity
+86-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:32:9-119
+87            android:name="com.example.creditcalculator.TrashActivity"
+87-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:32:19-48
+88            android:exported="false"
+88-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:32:49-73
+89            android:windowSoftInputMode="adjustResize" />
+89-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:32:74-116
+90        <activity
+90-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:33:9-121
+91            android:name="com.example.creditcalculator.ArchiveActivity"
+91-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:33:19-50
+92            android:exported="false"
+92-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:33:51-75
+93            android:windowSoftInputMode="adjustResize" />
+93-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:33:76-118
+94        <activity
+94-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:34:9-128
+95            android:name="com.example.creditcalculator.PaymentDetailsActivity"
+95-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:34:19-57
+96            android:exported="false"
+96-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:34:58-82
+97            android:windowSoftInputMode="adjustResize" />
+97-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:34:83-125
+98        <activity
+98-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:35:9-40:20
+99            android:name="com.example.creditcalculator.PaymentsActivity"
+99-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:35:19-51
+100            android:exported="true"
+100-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:35:52-75
+101            android:windowSoftInputMode="adjustResize" >
+101-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:35:76-118
+102            <intent-filter>
+102-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:36:13-39:29
+103                <action android:name="android.intent.action.MAIN" />
+103-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:37:17-69
+103-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:37:25-66
+104
+105                <category android:name="android.intent.category.LAUNCHER" />
+105-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:38:17-77
+105-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:38:27-74
+106            </intent-filter>
+107        </activity>
+108        <activity
+108-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:41:9-122
+109            android:name="com.example.creditcalculator.SettingsActivity"
+109-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:41:19-51
+110            android:exported="false"
+110-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:41:52-76
+111            android:windowSoftInputMode="adjustResize" />
+111-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:41:77-119
+112        <activity
+112-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:42:9-125
+113            android:name="com.example.creditcalculator.AddReminderActivity"
+113-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:42:19-54
+114            android:exported="false"
+114-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:42:55-79
+115            android:windowSoftInputMode="adjustResize" />
+115-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:42:80-122
+116        <activity
+116-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:44:9-118
+117            android:name="com.example.creditcalculator.MainActivity"
+117-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:44:19-47
+118            android:exported="false"
+118-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:44:48-72
+119            android:windowSoftInputMode="adjustResize" />
+119-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:44:73-115
+120
+121        <receiver
+121-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:46:9-79
+122            android:name="com.example.creditcalculator.ReminderReceiver"
+122-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:46:19-51
+123            android:exported="false" />
+123-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:46:52-76
+124        <receiver
+124-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:47:9-84
+125            android:name="com.example.creditcalculator.PaymentActionReceiver"
+125-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:47:19-56
+126            android:exported="false" />
+126-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:47:57-81
+127        <receiver
+127-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:48:9-53:20
+128            android:name="com.example.creditcalculator.BootReceiver"
+128-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:48:19-47
+129            android:enabled="true"
+129-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:48:48-70
+130            android:exported="false" >
+130-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:48:71-95
+131            <intent-filter>
+131-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:49:13-52:29
+132                <action android:name="android.intent.action.BOOT_COMPLETED" />
+132-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:50:17-79
+132-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:50:25-76
+133                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+133-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:51:17-84
+133-->/home/runner/work/CreditCalculator/CreditCalculator/app/src/main/AndroidManifest.xml:51:25-81
+134            </intent-filter>
+135        </receiver>
+136
+137        <provider
+137-->[androidx.emoji2:emoji2:1.3.0] /home/runner/.gradle/caches/8.9/transforms/4b2e9da422399d3b8d0c0b44a59c7b60/transformed/jetified-emoji2-1.3.0/AndroidManifest.xml:24:9-32:20
+138            android:name="androidx.startup.InitializationProvider"
+138-->[androidx.emoji2:emoji2:1.3.0] /home/runner/.gradle/caches/8.9/transforms/4b2e9da422399d3b8d0c0b44a59c7b60/transformed/jetified-emoji2-1.3.0/AndroidManifest.xml:25:13-67
+139            android:authorities="com.example.creditcalculator.androidx-startup"
+139-->[androidx.emoji2:emoji2:1.3.0] /home/runner/.gradle/caches/8.9/transforms/4b2e9da422399d3b8d0c0b44a59c7b60/transformed/jetified-emoji2-1.3.0/AndroidManifest.xml:26:13-68
+140            android:exported="false" >
+140-->[androidx.emoji2:emoji2:1.3.0] /home/runner/.gradle/caches/8.9/transforms/4b2e9da422399d3b8d0c0b44a59c7b60/transformed/jetified-emoji2-1.3.0/AndroidManifest.xml:27:13-37
+141            <meta-data
+141-->[androidx.emoji2:emoji2:1.3.0] /home/runner/.gradle/caches/8.9/transforms/4b2e9da422399d3b8d0c0b44a59c7b60/transformed/jetified-emoji2-1.3.0/AndroidManifest.xml:29:13-31:52
+142                android:name="androidx.emoji2.text.EmojiCompatInitializer"
+142-->[androidx.emoji2:emoji2:1.3.0] /home/runner/.gradle/caches/8.9/transforms/4b2e9da422399d3b8d0c0b44a59c7b60/transformed/jetified-emoji2-1.3.0/AndroidManifest.xml:30:17-75
+143                android:value="androidx.startup" />
+143-->[androidx.emoji2:emoji2:1.3.0] /home/runner/.gradle/caches/8.9/transforms/4b2e9da422399d3b8d0c0b44a59c7b60/transformed/jetified-emoji2-1.3.0/AndroidManifest.xml:31:17-49
+144            <meta-data
+144-->[androidx.lifecycle:lifecycle-process:2.6.2] /home/runner/.gradle/caches/8.9/transforms/5193079be698492964ca1d25f16a88eb/transformed/jetified-lifecycle-process-2.6.2/AndroidManifest.xml:29:13-31:52
+145                android:name="androidx.lifecycle.ProcessLifecycleInitializer"
+145-->[androidx.lifecycle:lifecycle-process:2.6.2] /home/runner/.gradle/caches/8.9/transforms/5193079be698492964ca1d25f16a88eb/transformed/jetified-lifecycle-process-2.6.2/AndroidManifest.xml:30:17-78
+146                android:value="androidx.startup" />
+146-->[androidx.lifecycle:lifecycle-process:2.6.2] /home/runner/.gradle/caches/8.9/transforms/5193079be698492964ca1d25f16a88eb/transformed/jetified-lifecycle-process-2.6.2/AndroidManifest.xml:31:17-49
+147            <meta-data
+147-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/runner/.gradle/caches/8.9/transforms/e28e33e85efdc50a2a6e89480e1ee163/transformed/jetified-profileinstaller-1.3.1/AndroidManifest.xml:29:13-31:52
+148                android:name="androidx.profileinstaller.ProfileInstallerInitializer"
+148-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/runner/.gradle/caches/8.9/transforms/e28e33e85efdc50a2a6e89480e1ee163/transformed/jetified-profileinstaller-1.3.1/AndroidManifest.xml:30:17-85
+149                android:value="androidx.startup" />
+149-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/runner/.gradle/caches/8.9/transforms/e28e33e85efdc50a2a6e89480e1ee163/transformed/jetified-profileinstaller-1.3.1/AndroidManifest.xml:31:17-49
+150        </provider>
+151
+152        <receiver
+152-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/runner/.gradle/caches/8.9/transforms/e28e33e85efdc50a2a6e89480e1ee163/transformed/jetified-profileinstaller-1.3.1/AndroidManifest.xml:34:9-52:20
+153            android:name="androidx.profileinstaller.ProfileInstallReceiver"
+153-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/runner/.gradle/caches/8.9/transforms/e28e33e85efdc50a2a6e89480e1ee163/transformed/jetified-profileinstaller-1.3.1/AndroidManifest.xml:35:13-76
+154            android:directBootAware="false"
+154-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/runner/.gradle/caches/8.9/transforms/e28e33e85efdc50a2a6e89480e1ee163/transformed/jetified-profileinstaller-1.3.1/AndroidManifest.xml:36:13-44
+155            android:enabled="true"
+155-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/runner/.gradle/caches/8.9/transforms/e28e33e85efdc50a2a6e89480e1ee163/transformed/jetified-profileinstaller-1.3.1/AndroidManifest.xml:37:13-35
+156            android:exported="true"
+156-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/runner/.gradle/caches/8.9/transforms/e28e33e85efdc50a2a6e89480e1ee163/transformed/jetified-profileinstaller-1.3.1/AndroidManifest.xml:38:13-36
+157            android:permission="android.permission.DUMP" >
+157-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/runner/.gradle/caches/8.9/transforms/e28e33e85efdc50a2a6e89480e1ee163/transformed/jetified-profileinstaller-1.3.1/AndroidManifest.xml:39:13-57
+158            <intent-filter>
+158-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/runner/.gradle/caches/8.9/transforms/e28e33e85efdc50a2a6e89480e1ee163/transformed/jetified-profileinstaller-1.3.1/AndroidManifest.xml:40:13-42:29
+159                <action android:name="androidx.profileinstaller.action.INSTALL_PROFILE" />
+159-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/runner/.gradle/caches/8.9/transforms/e28e33e85efdc50a2a6e89480e1ee163/transformed/jetified-profileinstaller-1.3.1/AndroidManifest.xml:41:17-91
+159-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/runner/.gradle/caches/8.9/transforms/e28e33e85efdc50a2a6e89480e1ee163/transformed/jetified-profileinstaller-1.3.1/AndroidManifest.xml:41:25-88
+160            </intent-filter>
+161            <intent-filter>
+161-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/runner/.gradle/caches/8.9/transforms/e28e33e85efdc50a2a6e89480e1ee163/transformed/jetified-profileinstaller-1.3.1/AndroidManifest.xml:43:13-45:29
+162                <action android:name="androidx.profileinstaller.action.SKIP_FILE" />
+162-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/runner/.gradle/caches/8.9/transforms/e28e33e85efdc50a2a6e89480e1ee163/transformed/jetified-profileinstaller-1.3.1/AndroidManifest.xml:44:17-85
+162-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/runner/.gradle/caches/8.9/transforms/e28e33e85efdc50a2a6e89480e1ee163/transformed/jetified-profileinstaller-1.3.1/AndroidManifest.xml:44:25-82
+163            </intent-filter>
+164            <intent-filter>
+164-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/runner/.gradle/caches/8.9/transforms/e28e33e85efdc50a2a6e89480e1ee163/transformed/jetified-profileinstaller-1.3.1/AndroidManifest.xml:46:13-48:29
+165                <action android:name="androidx.profileinstaller.action.SAVE_PROFILE" />
+165-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/runner/.gradle/caches/8.9/transforms/e28e33e85efdc50a2a6e89480e1ee163/transformed/jetified-profileinstaller-1.3.1/AndroidManifest.xml:47:17-88
+165-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/runner/.gradle/caches/8.9/transforms/e28e33e85efdc50a2a6e89480e1ee163/transformed/jetified-profileinstaller-1.3.1/AndroidManifest.xml:47:25-85
+166            </intent-filter>
+167            <intent-filter>
+167-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/runner/.gradle/caches/8.9/transforms/e28e33e85efdc50a2a6e89480e1ee163/transformed/jetified-profileinstaller-1.3.1/AndroidManifest.xml:49:13-51:29
+168                <action android:name="androidx.profileinstaller.action.BENCHMARK_OPERATION" />
+168-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/runner/.gradle/caches/8.9/transforms/e28e33e85efdc50a2a6e89480e1ee163/transformed/jetified-profileinstaller-1.3.1/AndroidManifest.xml:50:17-95
+168-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/runner/.gradle/caches/8.9/transforms/e28e33e85efdc50a2a6e89480e1ee163/transformed/jetified-profileinstaller-1.3.1/AndroidManifest.xml:50:25-92
+169            </intent-filter>
+170        </receiver>
+171    </application>
+172
+173</manifest>

@@ -259,6 +259,18 @@ public final class Translations {
         add("Сообщить об ошибке", "Hata bildir", "Informar de un error");
         add("Предложить улучшение", "İyileştirme öner", "Sugerir una mejora");
         add("Адрес обратной связи будет добавлен позже.", "Geri bildirim adresi daha sonra eklenecek.", "La dirección de contacto se añadirá más adelante.");
+        add("Оценить приложение", "Uygulamayı değerlendir", "Valorar la aplicación");
+        add("Мои обращения", "Başvurularım", "Mis solicitudes");
+        add("Название обращения", "Başvuru başlığı", "Título de la solicitud");
+        add("Описание", "Açıklama", "Descripción");
+        add("Фото и видео", "Fotoğraf ve video", "Fotos y vídeos");
+        add("Прикрепить фото или видео", "Fotoğraf veya video ekle", "Adjuntar fotos o vídeos");
+        add("Отправить обращение", "Başvuruyu gönder", "Enviar solicitud");
+        add("Ошибка", "Hata", "Error");
+        add("Предложение", "Öneri", "Sugerencia");
+        add("Оценить", "Değerlendir", "Valorar");
+        add("Не сейчас", "Şimdi değil", "Ahora no");
+        add("Осталось платежей в этом месяце", "Bu ay kalan ödeme sayısı", "Pagos restantes este mes");
         add("Разработчик", "Geliştirici", "Desarrollador");
         add("Версия", "Sürüm", "Versión");
     }
