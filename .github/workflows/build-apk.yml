@@ -43,4 +43,18 @@ jobs:
           name: CreditCalculator-Release-Unsigned
           path: app/build/outputs/apk/release/app-release-unsigned.apk
 
+      - name: Package Android signing tools
+        run: |
+          mkdir -p signing-tools/lib
+          cp "$ANDROID_HOME/build-tools/35.0.0/apksigner" signing-tools/apksigner
+          cp "$ANDROID_HOME/build-tools/35.0.0/lib/apksigner.jar" signing-tools/lib/apksigner.jar
+          cp "$ANDROID_HOME/build-tools/35.0.0/zipalign" signing-tools/zipalign
+          chmod +x signing-tools/apksigner signing-tools/zipalign
+
+      - name: Upload Android signing tools
+        uses: actions/upload-artifact@v4
+        with:
+          name: Android-Signing-Tools-35
+          path: signing-tools
+
 # v1.26 permanent com.skryton.creditcalculator release preparation
