@@ -41,3 +41,5 @@ jobs:
         with:
           name: CreditCalculator-APK
           path: app/build/outputs/apk/debug/app-debug.apk
+
+# v1.15 audited same-day early repayment build
