@@ -1,1 +1,1 @@
-v1.9 final verification after URI fix
+v1.9 final verification after notification fix
