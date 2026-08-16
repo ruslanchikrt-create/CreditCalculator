@@ -11,6 +11,7 @@ import android.text.Editable;
 import android.text.TextWatcher;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.WindowManager;
 import android.widget.ArrayAdapter;
 import android.widget.EditText;
 import android.widget.ScrollView;
@@ -41,10 +42,6 @@ public final class UiUtils {
     public static void styleSpinner(Context context,Spinner spinner){if(spinner==null)return;GradientDrawable bg=new GradientDrawable();bg.setColor(ContextCompat.getColor(context,R.color.card_background));bg.setCornerRadius(dp(context,12));bg.setStroke(dp(context,1),ContextCompat.getColor(context,R.color.border));spinner.setBackground(bg);spinner.setPadding(dp(context,12),0,dp(context,12),0);}
     private static void styleSpinnerText(Context context,View view,boolean dropdown){if(!(view instanceof TextView))return;TextView t=(TextView)view;t.setTextColor(ContextCompat.getColor(context,R.color.text_main));t.setTextSize(16);t.setBackgroundColor(ContextCompat.getColor(context,R.color.card_background));t.setPadding(dp(context,12),dropdown?dp(context,10):0,dp(context,12),dropdown?dp(context,10):0);if(dropdown)t.setMinHeight(dp(context,48));}
 
-    /**
-     * Formats editable money values with spaces between thousands while keeping the decimal separator.
-     * The spaces are visual only; calculation code removes them before parsing.
-     */
     public static void attachMoneyFormatting(EditText editText){
         if(editText==null)return;
         editText.addTextChangedListener(new TextWatcher(){
@@ -56,10 +53,7 @@ public final class UiUtils {
                 String old=editable==null?"":editable.toString();
                 String formatted=formatEditableMoney(old);
                 if(old.equals(formatted))return;
-                changing=true;
-                editText.setText(formatted);
-                editText.setSelection(formatted.length());
-                changing=false;
+                changing=true;editText.setText(formatted);editText.setSelection(formatted.length());changing=false;
             }
         });
     }
@@ -68,49 +62,50 @@ public final class UiUtils {
         if(value==null)return "";
         String s=value.replace("\u00A0","").replace("\u202F","").replace(" ","").trim();
         if(s.isEmpty())return "";
-        int comma=s.lastIndexOf(','),dot=s.lastIndexOf('.'),sep=Math.max(comma,dot);
-        char sepChar=comma>=dot?',':'.';
-        String whole=sep>=0?s.substring(0,sep):s;
-        String frac=sep>=0?s.substring(sep+1):"";
-        whole=whole.replaceAll("[^0-9]","");
-        frac=frac.replaceAll("[^0-9]","");
-        if(whole.isEmpty())whole="0";
+        int comma=s.lastIndexOf(','),dot=s.lastIndexOf('.'),sep=Math.max(comma,dot);char sepChar=comma>=dot?',':'.';
+        String whole=sep>=0?s.substring(0,sep):s,frac=sep>=0?s.substring(sep+1):"";
+        whole=whole.replaceAll("[^0-9]","");frac=frac.replaceAll("[^0-9]","");if(whole.isEmpty())whole="0";
         int first=0;while(first<whole.length()-1&&whole.charAt(first)=='0')first++;whole=whole.substring(first);
-        StringBuilder grouped=new StringBuilder();
-        for(int i=0;i<whole.length();i++){
-            if(i>0&&(whole.length()-i)%3==0)grouped.append(' ');
-            grouped.append(whole.charAt(i));
-        }
-        if(sep>=0){grouped.append(sepChar);grouped.append(frac);}
-        return grouped.toString();
+        StringBuilder grouped=new StringBuilder();for(int i=0;i<whole.length();i++){if(i>0&&(whole.length()-i)%3==0)grouped.append(' ');grouped.append(whole.charAt(i));}
+        if(sep>=0){grouped.append(sepChar);grouped.append(frac);}return grouped.toString();
     }
 
-    /** Bind a field so it is automatically scrolled above the software keyboard when focused. */
+    /** Bind a field so Android never leaves the active value hidden behind the IME. */
     public static void keepFieldVisibleOnFocus(ScrollView scroll,View field){
         if(scroll==null||field==null)return;
         View.OnFocusChangeListener previous=field.getOnFocusChangeListener();
         field.setOnFocusChangeListener((v,hasFocus)->{
             if(previous!=null)previous.onFocusChange(v,hasFocus);
-            if(hasFocus)v.postDelayed(()->scrollFieldIntoView(scroll,v),220);
+            if(hasFocus)recheckField(scroll,v);
         });
+        field.addOnLayoutChangeListener((v,l,t,r,b,ol,ot,or,ob)->{if(v.hasFocus())recheckField(scroll,v);});
+    }
+
+    private static void recheckField(ScrollView scroll,View field){
+        long[] delays={40,140,300,520,800};
+        for(long delay:delays)field.postDelayed(()->scrollFieldIntoView(scroll,field),delay);
     }
 
     /** Re-check the currently focused field after IME insets/layout have changed. */
     public static void ensureFocusedFieldVisible(ScrollView scroll){
         if(scroll==null)return;
         View focused=scroll.findFocus();
-        if(focused!=null)scroll.post(()->scrollFieldIntoView(scroll,focused));
+        if(focused!=null)recheckField(scroll,focused);
     }
 
     private static void scrollFieldIntoView(ScrollView scroll,View field){
-        if(scroll==null||field==null||!field.isShown())return;
+        if(scroll==null||field==null||!field.isShown()||!field.hasFocus())return;
         try{
-            Rect rect=new Rect();
-            field.getDrawingRect(rect);
-            scroll.offsetDescendantRectToMyCoords(field,rect);
-            int margin=dp(scroll.getContext(),96);
-            int target=Math.max(0,rect.bottom-scroll.getHeight()+margin);
-            if(target>scroll.getScrollY())scroll.smoothScrollTo(0,target);
+            Rect rect=new Rect();field.getDrawingRect(rect);scroll.offsetDescendantRectToMyCoords(field,rect);
+            int margin=dp(scroll.getContext(),120);
+            int viewportTop=scroll.getScrollY()+dp(scroll.getContext(),12);
+            int viewportBottom=scroll.getScrollY()+scroll.getHeight()-margin;
+            int target=scroll.getScrollY();
+            if(rect.bottom>viewportBottom)target+=rect.bottom-viewportBottom;
+            else if(rect.top<viewportTop)target-=viewportTop-rect.top;
+            target=Math.max(0,target);
+            if(Math.abs(target-scroll.getScrollY())>2)scroll.smoothScrollTo(0,target);
+            Rect request=new Rect(0,0,field.getWidth(),field.getHeight()+margin);field.requestRectangleOnScreen(request,true);
         }catch(Exception ignored){}
     }
 
