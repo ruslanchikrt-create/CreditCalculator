@@ -1,6 +1,7 @@
 package com.example.creditcalculator;
 
 import android.content.Context;
+import android.content.Intent;
 import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.os.Bundle;
@@ -69,6 +70,7 @@ public class PersonalCabinetActivity extends AppCompatActivity {
         LinearLayout content=new LinearLayout(this);content.setOrientation(LinearLayout.VERTICAL);content.setPadding(dp(20),dp(22),dp(20),dp(34));scroll.addView(content,new ScrollView.LayoutParams(-1,-2));
 
         content.addView(healthCard());
+                  MaterialButton statsButton=new MaterialButton(this);statsButton.setText(AppPreferences.tr(this,"Финансовая статистика","Financial statistics"));statsButton.setAllCaps(false);statsButton.setTextSize(15);statsButton.setTextColor(ContextCompat.getColor(this,R.color.primary));statsButton.setBackgroundTintList(ColorStateList.valueOf(ContextCompat.getColor(this,R.color.card_background)));statsButton.setStrokeColor(ColorStateList.valueOf(ContextCompat.getColor(this,R.color.primary)));statsButton.setStrokeWidth(dp(1));statsButton.setCornerRadius(dp(14));statsButton.setOnClickListener(v->startActivity(new Intent(this,FinancialStatsActivity.class)));LinearLayout.LayoutParams stp=new LinearLayout.LayoutParams(-1,dp(54));stp.setMargins(0,dp(14),0,0);content.addView(statsButton,stp);
 
         TextView dataTitle=text(AppPreferences.tr(this,"Ваши данные","Your data"),22,R.color.text_main,true);LinearLayout.LayoutParams dtp=new LinearLayout.LayoutParams(-1,-2);dtp.setMargins(0,dp(22),0,dp(10));content.addView(dataTitle,dtp);
         fullNameInput=field(content,AppPreferences.tr(this,"ФИО","Full name"),AppPreferences.tr(this,"Фамилия, имя и отчество владельца профиля. Эти данные сохраняются только внутри приложения и не отправляются в БКИ или банк.","Profile owner's full name. This value is stored only in the app and is not sent to a credit bureau or bank."),"",InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_FLAG_CAP_WORDS);

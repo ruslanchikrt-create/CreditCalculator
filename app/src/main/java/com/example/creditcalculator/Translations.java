@@ -271,6 +271,19 @@ public final class Translations {
         add("Оценить", "Değerlendir", "Valorar");
         add("Не сейчас", "Şimdi değil", "Ahora no");
         add("Осталось платежей в этом месяце", "Bu ay kalan ödeme sayısı", "Pagos restantes este mes");
+        add("Финансовая статистика", "Finansal istatistikler", "Estadísticas financieras");
+        add("Досрочно погашено по активным кредитам", "Aktif kredilerde erken ödenen", "Amortizado anticipadamente en créditos activos");
+        add("Кредиты — за всё время", "Krediler — tüm dönem", "Créditos — histórico");
+        add("Активные кредиты — что впереди", "Aktif krediler — gelecek", "Créditos activos — futuro");
+        add("Архив кредитов", "Kredi arşivi", "Archivo de créditos");
+        add("Вклады", "Mevduatlar", "Depósitos");
+        add("Всего внесено по кредитам", "Kredilere toplam ödeme", "Total pagado a créditos");
+        add("Досрочно погашено", "Erken ödenen", "Amortización anticipada");
+        add("Уже выплачено процентов", "Ödenmiş faiz", "Intereses ya pagados");
+        add("Будущие проценты", "Gelecek faiz", "Intereses futuros");
+        add("Сэкономлено за всё время", "Toplam tasarruf", "Ahorro histórico");
+        add("Ожидаемый доход по активным вкладам", "Aktif mevduat beklenen getirisi", "Ingreso esperado de depósitos activos");
+        add("Доход завершённых вкладов", "Tamamlanan mevduat getirisi", "Ingreso de depósitos finalizados");
         add("Разработчик", "Geliştirici", "Desarrollador");
         add("Версия", "Sürüm", "Versión");
     }

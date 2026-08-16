@@ -23,6 +23,7 @@ import androidx.drawerlayout.widget.DrawerLayout;
 final class NavigationPanel {
     static final String PAGE_PAYMENTS="payments";
     static final String PAGE_CALCULATORS="calculators";
+    static final String PAGE_STATS="stats";
 
     private NavigationPanel(){}
 
@@ -30,11 +31,12 @@ final class NavigationPanel {
 
     static LinearLayout build(Activity a,DrawerLayout drawer,String selected){
         LinearLayout panel=new LinearLayout(a);panel.setOrientation(LinearLayout.VERTICAL);panel.setBackgroundColor(ContextCompat.getColor(a,R.color.card_background));
-        panel.addView(header(a,drawer),new LinearLayout.LayoutParams(-1,dp(a,116)));
+        panel.addView(header(a,drawer),new LinearLayout.LayoutParams(-1,dp(a,104)));
         add(panel,item(a,drawer,android.R.drawable.ic_menu_today,AppPreferences.tr(a,"Мои платежи","My payments"),PAGE_PAYMENTS.equals(selected),PaymentsActivity.class,false));
         add(panel,item(a,drawer,android.R.drawable.ic_menu_manage,AppPreferences.tr(a,"Калькуляторы","Calculators"),PAGE_CALCULATORS.equals(selected),MainActivity.class,true));
         add(panel,item(a,drawer,android.R.drawable.ic_menu_send,AppPreferences.tr(a,"Досрочный платёж","Early payment"),false,EarlyPaymentAdvisorActivity.class,false));
         add(panel,item(a,drawer,android.R.drawable.ic_menu_myplaces,AppPreferences.tr(a,"Личный кабинет","Personal cabinet"),false,PersonalCabinetActivity.class,false));
+        add(panel,item(a,drawer,android.R.drawable.ic_menu_sort_by_size,AppPreferences.tr(a,"Финансовая статистика","Financial statistics"),PAGE_STATS.equals(selected),FinancialStatsActivity.class,false));
         add(panel,item(a,drawer,android.R.drawable.ic_menu_agenda,AppPreferences.tr(a,"Архив","Archive"),false,ArchiveActivity.class,false));
         add(panel,item(a,drawer,android.R.drawable.ic_menu_delete,AppPreferences.tr(a,"Корзина","Trash"),false,TrashActivity.class,false));
         add(panel,item(a,drawer,android.R.drawable.ic_menu_preferences,AppPreferences.tr(a,"Настройки","Settings"),false,SettingsActivity.class,false));
@@ -60,6 +62,6 @@ final class NavigationPanel {
 
     private static TextView item(Activity a,DrawerLayout drawer,int icon,String label,boolean selected,Class<?> target,boolean calculators){TextView t=navText(a,icon,label,selected);t.setOnClickListener(v->{drawer.closeDrawer(GravityCompat.START);if((target==PaymentsActivity.class&&a instanceof PaymentsActivity)||(target==MainActivity.class&&a instanceof MainActivity))return;Intent i=new Intent(a,target);if(calculators)i.putExtra(MainActivity.EXTRA_SHOW_CALCULATORS,true);a.startActivity(i);});return t;}
     private static TextView navText(Activity a,int iconRes,String label,boolean selected){TextView t=new TextView(a);t.setText(label);t.setTextSize(16);t.setGravity(Gravity.CENTER_VERTICAL);t.setPadding(dp(a,14),0,dp(a,12),0);t.setCompoundDrawablePadding(dp(a,14));int color=ContextCompat.getColor(a,selected?R.color.primary:R.color.text_main);t.setTextColor(color);if(selected)t.setTypeface(null,android.graphics.Typeface.BOLD);Drawable d=AppCompatResources.getDrawable(a,iconRes);if(d!=null){d=DrawableCompat.wrap(d.mutate());DrawableCompat.setTint(d,color);d.setBounds(0,0,dp(a,22),dp(a,22));t.setCompoundDrawablesRelative(d,null,null,null);}if(selected){GradientDrawable bg=new GradientDrawable();bg.setColor(Color.argb(24,47,111,235));bg.setCornerRadius(dp(a,12));t.setBackground(bg);}return t;}
-    private static void add(LinearLayout panel,TextView v){LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-1,dp(v.getContext(),50));p.setMargins(dp(v.getContext(),10),dp(v.getContext(),2),dp(v.getContext(),10),dp(v.getContext(),2));panel.addView(v,p);}
+    private static void add(LinearLayout panel,TextView v){LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-1,dp(v.getContext(),46));p.setMargins(dp(v.getContext(),10),dp(v.getContext(),2),dp(v.getContext(),10),dp(v.getContext(),2));panel.addView(v,p);}
     private static int dp(Context c,int v){return Math.round(v*c.getResources().getDisplayMetrics().density);}
 }

@@ -29,6 +29,7 @@
 
         <activity android:name=".ProfileActivity" android:exported="false" android:windowSoftInputMode="adjustResize" />
         <activity android:name=".PersonalCabinetActivity" android:exported="false" android:windowSoftInputMode="adjustResize" />
+        <activity android:name=".FinancialStatsActivity" android:exported="false" android:windowSoftInputMode="adjustResize" />
         <activity android:name=".TrashActivity" android:exported="false" android:windowSoftInputMode="adjustResize" />
         <activity android:name=".ArchiveActivity" android:exported="false" android:windowSoftInputMode="adjustResize" />
         <activity android:name=".PaymentDetailsActivity" android:exported="false" android:windowSoftInputMode="adjustResize" />
