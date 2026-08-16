@@ -45,9 +45,9 @@ final class AdBannerManager {
     }
 
     private static boolean isEligible(Activity activity) {
-        return activity instanceof PaymentsActivity
-                || activity instanceof MainActivity
-                || activity instanceof FinancialStatsActivity;
+        // Monetization rule: banners may appear throughout the app,
+        // except on the Settings screen.
+        return !(activity instanceof SettingsActivity);
     }
 
     private static void attachNow(Activity activity) {
