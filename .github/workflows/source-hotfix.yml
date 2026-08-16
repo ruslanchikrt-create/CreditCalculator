@@ -1,0 +1,51 @@
+name: Apply source hotfixes
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Apply targeted source fixes
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          scheduler = Path('app/src/main/java/com/example/creditcalculator/ReminderScheduler.java')
+          text = scheduler.read_text(encoding='utf-8')
+          old = 'catch(SecurityException|RuntimeException ignored)'
+          new = 'catch(RuntimeException ignored)'
+          if old in text:
+              text = text.replace(old, new)
+              scheduler.write_text(text, encoding='utf-8')
+
+          receiver = Path('app/src/main/java/com/example/creditcalculator/ReminderReceiver.java')
+          text = receiver.read_text(encoding='utf-8')
+          old = 'NotificationManagerCompat.from(context).notify(notificationId, b.build());\n    }'
+          new = 'NotificationManagerCompat.from(context).notify(notificationId, b.build());\n        ReminderScheduler.scheduleFollowing(context, r, index);\n    }'
+          if old in text and 'ReminderScheduler.scheduleFollowing(context, r, index);' not in text:
+              text = text.replace(old, new)
+              receiver.write_text(text, encoding='utf-8')
+          PY
+
+      - name: Commit source fixes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet; then
+            echo "No source changes needed"
+            exit 0
+          fi
+          git add app/src/main/java/com/example/creditcalculator/ReminderScheduler.java app/src/main/java/com/example/creditcalculator/ReminderReceiver.java
+          git commit -m "Finish reminder scheduling hotfix"
+          git push
