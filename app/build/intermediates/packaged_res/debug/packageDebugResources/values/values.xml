@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:ns1="http://schemas.android.com/tools">
+    <color name="background">#F4F7FB</color>
+    <color name="background_bottom">#F8FAFC</color>
+    <color name="background_top">#EAF2FF</color>
+    <color name="border">#DCE3EE</color>
+    <color name="card_background">#FFFFFF</color>
+    <color name="danger">#DC2626</color>
+    <color name="primary">#2563EB</color>
+    <color name="primary_dark">#1D4ED8</color>
+    <color name="primary_soft">#DBEAFE</color>
+    <color name="result_card">#0F172A</color>
+    <color name="result_secondary">#CBD5E1</color>
+    <color name="success">#16A34A</color>
+    <color name="text_main">#111827</color>
+    <color name="text_secondary">#64748B</color>
+    <color name="warning">#D97706</color>
+    <color name="white">#FFFFFF</color>
+    <string name="app_name">Финансовый калькулятор</string>
+    <style name="Theme.CreditCalculator" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/primary</item>
+        <item name="colorPrimaryVariant">@color/primary_dark</item>
+        <item name="colorOnPrimary">@color/white</item>
+        <item name="android:fontFamily">sans</item>
+        <item name="android:statusBarColor">@color/background_top</item>
+        <item name="android:navigationBarColor">@color/background</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar" ns1:targetApi="27">true</item>
+        <item name="android:windowActionModeOverlay">true</item>
+    </style>
+</resources>

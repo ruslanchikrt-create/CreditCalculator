@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:ns1="http://schemas.android.com/tools">
+    <color name="background">#0B1220</color>
+    <color name="background_bottom">#111827</color>
+    <color name="background_top">#0F172A</color>
+    <color name="border">#334155</color>
+    <color name="card_background">#172033</color>
+    <color name="danger">#F87171</color>
+    <color name="primary">#2563EB</color>
+    <color name="primary_dark">#1D4ED8</color>
+    <color name="primary_soft">#172554</color>
+    <color name="result_card">#020617</color>
+    <color name="result_secondary">#CBD5E1</color>
+    <color name="success">#4ADE80</color>
+    <color name="text_main">#F8FAFC</color>
+    <color name="text_secondary">#94A3B8</color>
+    <color name="warning">#FBBF24</color>
+    <color name="white">#FFFFFF</color>
+    <style name="Theme.CreditCalculator" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/primary</item>
+        <item name="colorPrimaryVariant">@color/primary_dark</item>
+        <item name="colorOnPrimary">@color/white</item>
+        <item name="android:fontFamily">sans</item>
+        <item name="android:statusBarColor">@color/background_top</item>
+        <item name="android:navigationBarColor">@color/background</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar" ns1:targetApi="27">false</item>
+        <item name="android:windowActionModeOverlay">true</item>
+    </style>
+</resources>

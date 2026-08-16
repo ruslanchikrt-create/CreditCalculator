@@ -58,4 +58,18 @@ public class FinanceMathTest {
         near(24000,FinanceMath.simpleDepositInterest(100000,24,12),0.01);
         near(126973.464,FinanceMath.monthlyCompoundDepositFinal(100000,24,12),0.1);
     }
+    @Test public void reportedSameDayCaseHasPositiveSavings(){
+        double balance=325000,prepay=1000,rate=25,currentPayment=12921.943417908074;int months=36;
+        double oldInterest=FinanceMath.fixedPaymentInterest(balance,months,rate,currentPayment),newBalance=balance-prepay;
+        double reducedPayment=FinanceMath.annuityPayment(newBalance,months,rate);
+        double reducedPaymentInterest=FinanceMath.fixedPaymentInterest(newBalance,months,rate,reducedPayment);
+        int shorter=FinanceMath.monthsToPayoff(newBalance,rate,currentPayment,1200);
+        double reducedTermInterest=FinanceMath.fixedPaymentInterest(newBalance,shorter,rate,currentPayment);
+        near(12882.183592,reducedPayment,0.02);
+        assertTrue(reducedPayment<currentPayment);
+        assertEquals(36,shorter);
+        assertTrue(oldInterest-reducedPaymentInterest>0);
+        assertTrue(oldInterest-reducedTermInterest>0);
+        assertTrue(reducedTermInterest<reducedPaymentInterest);
+    }
 }
