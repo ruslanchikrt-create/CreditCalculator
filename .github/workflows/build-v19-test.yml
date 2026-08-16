@@ -29,6 +29,8 @@ jobs:
           gradle-version: "8.9"
       - name: Build debug APK
         run: gradle assembleDebug
+      - name: Run Android lint
+        run: gradle lintDebug
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
