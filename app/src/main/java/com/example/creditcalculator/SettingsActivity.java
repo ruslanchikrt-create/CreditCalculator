@@ -2,6 +2,7 @@ package com.example.creditcalculator;
 
 import android.content.Context;
 import android.content.Intent;
+import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.media.Ringtone;
 import android.media.RingtoneManager;
@@ -31,230 +32,43 @@ import com.google.android.material.card.MaterialCardView;
 import com.google.android.material.switchmaterial.SwitchMaterial;
 
 public class SettingsActivity extends AppCompatActivity {
-
-    private static final int REQUEST_SYSTEM_SOUND = 4101;
-    private static final int REQUEST_CUSTOM_SOUND = 4102;
-    private static final int REQUEST_BACKGROUND = 4103;
-    private static final int REQUEST_CREATE_BACKUP = 4104;
-    private static final int REQUEST_OPEN_BACKUP = 4105;
-
+    private static final int REQUEST_SYSTEM_SOUND=4101,REQUEST_CUSTOM_SOUND=4102,REQUEST_BACKGROUND=4103,REQUEST_CREATE_BACKUP=4104,REQUEST_OPEN_BACKUP=4105;
     private Spinner languageSpinner;
-    private SwitchMaterial soundSwitch;
-    private SwitchMaterial vibrationSwitch;
-    private SwitchMaterial darkModeSwitch;
-    private TextView selectedSoundText;
-    private TextView backgroundStatusText;
-    private MaterialButton systemSoundButton;
-    private MaterialButton customSoundButton;
+    private SwitchMaterial soundSwitch,vibrationSwitch,darkModeSwitch;
+    private TextView selectedSoundText,backgroundStatusText;
+    private MaterialButton systemSoundButton,customSoundButton;
     private boolean binding;
-    private String pendingBackupPassword = "";
+    private String pendingBackupPassword="";
 
-    @Override
-    protected void attachBaseContext(Context newBase) { super.attachBaseContext(AppPreferences.wrapLocale(newBase)); }
+    @Override protected void attachBaseContext(Context c){super.attachBaseContext(AppPreferences.wrapLocale(c));}
+    @Override public void onCreate(Bundle b){AppPreferences.applyNightMode(this);super.onCreate(b);WindowCompat.setDecorFitsSystemWindows(getWindow(),false);setContentView(build());bind();}
 
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        AppPreferences.applyNightMode(this);
-        super.onCreate(savedInstanceState);
-        WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
-        setContentView(buildContent());
-        bindValues();
-    }
+    private View build(){LinearLayout root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);UiUtils.applyBackground(this,root);LinearLayout bar=new LinearLayout(this);bar.setOrientation(LinearLayout.HORIZONTAL);bar.setGravity(Gravity.CENTER_VERTICAL);bar.setPadding(dp(4),0,dp(12),0);bar.setBackgroundColor(ContextCompat.getColor(this,R.color.primary));root.addView(bar,new LinearLayout.LayoutParams(-1,dp(56)));TextView back=top("‹",34);back.setOnClickListener(v->finish());bar.addView(back,new LinearLayout.LayoutParams(dp(56),dp(56)));TextView title=top(AppPreferences.tr(this,"Настройки","Settings"),20);title.setTypeface(null,android.graphics.Typeface.BOLD);title.setGravity(Gravity.CENTER_VERTICAL);bar.addView(title,new LinearLayout.LayoutParams(0,-1,1f));ScrollView scroll=new ScrollView(this);scroll.setFillViewport(true);scroll.setClipToPadding(false);root.addView(scroll,new LinearLayout.LayoutParams(-1,0,1f));LinearLayout content=new LinearLayout(this);content.setOrientation(LinearLayout.VERTICAL);content.setPadding(dp(20),dp(22),dp(20),dp(32));scroll.addView(content,new ScrollView.LayoutParams(-1,-2));content.addView(text(AppPreferences.tr(this,"Настройки","Settings"),28,R.color.text_main,true));
+        TextView lt=text(AppPreferences.tr(this,"Язык приложения","App language"),18,R.color.text_main,true);LinearLayout.LayoutParams ltp=new LinearLayout.LayoutParams(-1,-2);ltp.setMargins(0,dp(22),0,dp(8));content.addView(lt,ltp);languageSpinner=new Spinner(this);UiUtils.styleSpinner(this,languageSpinner);languageSpinner.setAdapter(UiUtils.spinnerAdapter(this,new String[]{"Русский","English","Türkçe","Español"}));content.addView(languageSpinner,new LinearLayout.LayoutParams(-1,dp(56)));
+        content.addView(appearanceCard(),cardParams());content.addView(notificationCard(),cardParams());content.addView(securityCard(),cardParams());content.addView(backupCard(),cardParams());content.addView(resetCard(),cardParams());ViewCompat.setOnApplyWindowInsetsListener(root,(v,insets)->{Insets bars=insets.getInsets(WindowInsetsCompat.Type.systemBars());v.setPadding(0,bars.top,0,0);scroll.setPadding(0,0,0,bars.bottom+dp(8));return insets;});return root;}
 
-    private View buildContent() {
-        LinearLayout root = new LinearLayout(this);
-        root.setOrientation(LinearLayout.VERTICAL);
-        UiUtils.applyBackground(this, root);
+    private View appearanceCard(){MaterialCardView c=card();LinearLayout b=box(c);b.addView(text(AppPreferences.tr(this,"Оформление","Appearance"),20,R.color.text_main,true));LinearLayout row=new LinearLayout(this);row.setOrientation(LinearLayout.HORIZONTAL);row.setGravity(Gravity.CENTER_VERTICAL);LinearLayout.LayoutParams rp=new LinearLayout.LayoutParams(-1,dp(60));rp.setMargins(0,dp(8),0,dp(6));b.addView(row,rp);row.addView(text("☀  "+AppPreferences.tr(this,"День","Day"),16,R.color.text_main,false),new LinearLayout.LayoutParams(0,-2,1f));darkModeSwitch=new SwitchMaterial(this);row.addView(darkModeSwitch);TextView moon=text(AppPreferences.tr(this,"Ночь","Night")+"  ☾",16,R.color.text_main,false);moon.setGravity(Gravity.END);row.addView(moon,new LinearLayout.LayoutParams(0,-2,1f));b.addView(text(AppPreferences.tr(this,"Фон приложения","App background"),17,R.color.text_main,true));backgroundStatusText=text("",14,R.color.text_secondary,false);b.addView(backgroundStatusText);MaterialButton choose=outline(AppPreferences.tr(this,"Выбрать изображение","Choose image"),R.color.primary);choose.setOnClickListener(v->chooseBackground());b.addView(choose,buttonParams());MaterialButton reset=outline(AppPreferences.tr(this,"Сбросить фон","Reset background"),R.color.primary);reset.setOnClickListener(v->{AppPreferences.setBackgroundUri(this,"");recreate();});b.addView(reset,buttonParams());return c;}
+    private View notificationCard(){MaterialCardView c=card();LinearLayout b=box(c);b.addView(text(AppPreferences.tr(this,"Оповещения","Notifications"),20,R.color.text_main,true));TextView info=text(AppPreferences.tr(this,"Напоминание приходит заранее и повторно в день платежа. В уведомлении можно отметить оплату или перенести напоминание.","A reminder is sent in advance and again on payment day. You can mark it paid or snooze it from the notification."),13,R.color.text_secondary,false);LinearLayout.LayoutParams ip=new LinearLayout.LayoutParams(-1,-2);ip.setMargins(0,dp(6),0,dp(6));b.addView(info,ip);soundSwitch=new SwitchMaterial(this);soundSwitch.setText(AppPreferences.tr(this,"Звук уведомления","Notification sound"));soundSwitch.setTextColor(ContextCompat.getColor(this,R.color.text_main));soundSwitch.setTextSize(16);b.addView(soundSwitch,new LinearLayout.LayoutParams(-1,dp(56)));selectedSoundText=text("",14,R.color.text_secondary,false);b.addView(selectedSoundText);systemSoundButton=outline(AppPreferences.tr(this,"Выбрать стандартный звук телефона","Choose phone sound"),R.color.primary);systemSoundButton.setOnClickListener(v->chooseSystemSound());b.addView(systemSoundButton,buttonParams());customSoundButton=outline(AppPreferences.tr(this,"Выбрать свой звуковой файл","Choose custom sound"),R.color.primary);customSoundButton.setOnClickListener(v->chooseCustomSound());b.addView(customSoundButton,buttonParams());vibrationSwitch=new SwitchMaterial(this);vibrationSwitch.setText(AppPreferences.tr(this,"Вибрация","Vibration"));vibrationSwitch.setTextColor(ContextCompat.getColor(this,R.color.text_main));vibrationSwitch.setTextSize(16);b.addView(vibrationSwitch,new LinearLayout.LayoutParams(-1,dp(56)));return c;}
+    private View securityCard(){MaterialCardView c=card();LinearLayout b=box(c);b.addView(text(AppPreferences.tr(this,"Безопасность","Security"),20,R.color.text_main,true));TextView info=text(AppPreferences.tr(this,"Установите PIN-код или пароль, чтобы ребёнок или другой человек не изменил платежи и настройки.","Set a PIN or password so another person cannot change payments and settings."),14,R.color.text_secondary,false);LinearLayout.LayoutParams ip=new LinearLayout.LayoutParams(-1,-2);ip.setMargins(0,dp(7),0,dp(5));b.addView(info,ip);MaterialButton open=outline(AppPreferences.tr(this,"Открыть настройки безопасности","Open security settings"),R.color.primary);open.setOnClickListener(v->startActivity(new Intent(this,SecurityActivity.class)));b.addView(open,buttonParams());return c;}
+    private View backupCard(){MaterialCardView c=card();LinearLayout b=box(c);b.addView(text(AppPreferences.tr(this,"Резервное копирование","Backup"),20,R.color.text_main,true));TextView info=text(AppPreferences.tr(this,"В копию входят кредиты, статусы платежей, история, напоминания, настройки и профиль.","The backup includes loans, payment statuses, history, reminders, settings and profile."),14,R.color.text_secondary,false);LinearLayout.LayoutParams ip=new LinearLayout.LayoutParams(-1,-2);ip.setMargins(0,dp(7),0,dp(5));b.addView(info,ip);MaterialButton save=outline(AppPreferences.tr(this,"Сохранить резервную копию","Save backup"),R.color.primary);save.setOnClickListener(v->chooseBackupProtection());b.addView(save,buttonParams());MaterialButton restore=outline(AppPreferences.tr(this,"Восстановить из файла","Restore from file"),R.color.primary);restore.setOnClickListener(v->chooseBackupFile());b.addView(restore,buttonParams());return c;}
+    private View resetCard(){MaterialCardView c=card();c.setStrokeColor(ContextCompat.getColor(this,R.color.danger));LinearLayout b=box(c);b.addView(text(AppPreferences.tr(this,"Полный сброс приложения","Full app reset"),20,R.color.danger,true));TextView info=text(AppPreferences.tr(this,"Удаляет все записи, историю, архив, корзину, отметки об оплате, напоминания, профиль и настройки. Файлы резервных копий на телефоне не удаляются.","Deletes all records, history, archive, trash, payment marks, reminders, profile and settings. Backup files stored on the phone are not deleted."),13,R.color.text_secondary,false);LinearLayout.LayoutParams ip=new LinearLayout.LayoutParams(-1,-2);ip.setMargins(0,dp(7),0,dp(5));b.addView(info,ip);MaterialButton reset=outline(AppPreferences.tr(this,"Сбросить все данные","Reset all data"),R.color.danger);reset.setOnClickListener(v->confirmReset());b.addView(reset,buttonParams());return c;}
 
-        LinearLayout bar = new LinearLayout(this);
-        bar.setOrientation(LinearLayout.HORIZONTAL);
-        bar.setGravity(Gravity.CENTER_VERTICAL);
-        bar.setPadding(dp(4), 0, dp(12), 0);
-        bar.setBackgroundColor(ContextCompat.getColor(this, R.color.primary));
-        root.addView(bar, new LinearLayout.LayoutParams(-1, dp(56)));
-        TextView back = topText("‹", 34); back.setOnClickListener(v -> finish()); bar.addView(back, new LinearLayout.LayoutParams(dp(56), dp(56)));
-        TextView barTitle = topText(AppPreferences.tr(this, "Настройки", "Settings"), 20); barTitle.setTypeface(null, android.graphics.Typeface.BOLD); barTitle.setGravity(Gravity.CENTER_VERTICAL); bar.addView(barTitle, new LinearLayout.LayoutParams(0, -1, 1f));
+    private void bind(){binding=true;String lang=AppPreferences.getLanguage(this);languageSpinner.setSelection("en".equals(lang)?1:"tr".equals(lang)?2:"es".equals(lang)?3:0);soundSwitch.setChecked(AppPreferences.isSoundEnabled(this));vibrationSwitch.setChecked(AppPreferences.isVibrationEnabled(this));darkModeSwitch.setChecked(AppPreferences.isDarkMode(this));updateSound();updateBackground();binding=false;languageSpinner.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener(){public void onItemSelected(android.widget.AdapterView<?> p,View v,int pos,long id){if(binding)return;String l=pos==1?"en":pos==2?"tr":pos==3?"es":"ru";if(!l.equals(AppPreferences.getLanguage(SettingsActivity.this))){AppPreferences.setLanguage(SettingsActivity.this,l);recreate();}}public void onNothingSelected(android.widget.AdapterView<?> p){}});darkModeSwitch.setOnCheckedChangeListener((b,c)->{if(binding)return;AppPreferences.setDarkMode(this,c);AppPreferences.applyNightMode(this);recreate();});soundSwitch.setOnCheckedChangeListener((b,c)->{AppPreferences.setSoundEnabled(this,c);updateSound();});vibrationSwitch.setOnCheckedChangeListener((b,c)->AppPreferences.setVibrationEnabled(this,c));}
+    private void confirmReset(){new AlertDialog.Builder(this).setTitle(AppPreferences.tr(this,"Сбросить все данные?","Reset all data?")).setMessage(AppPreferences.tr(this,"Это действие нельзя отменить. На следующем шаге потребуется подтверждение.","This cannot be undone. A second confirmation is required.")).setNegativeButton(AppPreferences.tr(this,"Отмена","Cancel"),null).setPositiveButton(AppPreferences.tr(this,"Продолжить","Continue"),(d,w)->typeReset()).show();}
+    private void typeReset(){EditText e=new EditText(this);e.setHint(AppPreferences.tr(this,"Введите СБРОС","Type RESET"));e.setSingleLine(true);e.setTextColor(ContextCompat.getColor(this,R.color.text_main));int p=dp(22);e.setPadding(p,0,p,0);new AlertDialog.Builder(this).setTitle(AppPreferences.tr(this,"Подтвердить сброс","Confirm reset")).setView(e).setNegativeButton(AppPreferences.tr(this,"Отмена","Cancel"),null).setPositiveButton(AppPreferences.tr(this,"Удалить всё","Delete everything"),(d,w)->{String s=e.getText().toString().trim();if(!("СБРОС".equalsIgnoreCase(s)||"RESET".equalsIgnoreCase(s)||"SIFIRLA".equalsIgnoreCase(s)||"RESTABLECER".equalsIgnoreCase(s))){Toast.makeText(this,AppPreferences.tr(this,"Подтверждение не совпало","Confirmation did not match"),Toast.LENGTH_LONG).show();return;}try{ReminderScheduler.importPaymentsJson(this,"[]");}catch(Exception ignored){}AppPreferences.clearAll(this);if(getApplication() instanceof CreditApplication)((CreditApplication)getApplication()).forceLockNextForeground();Toast.makeText(this,"Данные удалены",Toast.LENGTH_SHORT).show();Intent i=new Intent(this,MainActivity.class);i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK|Intent.FLAG_ACTIVITY_CLEAR_TASK);startActivity(i);finish();}).show();}
 
-        ScrollView scroll = new ScrollView(this);
-        scroll.setFillViewport(true); scroll.setClipToPadding(false); scroll.setBackgroundColor(Color.TRANSPARENT);
-        root.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1f));
-        LinearLayout content = new LinearLayout(this);
-        content.setOrientation(LinearLayout.VERTICAL); content.setPadding(dp(20), dp(22), dp(20), dp(32));
-        scroll.addView(content, new ScrollView.LayoutParams(-1, -2));
+    private void chooseBackupProtection(){String[] opts={AppPreferences.tr(this,"Без пароля","Without password"),AppPreferences.tr(this,"С паролем","With password")};new AlertDialog.Builder(this).setTitle(AppPreferences.tr(this,"Защита резервной копии","Backup protection")).setItems(opts,(d,w)->{if(w==0){pendingBackupPassword="";createBackupFile();}else askNewPassword();}).show();}
+    private void askNewPassword(){LinearLayout b=new LinearLayout(this);b.setOrientation(LinearLayout.VERTICAL);b.setPadding(dp(22),dp(4),dp(22),0);EditText a=passwordField(AppPreferences.tr(this,"Пароль","Password")),c=passwordField(AppPreferences.tr(this,"Повторите пароль","Repeat password"));b.addView(a,new LinearLayout.LayoutParams(-1,dp(58)));b.addView(c,new LinearLayout.LayoutParams(-1,dp(58)));new AlertDialog.Builder(this).setTitle(AppPreferences.tr(this,"Защитить паролем","Protect with password")).setMessage(AppPreferences.tr(this,"Если вы забудете пароль, восстановить резервную копию будет невозможно.","If you forget the password, the backup cannot be restored.")).setView(b).setNegativeButton(AppPreferences.tr(this,"Отмена","Cancel"),null).setPositiveButton(AppPreferences.tr(this,"Продолжить","Continue"),(d,w)->{String x=a.getText().toString(),y=c.getText().toString();if(x.length()<4||!x.equals(y)){Toast.makeText(this,AppPreferences.tr(this,"Пароль короткий или пароли не совпадают","Password is too short or values do not match"),Toast.LENGTH_LONG).show();return;}pendingBackupPassword=x;createBackupFile();}).show();}
+    private EditText passwordField(String h){EditText e=new EditText(this);e.setHint(h);e.setSingleLine(true);e.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_VARIATION_PASSWORD);e.setTextColor(ContextCompat.getColor(this,R.color.text_main));return e;}
+    private void createBackupFile(){Intent i=new Intent(Intent.ACTION_CREATE_DOCUMENT);i.addCategory(Intent.CATEGORY_OPENABLE);i.setType("application/octet-stream");i.putExtra(Intent.EXTRA_TITLE,"FinanceBackup-"+new java.text.SimpleDateFormat("yyyy-MM-dd",java.util.Locale.US).format(new java.util.Date())+".fcalc");startActivityForResult(i,REQUEST_CREATE_BACKUP);}private void chooseBackupFile(){Intent i=new Intent(Intent.ACTION_OPEN_DOCUMENT);i.addCategory(Intent.CATEGORY_OPENABLE);i.setType("*/*");startActivityForResult(i,REQUEST_OPEN_BACKUP);}
+    private void askRestorePassword(Uri uri){EditText e=passwordField(AppPreferences.tr(this,"Пароль резервной копии","Backup password"));int p=dp(22);e.setPadding(p,0,p,0);new AlertDialog.Builder(this).setTitle(AppPreferences.tr(this,"Введите пароль","Enter password")).setView(e).setNegativeButton(AppPreferences.tr(this,"Отмена","Cancel"),null).setPositiveButton(AppPreferences.tr(this,"Восстановить","Restore"),(d,w)->restore(uri,e.getText().toString())).show();}
+    private void restore(Uri uri,String pass){try{BackupManager.restoreBackup(this,uri,pass);Toast.makeText(this,AppPreferences.tr(this,"Данные восстановлены","Data restored"),Toast.LENGTH_LONG).show();recreate();}catch(Exception e){Toast.makeText(this,AppPreferences.tr(this,"Не удалось восстановить. Проверьте файл и пароль.","Restore failed. Check file and password."),Toast.LENGTH_LONG).show();}}
+    private void chooseBackground(){Intent i=new Intent(Intent.ACTION_OPEN_DOCUMENT);i.addCategory(Intent.CATEGORY_OPENABLE);i.setType("image/*");i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);startActivityForResult(i,REQUEST_BACKGROUND);}private void chooseCustomSound(){Intent i=new Intent(Intent.ACTION_OPEN_DOCUMENT);i.addCategory(Intent.CATEGORY_OPENABLE);i.setType("audio/*");i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);startActivityForResult(i,REQUEST_CUSTOM_SOUND);}private void chooseSystemSound(){Intent i=new Intent(RingtoneManager.ACTION_RINGTONE_PICKER);i.putExtra(RingtoneManager.EXTRA_RINGTONE_TYPE,RingtoneManager.TYPE_NOTIFICATION);i.putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_DEFAULT,true);i.putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_SILENT,false);String s=AppPreferences.getSoundUri(this);i.putExtra(RingtoneManager.EXTRA_RINGTONE_EXISTING_URI,s.isEmpty()?RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION):Uri.parse(s));startActivityForResult(i,REQUEST_SYSTEM_SOUND);}
 
-        content.addView(heading(AppPreferences.tr(this, "Настройки", "Settings"), 28));
-        TextView languageTitle = heading(AppPreferences.tr(this, "Язык приложения", "App language"), 18);
-        LinearLayout.LayoutParams ltp = new LinearLayout.LayoutParams(-1, -2); ltp.setMargins(0, dp(22), 0, dp(8)); content.addView(languageTitle, ltp);
-        languageSpinner = new Spinner(this); UiUtils.styleSpinner(this, languageSpinner); languageSpinner.setAdapter(UiUtils.spinnerAdapter(this, new String[]{"Русский", "English"})); content.addView(languageSpinner, new LinearLayout.LayoutParams(-1, dp(56)));
+    @Override protected void onActivityResult(int requestCode,int resultCode,@Nullable Intent data){super.onActivityResult(requestCode,resultCode,data);if(resultCode!=RESULT_OK||data==null)return;if(requestCode==REQUEST_CREATE_BACKUP){Uri u=data.getData();if(u==null)return;try{BackupManager.writeBackup(this,u,pendingBackupPassword);Toast.makeText(this,AppPreferences.tr(this,"Резервная копия сохранена","Backup saved"),Toast.LENGTH_LONG).show();}catch(Exception e){Toast.makeText(this,AppPreferences.tr(this,"Не удалось сохранить резервную копию","Could not save backup"),Toast.LENGTH_LONG).show();}pendingBackupPassword="";return;}if(requestCode==REQUEST_OPEN_BACKUP){Uri u=data.getData();if(u==null)return;try{if(BackupManager.isProtected(this,u))askRestorePassword(u);else restore(u,"");}catch(Exception e){Toast.makeText(this,AppPreferences.tr(this,"Не удалось открыть резервную копию","Could not open backup"),Toast.LENGTH_LONG).show();}return;}if(requestCode==REQUEST_BACKGROUND){Uri u=data.getData();if(u!=null){persist(data,u);AppPreferences.setBackgroundUri(this,u.toString());recreate();}}else if(requestCode==REQUEST_CUSTOM_SOUND){Uri u=data.getData();if(u!=null){persist(data,u);AppPreferences.setSoundUri(this,u.toString());updateSound();}}else if(requestCode==REQUEST_SYSTEM_SOUND){Uri u=data.getParcelableExtra(RingtoneManager.EXTRA_RINGTONE_PICKED_URI);if(u!=null){AppPreferences.setSoundUri(this,u.toString());updateSound();}}}
+    private void persist(Intent data,Uri u){try{getContentResolver().takePersistableUriPermission(u,data.getFlags()&(Intent.FLAG_GRANT_READ_URI_PERMISSION|Intent.FLAG_GRANT_WRITE_URI_PERMISSION));}catch(Exception ignored){}}
+    private void updateSound(){if(selectedSoundText==null)return;String s=AppPreferences.getSoundUri(this);String label=AppPreferences.tr(this,"Стандартный звук телефона","Phone default sound");if(!s.isEmpty())try{Ringtone r=RingtoneManager.getRingtone(this,Uri.parse(s));if(r!=null&&r.getTitle(this)!=null)label=r.getTitle(this);}catch(Exception ignored){}selectedSoundText.setText(AppPreferences.tr(this,"Выбрано: ","Selected: ")+label);boolean on=AppPreferences.isSoundEnabled(this);if(systemSoundButton!=null)systemSoundButton.setEnabled(on);if(customSoundButton!=null)customSoundButton.setEnabled(on);}
+    private void updateBackground(){if(backgroundStatusText==null)return;backgroundStatusText.setText(AppPreferences.getBackgroundUri(this).isEmpty()?AppPreferences.tr(this,"Используется стандартный фон","Using default background"):AppPreferences.tr(this,"Установлено своё изображение","Custom image set"));}
 
-        content.addView(buildAppearanceCard(), cardParams());
-        content.addView(buildNotificationsCard(), cardParams());
-        content.addView(buildBackupCard(), cardParams());
-
-        TextView note = normalText(AppPreferences.tr(this,
-                "Резервная копия позволяет перенести записи и настройки на другой телефон.",
-                "A backup lets you move records and settings to another phone."), 13);
-        note.setTextColor(ContextCompat.getColor(this, R.color.text_secondary));
-        LinearLayout.LayoutParams np = new LinearLayout.LayoutParams(-1, -2); np.setMargins(0, dp(18), 0, 0); content.addView(note, np);
-
-        ViewCompat.setOnApplyWindowInsetsListener(root, (view, insets) -> {
-            Insets bars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
-            view.setPadding(0, bars.top, 0, 0); scroll.setPadding(0, 0, 0, bars.bottom + dp(8)); return insets;
-        });
-        ViewCompat.requestApplyInsets(root);
-        return root;
-    }
-
-    private View buildAppearanceCard() {
-        MaterialCardView card = card();
-        LinearLayout box = cardBox(card);
-        box.addView(heading(AppPreferences.tr(this, "Оформление", "Appearance"), 20));
-        LinearLayout modeRow = new LinearLayout(this); modeRow.setOrientation(LinearLayout.HORIZONTAL); modeRow.setGravity(Gravity.CENTER_VERTICAL);
-        LinearLayout.LayoutParams mp = new LinearLayout.LayoutParams(-1, dp(60)); mp.setMargins(0, dp(8), 0, dp(6)); box.addView(modeRow, mp);
-        modeRow.addView(normalText("☀  " + AppPreferences.tr(this, "День", "Day"), 16), new LinearLayout.LayoutParams(0, -2, 1f));
-        darkModeSwitch = new SwitchMaterial(this); modeRow.addView(darkModeSwitch);
-        TextView moon = normalText(AppPreferences.tr(this, "Ночь", "Night") + "  ☾", 16); moon.setGravity(Gravity.END); modeRow.addView(moon, new LinearLayout.LayoutParams(0, -2, 1f));
-
-        TextView bgTitle = heading(AppPreferences.tr(this, "Фон приложения", "App background"), 17);
-        LinearLayout.LayoutParams bp = new LinearLayout.LayoutParams(-1, -2); bp.setMargins(0, dp(8), 0, dp(6)); box.addView(bgTitle, bp);
-        backgroundStatusText = normalText("", 14); backgroundStatusText.setTextColor(ContextCompat.getColor(this, R.color.text_secondary)); box.addView(backgroundStatusText);
-        MaterialButton choose = outlineButton(AppPreferences.tr(this, "Выбрать изображение", "Choose image")); choose.setOnClickListener(v -> chooseBackground()); box.addView(choose, buttonParams());
-        MaterialButton reset = outlineButton(AppPreferences.tr(this, "Сбросить фон", "Reset background")); reset.setOnClickListener(v -> { AppPreferences.setBackgroundUri(this, ""); recreate(); }); box.addView(reset, buttonParams());
-        return card;
-    }
-
-    private View buildNotificationsCard() {
-        MaterialCardView card = card();
-        LinearLayout box = cardBox(card);
-        box.addView(heading(AppPreferences.tr(this, "Оповещения", "Notifications"), 20));
-        soundSwitch = new SwitchMaterial(this); soundSwitch.setText(AppPreferences.tr(this, "Звук уведомления", "Notification sound")); soundSwitch.setTextColor(ContextCompat.getColor(this, R.color.text_main)); soundSwitch.setTextSize(16);
-        LinearLayout.LayoutParams sp = new LinearLayout.LayoutParams(-1, dp(56)); sp.setMargins(0, dp(8), 0, 0); box.addView(soundSwitch, sp);
-        selectedSoundText = normalText("", 14); selectedSoundText.setTextColor(ContextCompat.getColor(this, R.color.text_secondary)); box.addView(selectedSoundText);
-        systemSoundButton = outlineButton(AppPreferences.tr(this, "Выбрать стандартный звук телефона", "Choose phone notification sound")); systemSoundButton.setOnClickListener(v -> chooseSystemSound()); box.addView(systemSoundButton, buttonParams());
-        customSoundButton = outlineButton(AppPreferences.tr(this, "Выбрать свой звуковой файл", "Choose custom audio file")); customSoundButton.setOnClickListener(v -> chooseCustomSound()); box.addView(customSoundButton, buttonParams());
-        vibrationSwitch = new SwitchMaterial(this); vibrationSwitch.setText(AppPreferences.tr(this, "Вибрация", "Vibration")); vibrationSwitch.setTextColor(ContextCompat.getColor(this, R.color.text_main)); vibrationSwitch.setTextSize(16); box.addView(vibrationSwitch, new LinearLayout.LayoutParams(-1, dp(56)));
-        return card;
-    }
-
-    private View buildBackupCard() {
-        MaterialCardView card = card();
-        LinearLayout box = cardBox(card);
-        box.addView(heading(AppPreferences.tr(this, "Резервное копирование", "Backup"), 20));
-        TextView info = normalText(AppPreferences.tr(this,
-                "Сохраните данные в файл и восстановите их на новом телефоне. Можно создать обычную или защищённую паролем копию.",
-                "Save your data to a file and restore it on another phone. Backups can be plain or password-protected."), 14);
-        info.setTextColor(ContextCompat.getColor(this, R.color.text_secondary));
-        LinearLayout.LayoutParams ip = new LinearLayout.LayoutParams(-1, -2); ip.setMargins(0, dp(8), 0, dp(6)); box.addView(info, ip);
-        MaterialButton save = outlineButton(AppPreferences.tr(this, "Сохранить резервную копию", "Save backup")); save.setOnClickListener(v -> chooseBackupProtection()); box.addView(save, buttonParams());
-        MaterialButton restore = outlineButton(AppPreferences.tr(this, "Восстановить из файла", "Restore from file")); restore.setOnClickListener(v -> chooseBackupFile()); box.addView(restore, buttonParams());
-        return card;
-    }
-
-    private void chooseBackupProtection() {
-        String[] options = {AppPreferences.tr(this, "Без пароля", "Without password"), AppPreferences.tr(this, "С паролем", "With password")};
-        new AlertDialog.Builder(this).setTitle(AppPreferences.tr(this, "Защита резервной копии", "Backup protection"))
-                .setItems(options, (dialog, which) -> { if (which == 0) { pendingBackupPassword = ""; createBackupFile(); } else askNewBackupPassword(); }).show();
-    }
-
-    private void askNewBackupPassword() {
-        LinearLayout box = new LinearLayout(this); box.setOrientation(LinearLayout.VERTICAL); box.setPadding(dp(22), dp(4), dp(22), 0);
-        EditText first = passwordField(AppPreferences.tr(this, "Пароль", "Password"));
-        EditText second = passwordField(AppPreferences.tr(this, "Повторите пароль", "Repeat password"));
-        box.addView(first, new LinearLayout.LayoutParams(-1, dp(58))); box.addView(second, new LinearLayout.LayoutParams(-1, dp(58)));
-        new AlertDialog.Builder(this)
-                .setTitle(AppPreferences.tr(this, "Защитить паролем", "Protect with password"))
-                .setMessage(AppPreferences.tr(this, "Если вы забудете пароль, восстановить резервную копию будет невозможно.", "If you forget the password, the backup cannot be restored."))
-                .setView(box)
-                .setNegativeButton(AppPreferences.tr(this, "Отмена", "Cancel"), null)
-                .setPositiveButton(AppPreferences.tr(this, "Продолжить", "Continue"), (d, w) -> {
-                    String a = first.getText().toString(); String b = second.getText().toString();
-                    if (a.length() < 4) { Toast.makeText(this, AppPreferences.tr(this, "Пароль должен содержать минимум 4 символа", "Password must have at least 4 characters"), Toast.LENGTH_LONG).show(); return; }
-                    if (!a.equals(b)) { Toast.makeText(this, AppPreferences.tr(this, "Пароли не совпадают", "Passwords do not match"), Toast.LENGTH_LONG).show(); return; }
-                    pendingBackupPassword = a; createBackupFile();
-                }).show();
-    }
-
-    private EditText passwordField(String hint) {
-        EditText e = new EditText(this); e.setHint(hint); e.setSingleLine(true); e.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD); e.setTextColor(ContextCompat.getColor(this, R.color.text_main)); e.setHintTextColor(ContextCompat.getColor(this, R.color.text_secondary)); return e;
-    }
-
-    private void createBackupFile() {
-        Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT); intent.addCategory(Intent.CATEGORY_OPENABLE); intent.setType("application/octet-stream");
-        intent.putExtra(Intent.EXTRA_TITLE, "FinanceBackup-" + new java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(new java.util.Date()) + ".fcalc");
-        startActivityForResult(intent, REQUEST_CREATE_BACKUP);
-    }
-    private void chooseBackupFile() { Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT); intent.addCategory(Intent.CATEGORY_OPENABLE); intent.setType("*/*"); startActivityForResult(intent, REQUEST_OPEN_BACKUP); }
-
-    private void askRestorePassword(Uri uri) {
-        EditText password = passwordField(AppPreferences.tr(this, "Пароль резервной копии", "Backup password")); int p = dp(22); password.setPadding(p, 0, p, 0);
-        new AlertDialog.Builder(this).setTitle(AppPreferences.tr(this, "Введите пароль", "Enter password")).setView(password)
-                .setNegativeButton(AppPreferences.tr(this, "Отмена", "Cancel"), null)
-                .setPositiveButton(AppPreferences.tr(this, "Восстановить", "Restore"), (d, w) -> restoreBackup(uri, password.getText().toString())).show();
-    }
-
-    private void restoreBackup(Uri uri, String password) {
-        try { BackupManager.restoreBackup(this, uri, password); Toast.makeText(this, AppPreferences.tr(this, "Данные восстановлены", "Data restored"), Toast.LENGTH_LONG).show(); recreate(); }
-        catch (Exception e) { Toast.makeText(this, AppPreferences.tr(this, "Не удалось восстановить. Проверьте файл и пароль.", "Restore failed. Check the file and password."), Toast.LENGTH_LONG).show(); }
-    }
-
-    private void bindValues() {
-        binding = true; languageSpinner.setSelection(AppPreferences.isEnglish(this) ? 1 : 0); soundSwitch.setChecked(AppPreferences.isSoundEnabled(this)); vibrationSwitch.setChecked(AppPreferences.isVibrationEnabled(this)); darkModeSwitch.setChecked(AppPreferences.isDarkMode(this)); updateSelectedSoundLabel(); updateSoundControls(); updateBackgroundLabel(); binding = false;
-        languageSpinner.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
-            @Override public void onItemSelected(android.widget.AdapterView<?> parent, View view, int position, long id) { if (binding) return; String language = position == 1 ? "en" : "ru"; if (!language.equals(AppPreferences.getLanguage(SettingsActivity.this))) { AppPreferences.setLanguage(SettingsActivity.this, language); recreate(); } }
-            @Override public void onNothingSelected(android.widget.AdapterView<?> parent) {}
-        });
-        darkModeSwitch.setOnCheckedChangeListener((buttonView, checked) -> { if (binding) return; AppPreferences.setDarkMode(this, checked); AppPreferences.applyNightMode(this); recreate(); });
-        soundSwitch.setOnCheckedChangeListener((buttonView, checked) -> { AppPreferences.setSoundEnabled(this, checked); updateSoundControls(); });
-        vibrationSwitch.setOnCheckedChangeListener((buttonView, checked) -> AppPreferences.setVibrationEnabled(this, checked));
-    }
-
-    private void chooseBackground() { Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT); intent.addCategory(Intent.CATEGORY_OPENABLE); intent.setType("image/*"); intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION); startActivityForResult(intent, REQUEST_BACKGROUND); }
-    private void chooseCustomSound() { Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT); intent.addCategory(Intent.CATEGORY_OPENABLE); intent.setType("audio/*"); intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION); startActivityForResult(intent, REQUEST_CUSTOM_SOUND); }
-    private void chooseSystemSound() {
-        Intent intent = new Intent(RingtoneManager.ACTION_RINGTONE_PICKER); intent.putExtra(RingtoneManager.EXTRA_RINGTONE_TYPE, RingtoneManager.TYPE_NOTIFICATION); intent.putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_DEFAULT, true); intent.putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_SILENT, false);
-        String saved = AppPreferences.getSoundUri(this); Uri existing = saved.isEmpty() ? RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION) : Uri.parse(saved); intent.putExtra(RingtoneManager.EXTRA_RINGTONE_EXISTING_URI, existing); startActivityForResult(intent, REQUEST_SYSTEM_SOUND);
-    }
-
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-        if (resultCode != RESULT_OK || data == null) return;
-        if (requestCode == REQUEST_CREATE_BACKUP) {
-            Uri uri = data.getData(); if (uri == null) return;
-            try { BackupManager.writeBackup(this, uri, pendingBackupPassword); Toast.makeText(this, AppPreferences.tr(this, "Резервная копия сохранена", "Backup saved"), Toast.LENGTH_LONG).show(); }
-            catch (Exception e) { Toast.makeText(this, AppPreferences.tr(this, "Не удалось сохранить резервную копию", "Could not save backup"), Toast.LENGTH_LONG).show(); }
-            pendingBackupPassword = ""; return;
-        }
-        if (requestCode == REQUEST_OPEN_BACKUP) {
-            Uri uri = data.getData(); if (uri == null) return;
-            try { if (BackupManager.isProtected(this, uri)) askRestorePassword(uri); else restoreBackup(uri, ""); }
-            catch (Exception e) { Toast.makeText(this, AppPreferences.tr(this, "Файл резервной копии повреждён или не поддерживается", "Backup file is invalid or unsupported"), Toast.LENGTH_LONG).show(); }
-            return;
-        }
-        if (requestCode == REQUEST_SYSTEM_SOUND) {
-            Uri uri = data.getParcelableExtra(RingtoneManager.EXTRA_RINGTONE_PICKED_URI); if (uri != null) { AppPreferences.setSoundUri(this, uri.toString()); AppPreferences.setSoundEnabled(this, true); soundSwitch.setChecked(true); updateSelectedSoundLabel(); } return;
-        }
-        Uri uri = data.getData(); if (uri == null) return;
-        try { getContentResolver().takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION); } catch (Exception ignored) {}
-        if (requestCode == REQUEST_CUSTOM_SOUND) { AppPreferences.setSoundUri(this, uri.toString()); AppPreferences.setSoundEnabled(this, true); soundSwitch.setChecked(true); updateSelectedSoundLabel(); }
-        else if (requestCode == REQUEST_BACKGROUND) { AppPreferences.setBackgroundUri(this, uri.toString()); recreate(); }
-    }
-
-    private void updateSelectedSoundLabel() {
-        String saved = AppPreferences.getSoundUri(this); Uri uri = saved.isEmpty() ? RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION) : Uri.parse(saved); String title = AppPreferences.tr(this, "Звук по умолчанию", "Default notification sound");
-        try { Ringtone ringtone = RingtoneManager.getRingtone(this, uri); if (ringtone != null) title = ringtone.getTitle(this); } catch (Exception ignored) {}
-        selectedSoundText.setText(AppPreferences.tr(this, "Выбрано: ", "Selected: ") + title);
-    }
-    private void updateBackgroundLabel() { backgroundStatusText.setText(AppPreferences.getBackgroundUri(this).trim().isEmpty() ? AppPreferences.tr(this, "Стандартный фон", "Default background") : AppPreferences.tr(this, "Используется своё изображение", "Custom image selected")); }
-    private void updateSoundControls() { boolean enabled = soundSwitch.isChecked(); systemSoundButton.setEnabled(enabled); customSoundButton.setEnabled(enabled); selectedSoundText.setAlpha(enabled ? 1f : 0.5f); }
-
-    private MaterialCardView card() { MaterialCardView c = new MaterialCardView(this); c.setCardBackgroundColor(ContextCompat.getColor(this, R.color.card_background)); c.setRadius(dp(18)); c.setStrokeColor(ContextCompat.getColor(this, R.color.border)); c.setStrokeWidth(dp(1)); return c; }
-    private LinearLayout cardBox(MaterialCardView card) { LinearLayout box = new LinearLayout(this); box.setOrientation(LinearLayout.VERTICAL); box.setPadding(dp(18), dp(16), dp(18), dp(18)); card.addView(box); return box; }
-    private LinearLayout.LayoutParams cardParams() { LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(-1, -2); p.setMargins(0, dp(22), 0, 0); return p; }
-    private LinearLayout.LayoutParams buttonParams() { LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(-1, dp(52)); p.setMargins(0, dp(10), 0, 0); return p; }
-    private MaterialButton outlineButton(String value) { MaterialButton b = new MaterialButton(this); b.setText(value); b.setAllCaps(false); b.setTextColor(ContextCompat.getColor(this, R.color.primary)); b.setBackgroundTintList(android.content.res.ColorStateList.valueOf(ContextCompat.getColor(this, R.color.card_background))); b.setStrokeColor(android.content.res.ColorStateList.valueOf(ContextCompat.getColor(this, R.color.primary))); b.setStrokeWidth(dp(1)); b.setCornerRadius(dp(14)); return b; }
-    private TextView heading(String value, int size) { TextView v = normalText(value, size); v.setTypeface(null, android.graphics.Typeface.BOLD); return v; }
-    private TextView normalText(String value, int size) { TextView v = new TextView(this); v.setText(value); v.setTextColor(ContextCompat.getColor(this, R.color.text_main)); v.setTextSize(size); return v; }
-    private TextView topText(String value, int size) { TextView v = new TextView(this); v.setText(value); v.setTextSize(size); v.setTextColor(Color.WHITE); v.setGravity(Gravity.CENTER); v.setClickable(true); return v; }
-    private int dp(int value) { return Math.round(value * getResources().getDisplayMetrics().density); }
+    private MaterialCardView card(){MaterialCardView c=new MaterialCardView(this);c.setCardBackgroundColor(ContextCompat.getColor(this,R.color.card_background));c.setRadius(dp(18));c.setStrokeColor(ContextCompat.getColor(this,R.color.border));c.setStrokeWidth(dp(1));return c;}private LinearLayout box(MaterialCardView c){LinearLayout b=new LinearLayout(this);b.setOrientation(LinearLayout.VERTICAL);b.setPadding(dp(18),dp(18),dp(18),dp(18));c.addView(b);return b;}private LinearLayout.LayoutParams cardParams(){LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-1,-2);p.setMargins(0,dp(18),0,0);return p;}private MaterialButton outline(String s,int color){MaterialButton b=new MaterialButton(this);b.setText(s);b.setAllCaps(false);b.setTextColor(ContextCompat.getColor(this,color));b.setBackgroundTintList(ColorStateList.valueOf(ContextCompat.getColor(this,R.color.card_background)));b.setStrokeColor(ColorStateList.valueOf(ContextCompat.getColor(this,color)));b.setStrokeWidth(dp(1));b.setCornerRadius(dp(14));return b;}private LinearLayout.LayoutParams buttonParams(){LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-1,dp(52));p.setMargins(0,dp(8),0,0);return p;}private TextView top(String s,int z){TextView t=new TextView(this);t.setText(s);t.setTextSize(z);t.setTextColor(Color.WHITE);t.setGravity(Gravity.CENTER);t.setClickable(true);return t;}private TextView text(String s,int z,int c,boolean bold){TextView t=new TextView(this);t.setText(s);t.setTextSize(z);t.setTextColor(ContextCompat.getColor(this,c));if(bold)t.setTypeface(null,android.graphics.Typeface.BOLD);return t;}private int dp(int v){return Math.round(v*getResources().getDisplayMetrics().density);}
 }
