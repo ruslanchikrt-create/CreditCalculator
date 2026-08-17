@@ -42,15 +42,15 @@ jobs:
           path: app/build/outputs/apk/release/app-release-unsigned.apk
 
   mathprogress:
-    if: github.event_name == 'pull_request_target' && github.event.pull_request.head.ref == 'mathprogress-app'
+    if: github.event_name == 'pull_request_target' && github.event.pull_request.head.ref == 'mathprogress-build-v040'
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
-      - name: Checkout MathProgress branch only
+      - name: Checkout isolated MathProgress build branch
         uses: actions/checkout@v4
         with:
-          ref: mathprogress-app
+          ref: mathprogress-build-v040
 
       - name: Record run id immediately
         run: |
@@ -60,7 +60,7 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add MathProgress/builds/current-run-id.txt
           git commit -m "Record MathProgress build run $GITHUB_RUN_ID" || true
-          git push origin HEAD:mathprogress-app || true
+          git push origin HEAD:mathprogress-build-v040 || true
 
       - name: Clean duplicated declarations in build workspace
         run: |
