@@ -47,38 +47,49 @@ jobs:
       - name: Checkout MathProgress branch
         uses: actions/checkout@v4
 
+      - name: Record run id immediately
+        run: |
+          mkdir -p MathProgress/builds
+          echo "$GITHUB_RUN_ID" > MathProgress/builds/current-run-id.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add MathProgress/builds/current-run-id.txt
+          git commit -m "Record MathProgress build run $GITHUB_RUN_ID" || true
+          git push origin HEAD:mathprogress-app || true
+
       - name: Clean duplicated declarations
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          import re
           p = Path('MathProgress/app/src/main/java/com/mathprogress/app/MainActivity.kt')
-          t = p.read_text()
-          block = '''    private var onboardingActive = false
-          private val feedbackAttachments = mutableListOf<Uri>()
-          private var feedbackIsError = true
-          private var feedbackDraft = ""
-          '''
-          # The repeated fields may have normal four-space Kotlin indentation.
-          block = ''.join(line[10:] if line.startswith('          ') else line for line in block.splitlines(True))
-          t = re.sub(r'(?:' + re.escape(block) + r'){2,}', block, t)
-          pblock = '''    private var practiceDifficulty = 1
-          private var practiceAdaptive = false
-          private var practiceUserAnswer = ""
-          '''
-          pblock = ''.join(line[10:] if line.startswith('          ') else line for line in pblock.splitlines(True))
-          t = re.sub(r'(?:' + re.escape(pblock) + r'){2,}', pblock, t)
-          t = re.sub(r'(    private var dailyUserAnswer = ""\n){2,}', '    private var dailyUserAnswer = ""\n', t)
-          t = re.sub(r'(        const val REQ_FEEDBACK_MEDIA = 105\n){2,}', '        const val REQ_FEEDBACK_MEDIA = 105\n', t)
-          p.write_text(t)
+          lines = p.read_text().splitlines(True)
+          targets = {
+              'private var onboardingActive = false',
+              'private val feedbackAttachments = mutableListOf<Uri>()',
+              'private var feedbackIsError = true',
+              'private var feedbackDraft = ""',
+              'private var practiceDifficulty = 1',
+              'private var practiceAdaptive = false',
+              'private var practiceUserAnswer = ""',
+              'private var dailyUserAnswer = ""',
+              'const val REQ_FEEDBACK_MEDIA = 105',
+          }
+          seen = set()
+          out = []
+          for line in lines:
+              key = line.strip()
+              if key in targets:
+                  if key in seen:
+                      continue
+                  seen.add(key)
+              out.append(line)
+          p.write_text(''.join(out))
           PY
 
       - name: Persist cleaned source
         run: |
-          if ! git diff --quiet -- MathProgress; then
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add MathProgress
+          if ! git diff --quiet -- MathProgress/app/src/main/java/com/mathprogress/app/MainActivity.kt; then
+            git add MathProgress/app/src/main/java/com/mathprogress/app/MainActivity.kt
             git commit -m "Clean MathProgress v0.4.0 duplicate declarations"
             git push origin HEAD:mathprogress-app || true
           fi
@@ -88,38 +99,21 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
-
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
-
       - name: Install Android SDK packages
         run: |
           yes | sdkmanager --licenses >/dev/null || true
           sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
-
       - name: Set up Gradle 8.9
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "8.9"
-
       - name: Build MathProgress APK
         working-directory: MathProgress
         run: gradle --no-daemon clean assembleDebug
-
-      - name: Prepare APK and run id
-        run: |
-          cp MathProgress/app/build/outputs/apk/debug/app-debug.apk MathProgress-v0.4.0.apk
-          mkdir -p MathProgress/builds
-          echo "$GITHUB_RUN_ID" > MathProgress/builds/v0.4.0-run-id.txt
-
-      - name: Persist run id
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add MathProgress/builds/v0.4.0-run-id.txt
-          git commit -m "Record MathProgress v0.4.0 successful build run" || true
-          git push origin HEAD:mathprogress-app || true
-
+      - name: Prepare APK
+        run: cp MathProgress/app/build/outputs/apk/debug/app-debug.apk MathProgress-v0.4.0.apk
       - name: Upload MathProgress APK
         uses: actions/upload-artifact@v4
         with:
