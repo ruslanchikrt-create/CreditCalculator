@@ -69,53 +69,85 @@ class MainActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        store = LocalStore(this)
-        runCatching { NotificationScheduler.ensureChannels(this) }
-        buildShell()
         try {
+            store = LocalStore(this)
+            buildShell()
             showResults()
-        } catch (e: Throwable) {
-            showStartupFallback(e)
+            store.setLastOpenNow()
+            if (store.securityEnabled()) {
+                root.post { runCatching { lockNow() } }
+            }
+        } catch (error: Throwable) {
+            showEmergencyStartup(error)
         }
-        store.setLastOpenNow()
-        if (store.securityEnabled()) runCatching { lockNow() }
-        root.postDelayed({
-            runCatching { requestNotificationPermission() }
-            runCatching { NotificationScheduler.scheduleAll(this, store) }
-        }, 1200L)
     }
 
     override fun onResume() {
         super.onResume()
         if (!::store.isInitialized) return
         store.setLastOpenNow()
-        runCatching { NotificationScheduler.scheduleInactive(this, store) }
         if (firstResume) { firstResume = false; return }
-        if (store.securityEnabled() && lockOverlay == null) {
-            val elapsed = System.currentTimeMillis() - store.backgroundAt()
-            val timeout = store.settings.autoLockSeconds * 1000L
-            if (store.backgroundAt() > 0 && (timeout == 0L || elapsed >= timeout)) lockNow()
+        runCatching {
+            if (store.securityEnabled() && lockOverlay == null) {
+                val elapsed = System.currentTimeMillis() - store.backgroundAt()
+                val timeout = store.settings.autoLockSeconds * 1000L
+                if (store.backgroundAt() > 0 && (timeout == 0L || elapsed >= timeout)) lockNow()
+            }
         }
     }
 
     override fun onPause() {
         if (::store.isInitialized) {
             store.setBackgroundAt(System.currentTimeMillis())
-            runCatching { NotificationScheduler.scheduleUnfinished(this, store) }
         }
         super.onPause()
     }
 
+    private fun showEmergencyStartup(error: Throwable) {
+        android.util.Log.e("MathProgress", "Fatal startup error", error)
+        val scroll = android.widget.ScrollView(this)
+        val box = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(36, 72, 36, 36)
+            setBackgroundColor(Color.rgb(24, 25, 29))
+        }
+        val title = TextView(this).apply {
+            text = "Не удалось открыть приложение"
+            textSize = 24f
+            setTextColor(Color.WHITE)
+            typeface = Typeface.DEFAULT_BOLD
+        }
+        val info = TextView(this).apply {
+            text = "Теперь приложение не закрывается автоматически. Ниже указана точная причина ошибки — сделайте скриншот этого экрана и пришлите его."
+            textSize = 15f
+            setTextColor(Color.rgb(205, 207, 215))
+            setPadding(0, 20, 0, 24)
+        }
+        val detail = TextView(this).apply {
+            text = error.javaClass.name + "\n\n" + (error.message ?: "Без сообщения")
+            textSize = 14f
+            setTextColor(Color.rgb(255, 190, 90))
+            setTextIsSelectable(true)
+            setPadding(20, 20, 20, 20)
+            setBackgroundColor(Color.rgb(39, 40, 46))
+        }
+        val retry = Button(this).apply {
+            text = "Повторить запуск"
+            isAllCaps = false
+            textSize = 16f
+            setOnClickListener { recreate() }
+        }
+        box.addView(title)
+        box.addView(info)
+        box.addView(detail, LinearLayout.LayoutParams(-1, -2))
+        box.addView(retry, LinearLayout.LayoutParams(-1, 60).apply { setMargins(0, 28, 0, 0) })
+        scroll.addView(box, android.widget.FrameLayout.LayoutParams(-1, -2))
+        setContentView(scroll)
+    }
+
     private fun buildShell() {
-        applySystemBars()
         root = FrameLayout(this).apply { setBackgroundColor(bg()) }
         val vertical = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(bg()) }
-        root.setOnApplyWindowInsetsListener { _, insets ->
-            @Suppress("DEPRECATION")
-            vertical.setPadding(0, insets.systemWindowInsetTop, 0, insets.systemWindowInsetBottom)
-            insets
-        }
-
         val top = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
             setPadding(dp(10), dp(5), dp(14), dp(5)); setBackgroundColor(cardColor()); elevation = dp(2).toFloat()
@@ -143,7 +175,6 @@ class MainActivity : Activity() {
         drawer.addView(drawerList, FrameLayout.LayoutParams(dp(310), -1, Gravity.START))
         root.addView(drawer, FrameLayout.LayoutParams(-1,-1))
         setContentView(root)
-        root.requestApplyInsets()
         rebuildDrawer()
     }
 
