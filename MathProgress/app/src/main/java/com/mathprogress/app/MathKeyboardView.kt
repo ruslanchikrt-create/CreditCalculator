@@ -2,6 +2,7 @@ package com.mathprogress.app
 
 import android.content.Context
 import android.graphics.Color
+import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.view.Gravity
 import android.view.View
@@ -11,13 +12,20 @@ import android.widget.LinearLayout
 
 class MathKeyboardView(
     context: Context,
-    private val target: EditText
+    private val target: EditText,
+    private val darkMode: Boolean = false
 ) : LinearLayout(context) {
+
+    private val accent = Color.rgb(99, 91, 255)
+    private val surface = if (darkMode) Color.rgb(31, 32, 38) else Color.WHITE
+    private val keySurface = if (darkMode) Color.rgb(42, 43, 51) else Color.rgb(247, 247, 251)
+    private val border = if (darkMode) Color.rgb(57, 59, 68) else Color.rgb(225, 226, 233)
+    private val fg = if (darkMode) Color.rgb(245, 245, 247) else Color.rgb(29, 30, 35)
 
     init {
         orientation = VERTICAL
-        setPadding(dp(5), dp(5), dp(5), dp(5))
-        background = shape(Color.WHITE, 14, Color.rgb(225, 226, 234))
+        setPadding(dp(7), dp(7), dp(7), dp(7))
+        background = shape(surface, 16, border)
         target.showSoftInputOnFocus = false
 
         val rows = listOf(
@@ -29,10 +37,12 @@ class MathKeyboardView(
             listOf("a⁄b", "|x|", "log", "ln", "π"),
             listOf("<", ">", "≤", "≥", "≠")
         )
+
         rows.forEach { symbols ->
             val row = LinearLayout(context).apply { orientation = HORIZONTAL }
             symbols.forEach { symbol ->
-                row.addView(key(symbol) { press(symbol) }, LayoutParams(0, dp(42), 1f).apply {
+                val special = symbol in listOf("+", "−", "×", "÷", "=", "√", "x²", "x³", "xⁿ", "log", "ln")
+                row.addView(key(symbol, special) { press(symbol) }, LayoutParams(0, dp(44), 1f).apply {
                     setMargins(dp(2), dp(2), dp(2), dp(2))
                 })
             }
@@ -40,11 +50,11 @@ class MathKeyboardView(
         }
 
         val controls = LinearLayout(context).apply { orientation = HORIZONTAL }
-        controls.addView(key("←") { move(-1) }, LayoutParams(0, dp(42), 1f))
-        controls.addView(key("→") { move(1) }, LayoutParams(0, dp(42), 1f))
-        controls.addView(key("↵") { insert("\n") }, LayoutParams(0, dp(42), 1f))
-        controls.addView(key("⌫") { backspace() }, LayoutParams(0, dp(42), 1f))
-        controls.addView(key("Очистить") { target.text.clear() }, LayoutParams(0, dp(42), 1.35f))
+        controls.addView(key("←", false) { move(-1) }, LayoutParams(0, dp(44), 1f).apply { setMargins(dp(2), dp(2), dp(2), dp(2)) })
+        controls.addView(key("→", false) { move(1) }, LayoutParams(0, dp(44), 1f).apply { setMargins(dp(2), dp(2), dp(2), dp(2)) })
+        controls.addView(key("↵", false) { insert("\n") }, LayoutParams(0, dp(44), 1f).apply { setMargins(dp(2), dp(2), dp(2), dp(2)) })
+        controls.addView(key("⌫", false) { backspace() }, LayoutParams(0, dp(44), 1f).apply { setMargins(dp(2), dp(2), dp(2), dp(2)) })
+        controls.addView(key("Очистить", false) { target.text.clear() }, LayoutParams(0, dp(44), 1.45f).apply { setMargins(dp(2), dp(2), dp(2), dp(2)) })
         addView(controls)
     }
 
@@ -94,14 +104,17 @@ class MathKeyboardView(
         target.requestFocus()
     }
 
-    private fun key(textValue: String, action: () -> Unit): View = Button(context).apply {
+    private fun key(textValue: String, special: Boolean, action: () -> Unit): View = Button(context).apply {
         text = textValue
-        textSize = 13f
+        textSize = if (textValue.length > 5) 12f else 15f
+        typeface = if (special) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
         isAllCaps = false
         gravity = Gravity.CENTER
-        setTextColor(Color.rgb(30, 31, 37))
-        background = shape(Color.rgb(247, 247, 251), 9, Color.rgb(226, 227, 233))
+        setTextColor(if (special) accent else fg)
+        background = shape(if (special) Color.argb(if (darkMode) 45 else 20, 99, 91, 255) else keySurface, 10, border)
         stateListAnimator = null
+        minWidth = 0
+        minHeight = 0
         setPadding(0, 0, 0, 0)
         setOnClickListener { action() }
     }
