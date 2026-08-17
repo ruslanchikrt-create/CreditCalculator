@@ -15,7 +15,11 @@ data class StatsSnapshot(
     val bestTopic: String?,
     val weakTopic: String?,
     val message: String,
-    val comparison: String
+    val comparison: String,
+    val difficultyCounts: Map<Int,Int>,
+    val difficultyAccuracy: Map<Int,Int>,
+    val currentDifficulty: Int,
+    val maxSuccessfulDifficulty: Int
 )
 
 object StatsEngine {
@@ -28,7 +32,7 @@ object StatsEngine {
         val accuracy = if (checked.isEmpty()) null else (correct * 100.0 / checked.size).roundToInt()
         val grades = current.mapNotNull { if (it.grade in 1..5) it.grade else null }
         val avg = grades.takeIf { it.isNotEmpty() }?.average()
-        val topicRates = current.filter { it.checked }.groupBy { it.type }.mapValues { (_, list) -> list.count { it.correct }.toDouble() / list.size }
+        val topicRates = checked.groupBy { it.type }.mapValues { (_, list) -> list.count { it.correct }.toDouble() / list.size }
         val best = topicRates.maxByOrNull { it.value }?.key
         val weak = topicRates.minByOrNull { it.value }?.key
 
@@ -40,8 +44,15 @@ object StatsEngine {
             accuracy != null && prevAcc != null -> "Результат стабильный: $accuracy%."
             else -> ""
         }
+        val counts = (1..4).associateWith { level -> current.count { it.difficulty == level } }
+        val byLevel = (1..4).associateWith { level ->
+            val items = checked.filter { it.difficulty == level }
+            if (items.isEmpty()) 0 else (items.count { it.correct } * 100.0 / items.size).roundToInt()
+        }
+        val suggested = PracticeEngine.suggestedDifficulty(current.ifEmpty { tasks })
+        val maxSuccessful = checked.filter { it.correct }.maxOfOrNull { it.difficulty } ?: 0
         val message = motivational(accuracy, avg, current.size)
-        return StatsSnapshot(current.size, checked.size, correct, accuracy, avg, current.count { it.selfSolved }, best, weak, message, comparison)
+        return StatsSnapshot(current.size, checked.size, correct, accuracy, avg, current.count { it.selfSolved }, best, weak, message, comparison, counts, byLevel, suggested, maxSuccessful)
     }
 
     private fun motivational(accuracy: Int?, avg: Double?, solved: Int): String {
@@ -64,10 +75,7 @@ object StatsEngine {
             timeInMillis = now
             set(Calendar.HOUR_OF_DAY,0); set(Calendar.MINUTE,0); set(Calendar.SECOND,0); set(Calendar.MILLISECOND,0)
             when(period) {
-                StatsPeriod.WEEK -> {
-                    val daysFromMonday = (get(Calendar.DAY_OF_WEEK) + 5) % 7
-                    add(Calendar.DAY_OF_YEAR, -daysFromMonday)
-                }
+                StatsPeriod.WEEK -> { val daysFromMonday = (get(Calendar.DAY_OF_WEEK) + 5) % 7; add(Calendar.DAY_OF_YEAR, -daysFromMonday) }
                 StatsPeriod.MONTH -> set(Calendar.DAY_OF_MONTH,1)
                 StatsPeriod.YEAR -> { set(Calendar.MONTH,Calendar.JANUARY); set(Calendar.DAY_OF_MONTH,1) }
                 StatsPeriod.ALL -> {}
