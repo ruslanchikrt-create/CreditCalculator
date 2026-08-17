@@ -23,15 +23,18 @@ class DailyJourneyView(
 
     private val daysInMonth = Calendar.getInstance().apply { set(year, month, 1) }.getActualMaximum(Calendar.DAY_OF_MONTH)
     private val columns = 5
-    private val nodeRadius = dp(22f)
-    private val rowHeight = dp(72f)
+    private val nodeRadius = dp(21f)
+    private val rowHeight = dp(70f)
     private val topPad = dp(26f)
     private val bottomPad = dp(18f)
+    private val sidePad = nodeRadius + dp(8f)
     private val centers = mutableMapOf<Int, Pair<Float, Float>>()
     private val linePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { strokeWidth = dp(4f); strokeCap = Paint.Cap.ROUND }
     private val nodePaint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { textAlign = Paint.Align.CENTER; typeface = Typeface.DEFAULT_BOLD; textSize = sp(15f) }
     private val checkPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.WHITE; strokeWidth = dp(3f); style = Paint.Style.STROKE; strokeCap = Paint.Cap.ROUND; strokeJoin = Paint.Join.ROUND }
+    private val todayPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeWidth = dp(2.5f); color = Color.rgb(120,113,255) }
+    private val todayDay: Int = Calendar.getInstance().let { now -> if (now.get(Calendar.YEAR)==year && now.get(Calendar.MONTH)==month) now.get(Calendar.DAY_OF_MONTH) else -1 }
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         val width = MeasureSpec.getSize(widthMeasureSpec)
@@ -44,15 +47,14 @@ class DailyJourneyView(
         super.onDraw(canvas)
         centers.clear()
         val w = width.toFloat()
-        val side = dp(18f)
-        val stepX = (w - 2 * side) / (columns - 1)
+        val stepX = (w - 2 * sidePad) / (columns - 1)
         val centersList = mutableListOf<Pair<Float, Float>>()
         for (day in 1..daysInMonth) {
             val idx = day - 1
             val row = idx / columns
             val pos = idx % columns
             val snakePos = if (row % 2 == 0) pos else columns - 1 - pos
-            val x = side + snakePos * stepX
+            val x = sidePad + snakePos * stepX
             val y = topPad + row * rowHeight + nodeRadius
             centers[day] = x to y
             centersList += x to y
@@ -84,16 +86,12 @@ class DailyJourneyView(
             }
             canvas.drawCircle(x,y,nodeRadius,nodePaint)
             if (enabled && status == 0) {
-                nodePaint.style = Paint.Style.STROKE; nodePaint.strokeWidth = dp(2f)
-                nodePaint.color = Color.rgb(99,91,255)
+                nodePaint.style = Paint.Style.STROKE; nodePaint.strokeWidth = dp(2f); nodePaint.color = Color.rgb(99,91,255)
                 canvas.drawCircle(x,y,nodeRadius,nodePaint)
             }
+            if (day == todayDay) canvas.drawCircle(x,y,nodeRadius+dp(5f),todayPaint)
             if (status == 2) {
-                val p = android.graphics.Path()
-                p.moveTo(x-dp(8f), y)
-                p.lineTo(x-dp(2f), y+dp(6f))
-                p.lineTo(x+dp(9f), y-dp(7f))
-                canvas.drawPath(p, checkPaint)
+                val p = android.graphics.Path(); p.moveTo(x-dp(8f), y); p.lineTo(x-dp(2f), y+dp(6f)); p.lineTo(x+dp(9f), y-dp(7f)); canvas.drawPath(p, checkPaint)
             } else {
                 textPaint.color = when {
                     !enabled -> if (darkMode) Color.rgb(112,114,125) else Color.rgb(164,166,176)
