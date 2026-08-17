@@ -37,11 +37,18 @@ class MainActivity : Activity() {
     private val feedbackAttachments = mutableListOf<Uri>()
     private var feedbackIsError = true
     private var feedbackDraft = ""
+    private var onboardingActive = false
+    private val feedbackAttachments = mutableListOf<Uri>()
+    private var feedbackIsError = true
+    private var feedbackDraft = ""
 
     private var period = StatsPeriod.WEEK
     private val historyFilter = HistoryFilterState()
 
     private var practiceTopic = "Линейные"
+    private var practiceDifficulty = 1
+    private var practiceAdaptive = false
+    private var practiceUserAnswer = ""
     private var practiceDifficulty = 1
     private var practiceAdaptive = false
     private var practiceUserAnswer = ""
@@ -62,6 +69,7 @@ class MainActivity : Activity() {
     private var dailyAnswered = false
     private var dailyLastCorrect = false
     private var dailyUserAnswer = ""
+    private var dailyUserAnswer = ""
 
     private val accent = Color.rgb(99, 91, 255)
     private val green = Color.rgb(37, 174, 99)
@@ -73,6 +81,7 @@ class MainActivity : Activity() {
         const val REQ_BACKUP_SAVE = 102
         const val REQ_BACKUP_OPEN = 103
         const val REQ_DEVICE_AUTH = 104
+        const val REQ_FEEDBACK_MEDIA = 105
         const val REQ_FEEDBACK_MEDIA = 105
     }
 
