@@ -33,11 +33,18 @@ class MainActivity : Activity() {
     private var deviceAuthPurpose = ""
     private var pendingSecurityAction: (() -> Unit)? = null
     private var avatarProfileId: String? = null
+    private var onboardingActive = false
+    private val feedbackAttachments = mutableListOf<Uri>()
+    private var feedbackIsError = true
+    private var feedbackDraft = ""
 
     private var period = StatsPeriod.WEEK
     private val historyFilter = HistoryFilterState()
 
     private var practiceTopic = "Линейные"
+    private var practiceDifficulty = 1
+    private var practiceAdaptive = false
+    private var practiceUserAnswer = ""
     private var practiceTotal = 5
     private var practiceIndex = 0
     private var practiceCorrect = 0
@@ -54,6 +61,7 @@ class MainActivity : Activity() {
     private var dailyAttempt = 1
     private var dailyAnswered = false
     private var dailyLastCorrect = false
+    private var dailyUserAnswer = ""
 
     private val accent = Color.rgb(99, 91, 255)
     private val green = Color.rgb(37, 174, 99)
@@ -65,26 +73,27 @@ class MainActivity : Activity() {
         const val REQ_BACKUP_SAVE = 102
         const val REQ_BACKUP_OPEN = 103
         const val REQ_DEVICE_AUTH = 104
+        const val REQ_FEEDBACK_MEDIA = 105
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         try {
-            store = LocalStore(this)
-            buildShell()
-            showResults()
-            store.setLastOpenNow()
-            if (store.securityEnabled()) {
-                root.post { runCatching { lockNow() } }
-            }
+  store = LocalStore(this)
+  if (!store.settings.onboardingComplete || !store.settings.disclaimerAccepted) {
+      onboardingActive = true
+      showFirstLaunchLanguage()
+      return
+  }
+  startMainUi()
         } catch (error: Throwable) {
-            showEmergencyStartup(error)
+  showEmergencyStartup(error)
         }
     }
 
     override fun onResume() {
         super.onResume()
-        if (!::store.isInitialized) return
+        if (!::store.isInitialized || onboardingActive) return
         store.setLastOpenNow()
         if (firstResume) { firstResume = false; return }
         runCatching {
@@ -97,10 +106,75 @@ class MainActivity : Activity() {
     }
 
     override fun onPause() {
-        if (::store.isInitialized) {
+        if (::store.isInitialized && !onboardingActive) {
             store.setBackgroundAt(System.currentTimeMillis())
         }
         super.onPause()
+    }
+
+    private fun startMainUi() {
+        onboardingActive = false
+        buildShell()
+        runCatching { applySystemBars() }
+        showResults()
+        store.setLastOpenNow()
+        root.postDelayed({
+  runCatching {
+      requestNotificationPermission()
+      NotificationScheduler.scheduleAll(this, store)
+  }
+        }, 650)
+        if (store.securityEnabled()) root.post { runCatching { lockNow() } }
+    }
+
+    private fun showFirstLaunchLanguage() {
+        onboardingActive = true
+        val sc = android.widget.ScrollView(this)
+        val box = LinearLayout(this).apply {
+  orientation = LinearLayout.VERTICAL
+  setPadding(dp(26), dp(52), dp(26), dp(34))
+  setBackgroundColor(Color.rgb(17,18,22))
+        }
+        box.addView(text("∑",54f,true,accent).apply { gravity=Gravity.CENTER })
+        box.addView(text("MathProgress",27f,true,Color.WHITE).apply { gravity=Gravity.CENTER; setPadding(0,dp(10),0,dp(24)) })
+        box.addView(text(AppText.t(store.settings.language,"choose_language"),27f,true,Color.WHITE))
+        box.addView(text(AppText.t(store.settings.language,"choose_language_sub"),14f,false,Color.rgb(170,172,183)).apply { setPadding(0,dp(5),0,dp(18)) })
+        listOf("ru" to "Русский", "en" to "English", "tr" to "Türkçe", "es" to "Español").forEach { (code,name) ->
+  val b = Button(this).apply {
+      text=name; textSize=18f; isAllCaps=false; setTextColor(Color.WHITE)
+      background=round(Color.rgb(31,32,38),15,Color.rgb(57,59,68)); stateListAnimator=null
+      setOnClickListener { store.settings.language=code; store.save(); showMandatoryDisclaimer() }
+  }
+  box.addView(b,LinearLayout.LayoutParams(-1,dp(58)).apply { setMargins(0,0,0,dp(9)) })
+        }
+        sc.addView(box,android.widget.FrameLayout.LayoutParams(-1,-2))
+        setContentView(sc)
+    }
+
+    private fun showMandatoryDisclaimer() {
+        onboardingActive = true
+        val lang=store.settings.language
+        val sc=android.widget.ScrollView(this)
+        val box=LinearLayout(this).apply { orientation=LinearLayout.VERTICAL; setPadding(dp(26),dp(48),dp(26),dp(34)); setBackgroundColor(Color.rgb(17,18,22)) }
+        box.addView(text("ⓘ",48f,true,amber).apply { gravity=Gravity.CENTER })
+        box.addView(text(AppText.t(lang,"disclaimer_title"),27f,true,Color.WHITE).apply { gravity=Gravity.CENTER; setPadding(0,dp(12),0,dp(18)) })
+        val card=LinearLayout(this).apply { orientation=LinearLayout.VERTICAL; setPadding(dp(18),dp(18),dp(18),dp(18)); background=round(Color.rgb(31,32,38),17,Color.rgb(57,59,68)) }
+        card.addView(text(AppText.t(lang,"important"),16f,true,amber))
+        card.addView(text(AppText.t(lang,"disclaimer_body"),16f,false,Color.rgb(235,235,239)).apply { setPadding(0,dp(10),0,0); setLineSpacing(dp(3).toFloat(),1.08f) })
+        box.addView(card)
+        box.addView(space(22))
+        val ack=Button(this).apply {
+  text=AppText.t(lang,"acknowledge"); textSize=16f; isAllCaps=false; setTextColor(Color.WHITE); background=round(accent,14); stateListAnimator=null
+  setOnClickListener {
+      store.settings.disclaimerAccepted=true
+      store.settings.onboardingComplete=true
+      store.save()
+      startMainUi()
+  }
+        }
+        box.addView(ack,LinearLayout.LayoutParams(-1,dp(56)))
+        sc.addView(box,android.widget.FrameLayout.LayoutParams(-1,-2))
+        setContentView(sc)
     }
 
     private fun showEmergencyStartup(error: Throwable) {
@@ -147,7 +221,7 @@ class MainActivity : Activity() {
 
     private fun buildShell() {
         root = FrameLayout(this).apply { setBackgroundColor(bg()) }
-        val vertical = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(bg()); setPadding(0, dp(12), 0, 0) }
+        val vertical = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(bg()) }
         val top = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
             setPadding(dp(10), dp(5), dp(14), dp(5)); setBackgroundColor(cardColor()); elevation = dp(2).toFloat()
@@ -156,9 +230,9 @@ class MainActivity : Activity() {
             setImageResource(R.drawable.ic_menu); imageTintList = ColorStateList.valueOf(fg()); background = round(Color.TRANSPARENT, 12)
             contentDescription = "Меню"; setPadding(dp(11), dp(11), dp(11), dp(11)); setOnClickListener { openDrawer() }
         }
-        top.addView(navButton, LinearLayout.LayoutParams(dp(46), dp(46)))
-        top.addView(text("Математика — Прогресс", 17.5f, true), LinearLayout.LayoutParams(0, -2, 1f).apply { setMargins(dp(10),0,0,0) })
-        vertical.addView(top, LinearLayout.LayoutParams(-1, dp(56)))
+        top.addView(navButton, LinearLayout.LayoutParams(dp(42), dp(42)))
+        top.addView(text(T("app_title"), 17f, true), LinearLayout.LayoutParams(0, -2, 1f).apply { setMargins(dp(10),0,0,0) })
+        vertical.addView(top, LinearLayout.LayoutParams(-1, dp(52)))
 
         content = FrameLayout(this)
         vertical.addView(content, LinearLayout.LayoutParams(-1, 0, 1f))
@@ -199,28 +273,28 @@ class MainActivity : Activity() {
         }
         header.addView(avatarView(p, 54), LinearLayout.LayoutParams(dp(54),dp(54)))
         val info = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(12),0,0,0) }
-        info.addView(text(p.name,18f,true)); info.addView(text("Профиль и смена пользователя",12f,false,muted()))
+        info.addView(text(p.name,18f,true)); info.addView(text(T("profile_sub"),12f,false,muted()))
         header.addView(info, LinearLayout.LayoutParams(0,-2,1f))
         header.addView(text("›",28f,true,muted()))
         drawerList.addView(header, LinearLayout.LayoutParams(-1, dp(78)))
         drawerList.addView(space(12))
 
         val items = listOf(
-            DrawerItem("results", R.drawable.ic_home, "Результаты") { showResults() },
-            DrawerItem("solve", R.drawable.ic_calculate, "Решить задачу") { showSolve() },
-            DrawerItem("practice", R.drawable.ic_check, "Проверка знаний") { showPracticeSetup() },
-            DrawerItem("daily", R.drawable.ic_daily, "Ежедневная тренировка") { showDaily() },
-            DrawerItem("history", R.drawable.ic_history, "История") { showHistory() },
-            DrawerItem("mistakes", R.drawable.ic_info, "Мои ошибки") { showMistakes() },
-            DrawerItem("trash", R.drawable.ic_delete, "Корзина") { showTrash() },
-            DrawerItem("settings", R.drawable.ic_settings, "Настройки") { showSettings() },
-            DrawerItem("guide", R.drawable.ic_book, "Инструкция") { showGuide() }
+            DrawerItem("results", R.drawable.ic_home, T("results")) { showResults() },
+            DrawerItem("solve", R.drawable.ic_calculate, T("solve")) { showSolve() },
+            DrawerItem("practice", R.drawable.ic_check, T("practice")) { showPracticeSetup() },
+            DrawerItem("daily", R.drawable.ic_daily, T("daily")) { showDaily() },
+            DrawerItem("history", R.drawable.ic_history, T("history")) { showHistory() },
+            DrawerItem("mistakes", R.drawable.ic_info, T("mistakes")) { showMistakes() },
+            DrawerItem("trash", R.drawable.ic_delete, T("trash")) { showTrash() },
+            DrawerItem("settings", R.drawable.ic_settings, T("settings")) { showSettings() },
+            DrawerItem("guide", R.drawable.ic_book, T("guide")) { showGuide() }
         )
         items.forEach { drawerList.addView(drawerItemView(it), LinearLayout.LayoutParams(-1, dp(47))) }
         drawerList.addView(Space(this), LinearLayout.LayoutParams(1,0,1f))
         drawerList.addView(divider())
-        drawerList.addView(drawerItemView(DrawerItem("about",R.drawable.ic_about,"О приложении"){showAbout()}), LinearLayout.LayoutParams(-1,dp(47)))
-        drawerList.addView(drawerItemView(DrawerItem("exit",R.drawable.ic_exit,"Выход"){finishAndRemoveTask()}, danger=true), LinearLayout.LayoutParams(-1,dp(47)))
+        drawerList.addView(drawerItemView(DrawerItem("about",R.drawable.ic_about,T("about")){showAbout()}), LinearLayout.LayoutParams(-1,dp(47)))
+        drawerList.addView(drawerItemView(DrawerItem("exit",R.drawable.ic_exit,T("exit")){finishAndRemoveTask()}, danger=true), LinearLayout.LayoutParams(-1,dp(47)))
     }
 
     private data class DrawerItem(val key:String,val icon:Int,val title:String,val action:()->Unit)
@@ -246,86 +320,38 @@ class MainActivity : Activity() {
 
     @Deprecated("Deprecated in Android")
     override fun onBackPressed(){
+        if(onboardingActive) return
         when { drawer.visibility==View.VISIBLE->closeDrawer(); lockOverlay!=null->{}; backAction!=null->backAction?.invoke(); current!="results"->showResults(); else->super.onBackPressed() }
     }
 
     // ---------- RESULTS ----------
     private fun showResults(){
         val (scroll,box)=page()
-        box.addView(screenTitle("Результаты","Ваш прогресс и успеваемость"))
-
+        box.addView(screenTitle(T("results"),L("Ваш прогресс и успеваемость","Your progress and performance","İlerlemeniz ve performansınız","Tu progreso y rendimiento")))
         val tabs=LinearLayout(this).apply{orientation=LinearLayout.HORIZONTAL}
-        listOf(
-            StatsPeriod.WEEK to "Неделя",
-            StatsPeriod.MONTH to "Месяц",
-            StatsPeriod.YEAR to "Год",
-            StatsPeriod.ALL to "Всё время"
-        ).forEach{(p,t)->
-            tabs.addView(segment(t,period==p){period=p;showResults()},LinearLayout.LayoutParams(0,dp(42),1f).apply{setMargins(dp(2),0,dp(2),0)})
-        }
-        box.addView(tabs)
-        box.addView(space(12))
-
-        val s=StatsEngine.snapshot(store.history(),period)
-        val hero=card()
-        hero.addView(text(s.message,19f,true))
-        if(s.comparison.isNotBlank()){
-            hero.addView(text(s.comparison,13.5f,true,green).apply{setPadding(0,dp(7),0,0)})
-        }
-        hero.addView(space(16))
-
-        val metrics=LinearLayout(this).apply{orientation=LinearLayout.HORIZONTAL}
-        metrics.addView(metric("Средняя",s.averageGrade?.let{String.format(Locale.US,"%.1f",it)}?:"—",R.drawable.ic_star),LinearLayout.LayoutParams(0,-2,1f))
-        metrics.addView(metric("Точность",s.accuracy?.let{"$it%"}?:"—",R.drawable.ic_target),LinearLayout.LayoutParams(0,-2,1f))
-        metrics.addView(metric("Решено",s.solved.toString(),R.drawable.ic_calculate),LinearLayout.LayoutParams(0,-2,1f))
-        hero.addView(metrics)
-        box.addView(hero)
-        box.addView(space(10))
-
-        val topics=card()
-        val bestText=if(s.bestTopic==null) "Сильная тема: пока недостаточно данных" else "Сильная тема: ${s.bestTopic}"
-        val weakText=if(s.weakTopic==null) "Стоит повторить: пока недостаточно данных" else "Стоит повторить: ${s.weakTopic}"
-        topics.addView(iconLine(R.drawable.ic_star,bestText,if(s.bestTopic==null)muted() else green))
-        topics.addView(space(8))
-        topics.addView(iconLine(R.drawable.ic_target,weakText,if(s.weakTopic==null)muted() else amber))
-        box.addView(topics)
-        box.addView(space(10))
-
-        val today=dateKey(System.currentTimeMillis())
-        val daily=store.daily(today)
-        val dc=card()
-        dc.addView(iconLine(R.drawable.ic_daily,"Ежедневная тренировка",accent,true))
-        dc.addView(space(6))
-        dc.addView(text(when{
-            daily?.completed==true -> "Сегодня выполнено ✓"
-            (daily?.attempts?:0)>0 -> "Сегодня можно улучшить результат"
-            else -> "5 коротких заданий на сегодня"
-        },14f,false,muted()))
-        dc.addView(space(10))
-        dc.addView(
-            if(daily?.completed==true)
-                outline("Открыть календарь",R.drawable.ic_daily,accent){showDaily()}
-            else
-                primary("Начать ежедневные задания",R.drawable.ic_play){startDaily(today)}
+        val labels=listOf(
+  StatsPeriod.WEEK to L("Неделя","Week","Hafta","Semana"),
+  StatsPeriod.MONTH to L("Месяц","Month","Ay","Mes"),
+  StatsPeriod.YEAR to L("Год","Year","Yıl","Año"),
+  StatsPeriod.ALL to L("Всё время","All time","Tümü","Todo")
         )
-        box.addView(dc)
-
-        val draft=store.getDraft()
-        if(draft.isNotBlank()){
-            box.addView(space(10))
-            val c=card()
-            c.addView(iconLine(R.drawable.ic_calculate,"Незавершённая задача",accent,true))
-            c.addView(text(draft.take(110),14f,false,muted()).apply{setPadding(0,dp(5),0,dp(8))})
-            c.addView(outline("Продолжить",R.drawable.ic_play,accent){showSolve(draft)})
-            box.addView(c)
-        }
-
-        box.addView(space(14))
-        box.addView(primary("Решить задачу",R.drawable.ic_calculate){showSolve()})
-        box.addView(space(8))
-        box.addView(outline("Проверить знания",R.drawable.ic_check,accent){showPracticeSetup()})
-        box.addView(space(24))
-        setScreen("results",scroll)
+        labels.forEach{(p,t)->tabs.addView(segment(t,period==p){period=p;showResults()},LinearLayout.LayoutParams(0,dp(42),1f).apply{setMargins(dp(2),0,dp(2),0)})}
+        box.addView(tabs);box.addView(space(12))
+        val s=StatsEngine.snapshot(store.history(),period)
+        val hero=card();hero.addView(text(s.message,19f,true));if(s.comparison.isNotBlank())hero.addView(text(s.comparison,13.5f,true,green).apply{setPadding(0,dp(7),0,0)});hero.addView(space(16))
+        val metrics=LinearLayout(this).apply{orientation=LinearLayout.HORIZONTAL}
+        metrics.addView(metric(L("Средняя","Average","Ortalama","Promedio"),s.averageGrade?.let{String.format(Locale.US,"%.1f",it)}?:"—",R.drawable.ic_star),LinearLayout.LayoutParams(0,-2,1f))
+        metrics.addView(metric(L("Точность","Accuracy","Doğruluk","Precisión"),s.accuracy?.let{"$it%"}?:"—",R.drawable.ic_target),LinearLayout.LayoutParams(0,-2,1f))
+        metrics.addView(metric(L("Решено","Solved","Çözüldü","Resueltos"),s.solved.toString(),R.drawable.ic_calculate),LinearLayout.LayoutParams(0,-2,1f));hero.addView(metrics);box.addView(hero);box.addView(space(10))
+        val difficulty=card();difficulty.addView(iconLine(R.drawable.ic_trophy,T("difficulty"),accent,true));difficulty.addView(text(L("Текущий уровень: ","Current level: ","Mevcut seviye: ","Nivel actual: ")+difficultyLabel(s.currentDifficulty),16f,true).apply{setPadding(0,dp(8),0,dp(6))})
+        (1..4).forEach{level->val count=s.difficultyCounts[level]?:0;val acc=s.difficultyAccuracy[level]?:0;difficulty.addView(text("${difficultyLabel(level)} — $count"+(if(count>0&&acc>0)" • $acc%" else ""),13.5f,false,if(level==s.currentDifficulty)accent else muted()).apply{setPadding(0,dp(2),0,dp(2))})}
+        if(s.maxSuccessfulDifficulty>0)difficulty.addView(text(L("Максимум успешно: ","Highest completed: ","Başarılan en yüksek: ","Máximo superado: ")+difficultyLabel(s.maxSuccessfulDifficulty),13f,true,green).apply{setPadding(0,dp(6),0,0)})
+        box.addView(difficulty);box.addView(space(10))
+        val topics=card();val bestText=if(s.bestTopic==null)L("Сильная тема: пока недостаточно данных","Strong topic: not enough data yet","Güçlü konu: henüz yeterli veri yok","Tema fuerte: aún no hay suficientes datos") else L("Сильная тема: ","Strong topic: ","Güçlü konu: ","Tema fuerte: ")+s.bestTopic;val weakText=if(s.weakTopic==null)L("Стоит повторить: пока недостаточно данных","Review: not enough data yet","Tekrar: henüz yeterli veri yok","Repasar: aún no hay suficientes datos") else L("Стоит повторить: ","Review: ","Tekrar: ","Repasar: ")+s.weakTopic;topics.addView(iconLine(R.drawable.ic_star,bestText,if(s.bestTopic==null)muted() else green));topics.addView(space(8));topics.addView(iconLine(R.drawable.ic_target,weakText,if(s.weakTopic==null)muted() else amber));box.addView(topics);box.addView(space(10))
+        val notice=card();notice.addView(iconLine(R.drawable.ic_info,T("disclaimer_short"),muted(),false));box.addView(notice);box.addView(space(10))
+        val today=dateKey(System.currentTimeMillis());val daily=store.daily(today);val dc=card();dc.addView(iconLine(R.drawable.ic_daily,T("daily"),accent,true));dc.addView(space(6));dc.addView(text(when{daily?.completed==true->L("Сегодня выполнено ✓","Completed today ✓","Bugün tamamlandı ✓","Completado hoy ✓");(daily?.attempts?:0)>0->L("Сегодня можно улучшить результат","You can improve today's result","Bugünkü sonucu geliştirebilirsiniz","Puedes mejorar el resultado de hoy");else->L("5 коротких заданий на сегодня","5 short tasks for today","Bugün için 5 kısa soru","5 ejercicios cortos para hoy")},14f,false,muted()));dc.addView(space(10));dc.addView(if(daily?.completed==true)outline(L("Открыть календарь","Open calendar","Takvimi aç","Abrir calendario"),R.drawable.ic_daily,accent){showDaily()} else primary(L("Начать ежедневные задания","Start daily tasks","Günlük sorulara başla","Empezar ejercicios diarios"),R.drawable.ic_play){startDaily(today)});box.addView(dc)
+        val draft=store.getDraft();if(draft.isNotBlank()){box.addView(space(10));val c=card();c.addView(iconLine(R.drawable.ic_calculate,L("Незавершённая задача","Unfinished task","Bitmemiş soru","Ejercicio sin terminar"),accent,true));c.addView(text(draft.take(110),14f,false,muted()).apply{setPadding(0,dp(5),0,dp(8))});c.addView(outline(L("Продолжить","Continue","Devam et","Continuar"),R.drawable.ic_play,accent){showSolve(draft)});box.addView(c)}
+        box.addView(space(14));box.addView(primary(T("solve"),R.drawable.ic_calculate){showSolve()});box.addView(space(8));box.addView(outline(T("practice"),R.drawable.ic_check,accent){showPracticeSetup()});box.addView(space(24));setScreen("results",scroll)
     }
 
     // ---------- SOLVER ----------
@@ -349,45 +375,45 @@ class MainActivity : Activity() {
     }
 
     private fun showSelfCheck(result:SolveResult){
-        val (scroll,box)=page();box.addView(screenTitle("Решить самостоятельно","Введите свой ответ — приложение проверит"));val c=card();c.addView(text(result.input,23f,true));c.addView(text(result.type,13f,false,accent));box.addView(c);box.addView(space(10))
-        val answer=EditText(this).apply{hint="Ваш ответ";textSize=19f;setTextColor(fg());setHintTextColor(muted());showSoftInputOnFocus=false;setPadding(dp(12),dp(10),dp(12),dp(10));background=round(cardColor(),14,border())};box.addView(answer,LinearLayout.LayoutParams(-1,dp(58)));box.addView(space(8));box.addView(MathKeyboardView(this,answer,dark()));box.addView(space(10))
-        val feedback=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL};box.addView(primary("Проверить",R.drawable.ic_check){val ok=if(result.numericAnswers.isNotEmpty())PracticeEngine.check(answer.text.toString(),result.numericAnswers) else answer.text.toString().trim()==result.answer.trim();store.addOrUpdateTask(TaskRecord(profileId=store.activeProfileId,input=result.input,type=result.type,answer=result.answer,steps=result.steps,selfSolved=true,checked=true,correct=ok,grade=if(ok)5 else 2));feedback.removeAllViews();feedback.addView(messageCard(if(ok)"Верно! Отличная работа." else "Есть ошибка. Правильный ответ: ${result.answer}",if(ok)green else amber))});box.addView(space(10));box.addView(feedback);setScreen("solve",scroll){showSolve(result.input)}
+        val (scroll,box)=page();box.addView(screenTitle(L("Решить самостоятельно","Solve yourself","Kendin çöz","Resuélvelo tú"),L("Введите свой ответ — приложение проверит","Enter your answer","Cevabınızı girin","Introduce tu respuesta")));val c=card();c.addView(text(result.input,23f,true));c.addView(text(result.type,13f,false,accent));box.addView(c);box.addView(space(10))
+        val answer=EditText(this).apply{hint=T("your_answer");textSize=19f;setTextColor(fg());setHintTextColor(muted());showSoftInputOnFocus=false;setPadding(dp(12),dp(10),dp(12),dp(10));background=round(cardColor(),14,border())};box.addView(answer,LinearLayout.LayoutParams(-1,dp(58)));box.addView(space(8));box.addView(MathKeyboardView(this,answer,dark()));box.addView(space(10))
+        val feedback=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL};box.addView(primary(T("check"),R.drawable.ic_check){val ua=answer.text.toString().trim();val ok=if(result.numericAnswers.isNotEmpty())PracticeEngine.check(ua,result.numericAnswers) else ua==result.answer.trim();store.addOrUpdateTask(TaskRecord(profileId=store.activeProfileId,input=result.input,type=result.type,answer=result.answer,steps=result.steps,selfSolved=true,checked=true,correct=ok,grade=if(ok)5 else 2,userAnswer=ua));feedback.removeAllViews();feedback.addView(answerReview(ua,result.answer,ok,result.steps))});box.addView(space(10));box.addView(feedback);setScreen("solve",scroll){showSolve(result.input)}
     }
 
     private fun showInputExamplesPage(){val (s,b)=page();b.addView(screenTitle("Примеры ввода","Как правильно записывать разные задачи"));listOf("Вычисление" to "(25)/(5)=","Линейное" to "3x+7=22","Квадратное" to "x^2-5x+6=0","Кубическое" to "x^3-6x^2+11x-6=0","Система 2×2" to "2x+y=5; x-y=1","Система 3×3" to "2x+y-z=1; x-y+2z=3; 3x+y+z=7","Дроби" to "(x+1)/(x-2)=3","Корень" to "sqrt(2x+3)=5","Показательное" to "2^(3x-1)=16","Логарифм" to "log2(x+1)=3").forEach{(t,e)->val c=card();c.addView(text(t,14f,true,accent));c.addView(text(e,18f,true));b.addView(c);b.addView(space(7))};setScreen("solve",s){showSolve()}}
 
     // ---------- PRACTICE ----------
     private fun showPracticeSetup(){
-        val (scroll,box)=page();box.addView(screenTitle("Проверка знаний","Отдельная тренировка с итоговой оценкой"));val c=card();c.addView(iconLine(R.drawable.ic_check,"Выберите тему и количество заданий",accent,true));c.addView(text("Каждый ответ сохраняется. После теста вы увидите оценку, точность и сможете разобрать ошибки.",14f,false,muted()).apply{setPadding(0,dp(7),0,0)});box.addView(c);box.addView(space(10))
-        val topic=styledSpinner(PracticeEngine.topics());box.addView(labeled("Тема",topic));box.addView(space(8));val counts=listOf("5 заданий","10 заданий","15 заданий");val count=styledSpinner(counts);box.addView(labeled("Количество",count));box.addView(space(12));box.addView(primary("Начать проверку",R.drawable.ic_check){practiceTopic=topic.selectedItem.toString();practiceTotal=listOf(5,10,15)[count.selectedItemPosition];practiceIndex=0;practiceCorrect=0;practiceStartedAt=System.currentTimeMillis();nextPracticeQuestion()});setScreen("practice",scroll)
+        val (scroll,box)=page();box.addView(screenTitle(T("practice"),L("Тренировка с итоговой оценкой","Practice with a final score","Sonuç puanlı alıştırma","Práctica con resultado final")));val c=card();c.addView(iconLine(R.drawable.ic_check,L("Выберите тему, сложность и количество","Choose topic, difficulty and count","Konu, zorluk ve sayı seçin","Elige tema, dificultad y cantidad"),accent,true));c.addView(text(T("disclaimer_short"),13f,false,muted()).apply{setPadding(0,dp(7),0,0)});box.addView(c);box.addView(space(10))
+        val topic=styledSpinner(localizedTopics());box.addView(labeled(T("topic"),topic));box.addView(space(8));val difficulty=styledSpinner(difficultyChoices());difficulty.setSelection(4);box.addView(labeled(T("difficulty"),difficulty));box.addView(space(8));val count=styledSpinner(listOf("5","10","15"));box.addView(labeled(T("count"),count));box.addView(space(12));box.addView(primary(T("start_test"),R.drawable.ic_check){practiceTopic=PracticeEngine.topics()[topic.selectedItemPosition];val choice=difficulty.selectedItemPosition+1;practiceAdaptive=choice==5;practiceDifficulty=if(practiceAdaptive)PracticeEngine.suggestedDifficulty(store.history()) else choice;practiceTotal=listOf(5,10,15)[count.selectedItemPosition];practiceIndex=0;practiceCorrect=0;practiceStartedAt=System.currentTimeMillis();nextPracticeQuestion()});setScreen("practice",scroll)
     }
 
-    private fun nextPracticeQuestion(){if(practiceIndex>=practiceTotal){showPracticeResult();return};practiceQuestion=PracticeEngine.generate(practiceTopic);practiceAnswered=false;showPracticeQuestion()}
+    private fun nextPracticeQuestion(){if(practiceIndex>=practiceTotal){showPracticeResult();return};val level=if(practiceAdaptive)PracticeEngine.suggestedDifficulty(store.history()) else practiceDifficulty;practiceQuestion=PracticeEngine.generate(practiceTopic,level);practiceAnswered=false;practiceUserAnswer="";showPracticeQuestion()}
     private fun showPracticeQuestion(){
-        val q=practiceQuestion?:return;val (scroll,box)=page();box.addView(screenTitle("Проверка знаний","Задание ${practiceIndex+1} из $practiceTotal"));box.addView(progressStrip(practiceIndex+1,practiceTotal));box.addView(space(10));val qc=card();qc.addView(text(q.type,13f,true,accent));qc.addView(text(q.input,24f,true).apply{setPadding(0,dp(8),0,0)});box.addView(qc);box.addView(space(10))
-        if(!practiceAnswered){val input=EditText(this).apply{hint="Ваш ответ";textSize=19f;setTextColor(fg());setHintTextColor(muted());showSoftInputOnFocus=false;setPadding(dp(12),dp(10),dp(12),dp(10));background=round(cardColor(),14,border())};box.addView(input,LinearLayout.LayoutParams(-1,dp(58)));box.addView(space(8));box.addView(MathKeyboardView(this,input,dark()));box.addView(space(8));box.addView(outline("Подсказка",R.drawable.ic_info){showInlineHint(box,q)});box.addView(space(8));box.addView(primary("Проверить ответ",R.drawable.ic_check){val ok=PracticeEngine.check(input.text.toString(),q.expected);practiceLastCorrect=ok;practiceCorrect+=if(ok)1 else 0;practiceAnswered=true;val solution=MathEngine.solve(q.input);store.addOrUpdateTask(TaskRecord(profileId=store.activeProfileId,input=q.input,type=q.type,answer=q.answerText,steps=solution.steps,selfSolved=true,checked=true,correct=ok,grade=if(ok)5 else 2,source="practice"));showPracticeQuestion()})}
-        else{box.addView(messageCard(if(practiceLastCorrect)"Верно! Так держать." else "Ошибка. Правильный ответ: ${q.answerText}",if(practiceLastCorrect)green else amber));box.addView(space(10));box.addView(primary(if(practiceIndex+1==practiceTotal)"Показать результат" else "Следующее задание",R.drawable.ic_check){practiceIndex++;nextPracticeQuestion()})}
+        val q=practiceQuestion?:return;val (scroll,box)=page();box.addView(screenTitle(T("practice"),L("Задание ${practiceIndex+1} из $practiceTotal","Task ${practiceIndex+1} of $practiceTotal","Soru ${practiceIndex+1} / $practiceTotal","Ejercicio ${practiceIndex+1} de $practiceTotal")));box.addView(progressStrip(practiceIndex+1,practiceTotal));box.addView(text(T("difficulty")+": "+difficultyLabel(q.difficulty),12.5f,true,accent).apply{setPadding(0,dp(6),0,dp(6))});val qc=card();qc.addView(text(q.type,13f,true,accent));qc.addView(text(q.input,24f,true).apply{setPadding(0,dp(8),0,0)});box.addView(qc);box.addView(space(10))
+        if(!practiceAnswered){val input=EditText(this).apply{hint=T("your_answer");textSize=19f;setTextColor(fg());setHintTextColor(muted());showSoftInputOnFocus=false;setPadding(dp(12),dp(10),dp(12),dp(10));background=round(cardColor(),14,border())};box.addView(input,LinearLayout.LayoutParams(-1,dp(58)));box.addView(space(8));box.addView(MathKeyboardView(this,input,dark()));box.addView(space(8));box.addView(outline(L("Подсказка","Hint","İpucu","Pista"),R.drawable.ic_info){showInlineHint(box,q)});box.addView(space(8));box.addView(primary(T("check"),R.drawable.ic_check){practiceUserAnswer=input.text.toString().trim();val ok=PracticeEngine.check(practiceUserAnswer,q.expected);practiceLastCorrect=ok;practiceCorrect+=if(ok)1 else 0;practiceAnswered=true;val solution=MathEngine.solve(q.input);store.addOrUpdateTask(TaskRecord(profileId=store.activeProfileId,input=q.input,type=q.type,answer=q.answerText,steps=solution.steps,selfSolved=true,checked=true,correct=ok,grade=if(ok)5 else 2,source="practice",difficulty=q.difficulty,userAnswer=practiceUserAnswer));showPracticeQuestion()})}
+        else{val solution=MathEngine.solve(q.input);box.addView(answerReview(practiceUserAnswer,q.answerText,practiceLastCorrect,solution.steps));box.addView(space(10));box.addView(primary(if(practiceIndex+1==practiceTotal)L("Показать результат","Show result","Sonucu göster","Ver resultado") else T("next"),R.drawable.ic_check){practiceIndex++;nextPracticeQuestion()})}
         setScreen("practice",scroll){showPracticeSetup()}
     }
 
-    private fun showPracticeResult(){val grade=PracticeEngine.grade(practiceCorrect,practiceTotal);val percent=if(practiceTotal==0)0 else practiceCorrect*100/practiceTotal;val mins=max(1,((System.currentTimeMillis()-practiceStartedAt)/60000L).toInt());val (s,b)=page();b.addView(screenTitle("Результат проверки","Тест завершён"));val hero=card();hero.gravity=Gravity.CENTER;hero.addView(text(motivation(percent),22f,true,if(percent>=75)green else fg()).apply{gravity=Gravity.CENTER});hero.addView(text("$percent%",48f,true,accent).apply{gravity=Gravity.CENTER;setPadding(0,dp(8),0,0)});hero.addView(text("Оценка: $grade",18f,true).apply{gravity=Gravity.CENTER});b.addView(hero);b.addView(space(10));val c=card();c.addView(text("Правильно: $practiceCorrect из $practiceTotal",15f,true));c.addView(text("Время: $mins мин.",14f,false,muted()));b.addView(c);b.addView(space(10));b.addView(primary("Разобрать ошибки",R.drawable.ic_info){showMistakes()});b.addView(space(8));b.addView(outline("Вернуться к результатам",R.drawable.ic_home){showResults()});setScreen("practice",s){showPracticeSetup()}}
+    private fun showPracticeResult(){val grade=PracticeEngine.grade(practiceCorrect,practiceTotal);val percent=if(practiceTotal==0)0 else practiceCorrect*100/practiceTotal;val mins=max(1,((System.currentTimeMillis()-practiceStartedAt)/60000L).toInt());val (s,b)=page();b.addView(screenTitle("Результат проверки","Тест завершён"));val hero=card();hero.gravity=Gravity.CENTER;hero.addView(text(motivation(percent),22f,true,if(percent>=75)green else fg()).apply{gravity=Gravity.CENTER});hero.addView(text("$percent%",48f,true,accent).apply{gravity=Gravity.CENTER;setPadding(0,dp(8),0,0)});hero.addView(text(L("Оценка приложения: $grade","App score: $grade","Uygulama puanı: $grade","Puntuación de la app: $grade"),18f,true).apply{gravity=Gravity.CENTER});hero.addView(text(T("disclaimer_short"),11.5f,false,muted()).apply{gravity=Gravity.CENTER;setPadding(0,dp(6),0,0)});b.addView(hero);b.addView(space(10));val c=card();c.addView(text("Правильно: $practiceCorrect из $practiceTotal",15f,true));c.addView(text("Время: $mins мин.",14f,false,muted()));b.addView(c);b.addView(space(10));b.addView(primary("Разобрать ошибки",R.drawable.ic_info){showMistakes()});b.addView(space(8));b.addView(outline("Вернуться к результатам",R.drawable.ic_home){showResults()});setScreen("practice",s){showPracticeSetup()}}
 
     private fun showInlineHint(box:LinearLayout,q:PracticeQuestion){val hint=when{q.type.contains("Квадрат")->"Начните с дискриминанта D = b² − 4ac.";q.type.contains("Система")->"Попробуйте сложение или подстановку.";q.type.contains("дроб",true)->"Сначала запишите ОДЗ — знаменатель не равен нулю.";q.type.contains("корн",true)->"Проверьте ОДЗ и возведите обе части в квадрат.";q.type.contains("Показ",true)->"Попробуйте привести степени к одному основанию.";q.type.contains("Лог",true)->"Начните с ОДЗ аргумента логарифма.";else->"Перенесите неизвестные в одну часть, числа — в другую."};box.addView(messageCard(hint,accent),2)}
 
     // ---------- DAILY ----------
     private fun showDaily(){
         val (scroll,box)=page();box.addView(screenTitle("Ежедневная тренировка","Закрывайте дни и собирайте полный месяц"));val monthLocale=if(store.settings.language=="en")Locale.ENGLISH else Locale("ru");val monthTitle=SimpleDateFormat("LLLL yyyy",monthLocale).format(calendarCursor.time).replaceFirstChar{if(it.isLowerCase())it.titlecase(monthLocale) else it.toString()}
-        val nav=LinearLayout(this).apply{orientation=LinearLayout.HORIZONTAL;gravity=Gravity.CENTER_VERTICAL};nav.addView(iconOnly(R.drawable.ic_back){calendarCursor.add(Calendar.MONTH,-1);showDaily()},LinearLayout.LayoutParams(dp(44),dp(44)));nav.addView(text(monthTitle,20f,true).apply{gravity=Gravity.CENTER},LinearLayout.LayoutParams(0,-2,1f));nav.addView(textButton("›"){calendarCursor.add(Calendar.MONTH,1);showDaily()},LinearLayout.LayoutParams(dp(44),dp(44)));box.addView(nav);box.addView(space(8))
+        val nav=LinearLayout(this).apply{orientation=LinearLayout.HORIZONTAL;gravity=Gravity.CENTER_VERTICAL};nav.addView(iconOnly(R.drawable.ic_back){calendarCursor.add(Calendar.MONTH,-1);showDaily()},LinearLayout.LayoutParams(dp(44),dp(44)));nav.addView(text(monthTitle,20f,true).apply{gravity=Gravity.CENTER},LinearLayout.LayoutParams(0,-2,1f));nav.addView(iconOnly(R.drawable.ic_forward){calendarCursor.add(Calendar.MONTH,1);showDaily()},LinearLayout.LayoutParams(dp(44),dp(44)));box.addView(nav);box.addView(space(8))
         val prefix=SimpleDateFormat("yyyy-MM",Locale.US).format(calendarCursor.time);val progress=store.dailyForProfile().filter{it.dateKey.startsWith(prefix)};val status=mutableMapOf<Int,Int>();progress.forEach{val d=it.dateKey.takeLast(2).toIntOrNull()?:return@forEach;status[d]=if(it.completed)2 else if(it.attempts>0)1 else 0}
         val monthDays=calendarCursor.getActualMaximum(Calendar.DAY_OF_MONTH);val now=Calendar.getInstance();val selIndex=calendarCursor.get(Calendar.YEAR)*12+calendarCursor.get(Calendar.MONTH);val nowIndex=now.get(Calendar.YEAR)*12+now.get(Calendar.MONTH);val enabled=when{selIndex<nowIndex->monthDays;selIndex==nowIndex->now.get(Calendar.DAY_OF_MONTH);else->0};val complete=(1..monthDays).all{status[it]==2}
         if(complete){val win=card();win.addView(iconLine(R.drawable.ic_trophy,"Месяц пройден полностью!",amber,true));win.addView(text("Все ежедневные тренировки закрыты. Этот месяц отмечен кубком.",14f,false,muted()));box.addView(win);box.addView(space(8))}
-        val journey=DailyJourneyView(this,calendarCursor.get(Calendar.YEAR),calendarCursor.get(Calendar.MONTH),status,enabled,dark()){day->val c=Calendar.getInstance().apply{set(calendarCursor.get(Calendar.YEAR),calendarCursor.get(Calendar.MONTH),day,12,0,0);set(Calendar.MILLISECOND,0)};startDaily(dateKey(c.timeInMillis))};box.addView(journey,LinearLayout.LayoutParams(-1,-2));box.addView(space(8));val legend=card();legend.addView(text("● Фиолетовый — можно пройти   ● Оранжевый — нужно исправить   ✓ Зелёный — день закрыт",12.5f,false,muted()));legend.addView(text("Пропущенный день можно закрыть позже. При повторной попытке задания будут другими.",12.5f,false,muted()).apply{setPadding(0,dp(7),0,0)});box.addView(legend);box.addView(space(24));setScreen("daily",scroll)
+        val journey=DailyJourneyView(this,calendarCursor.get(Calendar.YEAR),calendarCursor.get(Calendar.MONTH),status,enabled,dark()){day->val c=Calendar.getInstance().apply{set(calendarCursor.get(Calendar.YEAR),calendarCursor.get(Calendar.MONTH),day,12,0,0);set(Calendar.MILLISECOND,0)};startDaily(dateKey(c.timeInMillis))};box.addView(journey,LinearLayout.LayoutParams(-1,-2));box.addView(space(8));val legend=card();legend.addView(legendLine(accent,L("Можно пройти","Available","Yapılabilir","Disponible")));legend.addView(legendLine(amber,L("Нужно исправить","Needs retry","Tekrar gerekli","Necesita repetir")));legend.addView(legendLine(green,L("День закрыт","Completed","Tamamlandı","Completado")));legend.addView(text(L("Дополнительное кольцо показывает сегодняшний день. Пропущенный день можно закрыть позже.","An extra ring marks today. A missed day can be completed later.","Ek halka bugünü gösterir. Kaçırılan gün daha sonra tamamlanabilir.","Un anillo adicional marca hoy. Un día perdido puede completarse después."),12.5f,false,muted()).apply{setPadding(0,dp(8),0,0)});box.addView(legend);box.addView(space(24));setScreen("daily",scroll)
     }
 
-    private fun startDaily(date:String){val p=store.daily(date)?:DailyProgress(store.activeProfileId,date);dailyDateKey=date;dailyAttempt=p.attempts+1;dailyQuestions=PracticeEngine.dailyQuestions(date,store.activeProfileId,dailyAttempt,5);dailyIndex=0;dailyCorrect=0;dailyAnswered=false;showDailyQuestion()}
+    private fun startDaily(date:String){val p=store.daily(date)?:DailyProgress(store.activeProfileId,date);dailyDateKey=date;dailyAttempt=p.attempts+1;val base=PracticeEngine.suggestedDifficulty(store.history());dailyQuestions=PracticeEngine.dailyQuestions(date,store.activeProfileId,dailyAttempt,5,base);dailyIndex=0;dailyCorrect=0;dailyAnswered=false;dailyUserAnswer="";showDailyQuestion()}
     private fun showDailyQuestion(){
-        if(dailyIndex>=dailyQuestions.size){finishDailyAttempt();return};val q=dailyQuestions[dailyIndex];val (s,b)=page();b.addView(screenTitle("Ежедневная тренировка",formatDateKey(dailyDateKey)));b.addView(progressStrip(dailyIndex+1,dailyQuestions.size));b.addView(text("Попытка $dailyAttempt",12f,true,accent).apply{setPadding(0,dp(7),0,dp(7))});val qc=card();qc.addView(text(q.type,13f,true,accent));qc.addView(text(q.input,24f,true).apply{setPadding(0,dp(7),0,0)});b.addView(qc);b.addView(space(10))
-        if(!dailyAnswered){val input=EditText(this).apply{hint="Ваш ответ";textSize=19f;setTextColor(fg());setHintTextColor(muted());showSoftInputOnFocus=false;setPadding(dp(12),dp(10),dp(12),dp(10));background=round(cardColor(),14,border())};b.addView(input,LinearLayout.LayoutParams(-1,dp(58)));b.addView(space(8));b.addView(MathKeyboardView(this,input,dark()));b.addView(space(8));b.addView(primary("Проверить",R.drawable.ic_check){val ok=PracticeEngine.check(input.text.toString(),q.expected);dailyLastCorrect=ok;dailyCorrect+=if(ok)1 else 0;dailyAnswered=true;val sol=MathEngine.solve(q.input);store.addOrUpdateTask(TaskRecord(profileId=store.activeProfileId,input=q.input,type=q.type,answer=q.answerText,steps=sol.steps,selfSolved=true,checked=true,correct=ok,grade=if(ok)5 else 2,source="daily:$dailyDateKey"));showDailyQuestion()})} else {b.addView(messageCard(if(dailyLastCorrect)"Верно ✓" else "Нужно повторить. Ответ: ${q.answerText}",if(dailyLastCorrect)green else amber));b.addView(space(8));b.addView(primary(if(dailyIndex+1==dailyQuestions.size)"Завершить" else "Дальше",R.drawable.ic_check){dailyIndex++;dailyAnswered=false;showDailyQuestion()})}
+        if(dailyIndex>=dailyQuestions.size){finishDailyAttempt();return};val q=dailyQuestions[dailyIndex];val (s,b)=page();b.addView(screenTitle(T("daily"),formatDateKey(dailyDateKey)));b.addView(progressStrip(dailyIndex+1,dailyQuestions.size));b.addView(text(L("Попытка $dailyAttempt","Attempt $dailyAttempt","Deneme $dailyAttempt","Intento $dailyAttempt")+" • "+difficultyLabel(q.difficulty),12f,true,accent).apply{setPadding(0,dp(7),0,dp(7))});val qc=card();qc.addView(text(q.type,13f,true,accent));qc.addView(text(q.input,24f,true).apply{setPadding(0,dp(7),0,0)});b.addView(qc);b.addView(space(10))
+        if(!dailyAnswered){val input=EditText(this).apply{hint=T("your_answer");textSize=19f;setTextColor(fg());setHintTextColor(muted());showSoftInputOnFocus=false;setPadding(dp(12),dp(10),dp(12),dp(10));background=round(cardColor(),14,border())};b.addView(input,LinearLayout.LayoutParams(-1,dp(58)));b.addView(space(8));b.addView(MathKeyboardView(this,input,dark()));b.addView(space(8));b.addView(primary(T("check"),R.drawable.ic_check){dailyUserAnswer=input.text.toString().trim();val ok=PracticeEngine.check(dailyUserAnswer,q.expected);dailyLastCorrect=ok;dailyCorrect+=if(ok)1 else 0;dailyAnswered=true;val sol=MathEngine.solve(q.input);store.addOrUpdateTask(TaskRecord(profileId=store.activeProfileId,input=q.input,type=q.type,answer=q.answerText,steps=sol.steps,selfSolved=true,checked=true,correct=ok,grade=if(ok)5 else 2,source="daily:$dailyDateKey",difficulty=q.difficulty,userAnswer=dailyUserAnswer));showDailyQuestion()})} else {val sol=MathEngine.solve(q.input);b.addView(answerReview(dailyUserAnswer,q.answerText,dailyLastCorrect,sol.steps));b.addView(space(8));b.addView(primary(if(dailyIndex+1==dailyQuestions.size)L("Завершить","Finish","Bitir","Finalizar") else T("next"),R.drawable.ic_check){dailyIndex++;dailyAnswered=false;dailyUserAnswer="";showDailyQuestion()})}
         setScreen("daily",s){showDaily()}
     }
 
@@ -414,7 +440,7 @@ class MainActivity : Activity() {
     private fun filterSummary():String{val parts=mutableListOf<String>();if(historyFilter.search.isNotBlank())parts+="поиск: «${historyFilter.search}»";if(historyFilter.period!="all")parts+="период";if(historyFilter.source!="all")parts+="источник";if(historyFilter.result!="all")parts+="результат";if(historyFilter.mode!="all")parts+="режим";if(historyFilter.type!="all")parts+=historyFilter.type;if(historyFilter.sort!="newest")parts+="особая сортировка";return "Активно: "+parts.joinToString(" • ")}
 
     private fun taskCard(t:TaskRecord):View=card().apply{setOnClickListener{showTask(t)};val date=SimpleDateFormat("dd.MM.yyyy  HH:mm",Locale.getDefault()).format(Date(t.createdAt));addView(text(t.type,13f,true,accent));addView(text(date,11.5f,false,muted()));addView(text(t.input,18f,true).apply{setPadding(0,dp(6),0,dp(4))});if(t.answer.isNotBlank())addView(text(t.answer,14f,false,green));if(t.checked)addView(text(if(t.correct)"✓ Верно" else "! Ошибка",12f,true,if(t.correct)green else amber))}
-    private fun showTask(t:TaskRecord){val (s,b)=page();b.addView(screenTitle(t.type,"Подробности сохранённой задачи"));val c=card();c.addView(text(t.input,22f,true));c.addView(space(10));c.addView(text("Полное решение",17f,true));t.steps.forEachIndexed{i,st->c.addView(text("${i+1}. $st",14f).apply{setPadding(0,dp(3),0,dp(3))})};c.addView(text("Ответ: ${t.answer}",17f,true,green).apply{setPadding(0,dp(10),0,0)});b.addView(c);b.addView(space(10));b.addView(primary("Поделиться",R.drawable.ic_about){shareTask(t)});b.addView(space(8));b.addView(outline("Редактировать и пересчитать",R.drawable.ic_edit){showEditTask(t)});b.addView(space(8));b.addView(dangerButton("Удалить в корзину",R.drawable.ic_delete){store.deleteToTrash(t.id);showHistory()});setScreen("history",s){showHistory()}}
+    private fun showTask(t:TaskRecord){val (s,b)=page();b.addView(screenTitle(t.type,"Подробности сохранённой задачи"));val c=card();c.addView(text(t.input,22f,true));if(t.checked&&t.userAnswer.isNotBlank()){c.addView(text(T("your_answer")+": "+t.userAnswer,15f,true,if(t.correct)green else red).apply{setPadding(0,dp(9),0,0)});c.addView(text(T("correct_answer")+": "+t.answer,14f,true,green).apply{setPadding(0,dp(4),0,0)})};c.addView(space(10));c.addView(text(T("detailed_solution"),17f,true));t.steps.forEachIndexed{i,st->c.addView(text("${i+1}. $st",14f).apply{setPadding(0,dp(3),0,dp(3))})};c.addView(text("Ответ: ${t.answer}",17f,true,green).apply{setPadding(0,dp(10),0,0)});b.addView(c);b.addView(space(10));b.addView(primary("Поделиться",R.drawable.ic_about){shareTask(t)});b.addView(space(8));b.addView(outline("Редактировать и пересчитать",R.drawable.ic_edit){showEditTask(t)});b.addView(space(8));b.addView(dangerButton("Удалить в корзину",R.drawable.ic_delete){store.deleteToTrash(t.id);showHistory()});setScreen("history",s){showHistory()}}
     private fun showEditTask(t:TaskRecord){val (s,b)=page();b.addView(screenTitle("Редактирование","Измените условие и пересчитайте решение"));val e=EditText(this).apply{setText(t.input);textSize=19f;setTextColor(fg());gravity=Gravity.TOP;showSoftInputOnFocus=false;setPadding(dp(12),dp(12),dp(12),dp(12));background=round(cardColor(),14,border())};b.addView(e,LinearLayout.LayoutParams(-1,dp(130)));b.addView(space(8));b.addView(MathKeyboardView(this,e,dark()));b.addView(space(10));val msg=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL};b.addView(primary("Пересчитать и сохранить",R.drawable.ic_check){val r=MathEngine.solve(e.text.toString());if(!r.success){msg.removeAllViews();msg.addView(messageCard(r.error?:"Ошибка",red))}else{t.input=r.input;t.type=r.type;t.answer=r.answer;t.steps=r.steps;store.addOrUpdateTask(t);showTask(t)}});b.addView(space(8));b.addView(msg);setScreen("history",s){showTask(t)}}
 
     // ---------- MISTAKES / TRASH ----------
@@ -429,8 +455,10 @@ class MainActivity : Activity() {
     private fun pickAvatar(p:UserProfile){avatarProfileId=p.id;startActivityForResult(Intent(Intent.ACTION_OPEN_DOCUMENT).apply{type="image/*";addCategory(Intent.CATEGORY_OPENABLE);addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)},REQ_AVATAR)}
 
     // ---------- SETTINGS ----------
-    private fun showSettings(){val (s,b)=page();b.addView(screenTitle("Настройки","Основные параметры приложения"));val themeCard=card();themeCard.addView(iconLine(if(dark())R.drawable.ic_moon else R.drawable.ic_sun,"Оформление",accent,true));val row=LinearLayout(this).apply{orientation=LinearLayout.HORIZONTAL;gravity=Gravity.CENTER_VERTICAL;setPadding(0,dp(9),0,0)};row.addView(text("☀  Светлая",14f,true),LinearLayout.LayoutParams(0,-2,1f));val sw=Switch(this).apply{isChecked=dark();buttonTintList=null;thumbTintList=ColorStateList.valueOf(accent);trackTintList=ColorStateList.valueOf(Color.argb(80,99,91,255));setOnCheckedChangeListener{_,checked->store.settings.theme=if(checked)"dark" else "light";store.save();recreate()}};row.addView(sw);row.addView(text("Тёмная  ☾",14f,true),LinearLayout.LayoutParams(0,-2,1f));themeCard.addView(row);b.addView(themeCard);b.addView(space(8));b.addView(settingsCard(R.drawable.ic_book,"Язык",if(store.settings.language=="en")"English" else "Русский"){showLanguagePage()});b.addView(space(8));b.addView(settingsCard(R.drawable.ic_security,"Безопасность",securityDescription()){showSecurity()});b.addView(space(8));b.addView(settingsCard(R.drawable.ic_backup,"Резервная копия","Сохранение и восстановление данных"){showBackup()});b.addView(space(18));b.addView(dangerButton("Сбросить данные приложения",R.drawable.ic_delete){showResetPage()});setScreen("settings",s)}
-    private fun showLanguagePage(){val (s,b)=page();b.addView(screenTitle("Язык","Выберите язык интерфейса"));b.addView(selectCard("Русский",store.settings.language=="ru"){store.settings.language="ru";store.save();recreate()});b.addView(space(8));b.addView(selectCard("English",store.settings.language=="en"){store.settings.language="en";store.save();recreate()});setScreen("settings",s){showSettings()}}
+    private fun showSettings(){
+        val (s,b)=page();b.addView(screenTitle(T("settings"),L("Основные параметры приложения","Main app settings","Ana uygulama ayarları","Ajustes principales")));val themeCard=card();themeCard.addView(iconLine(if(dark())R.drawable.ic_moon else R.drawable.ic_sun,L("Оформление","Appearance","Görünüm","Apariencia"),accent,true));val row=LinearLayout(this).apply{orientation=LinearLayout.HORIZONTAL;gravity=Gravity.CENTER_VERTICAL;setPadding(0,dp(9),0,0)};row.addView(text("☀  "+T("light"),14f,true),LinearLayout.LayoutParams(0,-2,1f));val sw=Switch(this).apply{isChecked=dark();thumbTintList=ColorStateList.valueOf(accent);trackTintList=ColorStateList.valueOf(Color.argb(80,99,91,255));setOnCheckedChangeListener{_,checked->store.settings.theme=if(checked)"dark" else "light";store.save();rebuildUi{showSettings()}}};row.addView(sw);row.addView(text(T("dark")+"  ☾",14f,true),LinearLayout.LayoutParams(0,-2,1f));themeCard.addView(row);b.addView(themeCard);b.addView(space(8));b.addView(settingsCard(R.drawable.ic_book,T("language"),AppText.languageName(store.settings.language)){showLanguagePage()});b.addView(space(8));b.addView(settingsCard(R.drawable.ic_security,T("security"),securityDescription()){showSecurity()});b.addView(space(8));b.addView(settingsCard(R.drawable.ic_backup,T("backup"),L("Сохранение и восстановление данных","Save and restore data","Verileri kaydet ve geri yükle","Guardar y restaurar datos")){showBackup()});b.addView(space(18));b.addView(dangerButton(L("Сбросить данные приложения","Reset app data","Uygulama verilerini sıfırla","Restablecer datos"),R.drawable.ic_delete){showResetPage()});setScreen("settings",s)
+    }
+    private fun showLanguagePage(){val (s,b)=page();b.addView(screenTitle(T("language"),L("Выберите язык интерфейса","Choose interface language","Arayüz dilini seçin","Elige el idioma de la interfaz")));listOf("ru" to "Русский","en" to "English","tr" to "Türkçe","es" to "Español").forEach{(code,name)->b.addView(selectCard(name,store.settings.language==code){store.settings.language=code;store.save();rebuildUi{showSettings()}});b.addView(space(8))};setScreen("settings",s){showSettings()}}
 
     // ---------- SECURITY ----------
     private fun showSecurity(){val (s,b)=page();b.addView(screenTitle("Безопасность","Защита входа в приложение"));val status=card();status.addView(iconLine(R.drawable.ic_security,"Текущая защита",accent,true));status.addView(text(securityDescription(),15f,true).apply{setPadding(0,dp(8),0,0)});status.addView(text("При смене способа защиты приложение обязательно запросит текущую защиту.",12.5f,false,muted()).apply{setPadding(0,dp(5),0,0)});b.addView(status);b.addView(space(10));b.addView(text("СПОСОБ ЗАЩИТЫ",12f,true,muted()));b.addView(space(6));b.addView(settingsCard(R.drawable.ic_security,"PIN-код","4 цифры"){changeSecurityTo("pin")});b.addView(space(7));b.addView(settingsCard(R.drawable.ic_user,"Защита телефона","Биометрия / PIN / пароль Android"){changeSecurityTo("device")});b.addView(space(7));b.addView(settingsCard(R.drawable.ic_check,"Графический ключ","Рисунок по сетке 3×3"){changeSecurityTo("pattern")});if(store.securityEnabled()){b.addView(space(10));b.addView(dangerButton("Отключить защиту",R.drawable.ic_security){confirmCurrentSecurity("Отключение защиты"){store.disableSecurity();showSecurity()}})};b.addView(space(18));b.addView(text("АВТОБЛОКИРОВКА",12f,true,muted()));b.addView(text("По умолчанию — через 1 минуту после выхода из приложения.",12.5f,false,muted()).apply{setPadding(0,dp(5),0,dp(8))});val times=listOf(0 to "Сразу",60 to "1 мин",180 to "3 мин",300 to "5 мин");val tr=LinearLayout(this).apply{orientation=LinearLayout.HORIZONTAL};times.forEach{(sec,label)->tr.addView(segment(label,store.settings.autoLockSeconds==sec){store.settings.autoLockSeconds=sec;store.save();showSecurity()},LinearLayout.LayoutParams(0,dp(42),1f).apply{setMargins(dp(2),0,dp(2),0)})};b.addView(tr);setScreen("security",s){showSettings()}}
@@ -462,8 +490,11 @@ class MainActivity : Activity() {
     // ---------- GUIDE / ABOUT ----------
     private fun showGuide(){val (s,b)=page();b.addView(screenTitle("Инструкция","Подробное руководство по приложению"));guideSection(b,R.drawable.ic_home,"1. Результаты","Главная страница показывает среднюю оценку, точность, количество решений, сильные и слабые темы. Переключайте неделю, месяц, год или всё время. Если показатели растут, приложение отдельно покажет прогресс.");guideSection(b,R.drawable.ic_calculate,"2. Решение задач","Откройте «Решить задачу», выберите тип или оставьте «Авто», введите условие математической клавиатурой и нажмите «Решить подробно». Решение автоматически сохранится в историю.");guideSection(b,R.drawable.ic_check,"3. Решить самостоятельно","После получения решения можно перейти в режим самостоятельной проверки. Введите свой ответ — приложение сравнит результат и сохранит успех или ошибку.");guideSection(b,R.drawable.ic_check,"4. Проверка знаний","Выберите тему и число заданий. Все задания проходят на отдельных страницах. В конце появятся оценка, процент правильных ответов и переход к разбору ошибок.");guideSection(b,R.drawable.ic_daily,"5. Ежедневная тренировка","После обеда приложение напоминает о ежедневном наборе. День закрывается зелёной галочкой только после полностью правильной попытки. Если были ошибки — нажмите «Исправить», и приложение даст другой набор. Месяц, закрытый полностью, отмечается кубком.");guideSection(b,R.drawable.ic_history,"6. История","По умолчанию отображается вся история. В фильтрах можно выбрать период, конкретную дату или диапазон, источник, результат, режим, тип задачи, поиск и порядок сортировки. Запись можно открыть, отредактировать, пересчитать, поделиться или удалить.");guideSection(b,R.drawable.ic_delete,"7. Корзина","Удалённые решения хранятся 30 дней. Их можно восстановить или удалить окончательно раньше срока.");guideSection(b,R.drawable.ic_user,"8. Профили","Текущий пользователь находится вверху боковой панели. Нажмите на него, чтобы изменить имя или аватар, создать новый профиль либо переключиться на другого пользователя.");guideSection(b,R.drawable.ic_security,"9. Безопасность","В настройках можно выбрать PIN, графический ключ или системную защиту телефона. При смене защиты требуется текущий способ. Автоблокировка доступна сразу, через 1, 3 или 5 минут.");guideSection(b,R.drawable.ic_backup,"10. Резервная копия","Создайте файл резервной копии и сохраните его в удобное место. Для восстановления выберите этот файл. Защитные коды намеренно не переносятся между устройствами.");guideSection(b,R.drawable.ic_info,"11. Подсказки и связь","Значок информации открывает подсказки там, где они нужны. Ошибки и предложения отправляются через раздел «О приложении» с выбором установленного приложения для отправки.");b.addView(space(20));setScreen("guide",s)}
     private fun guideSection(box:LinearLayout,icon:Int,title:String,body:String){val c=card();c.addView(iconLine(icon,title,accent,true));c.addView(text(body,14f,false,fg()).apply{setPadding(0,dp(8),0,0);setLineSpacing(dp(2).toFloat(),1.08f)});box.addView(c);box.addView(space(8))}
-    private fun showAbout(){val (s,b)=page();b.addView(screenTitle("О приложении","Математика — Прогресс"));val c=card();c.addView(text("Математика — Прогресс",22f,true));c.addView(text("Версия 0.3.3",13f,false,muted()).apply{setPadding(0,dp(4),0,dp(8))});c.addView(text("Решение уравнений, обучение, проверка знаний, ежедневные тренировки и личная статистика в одном приложении.",14f,false,fg()));b.addView(c);b.addView(space(10));b.addView(settingsCard(R.drawable.ic_info,"Сообщить об ошибке","Опишите проблему и выберите приложение для отправки"){showFeedbackPage(true)});b.addView(space(8));b.addView(settingsCard(R.drawable.ic_edit,"Предложить улучшение","Расскажите, чего не хватает приложению"){showFeedbackPage(false)});b.addView(space(8));b.addView(settingsCard(R.drawable.ic_trophy,"Оценить приложение","Открыть страницу приложения"){rateApp()});b.addView(space(8));b.addView(settingsCard(R.drawable.ic_book,"Инструкция","Открыть подробное руководство"){showGuide()});setScreen("about",s)}
-    private fun showFeedbackPage(error:Boolean){val (s,b)=page();val title=if(error)"Сообщить об ошибке" else "Предложить улучшение";b.addView(screenTitle(title,"Сообщение отправится через выбранное вами приложение"));val e=EditText(this).apply{hint=if(error)"Что произошло? Что вы делали перед ошибкой?" else "Что стоит добавить или изменить?";minLines=7;gravity=Gravity.TOP;textSize=16f;setTextColor(fg());setHintTextColor(muted());setPadding(dp(12),dp(12),dp(12),dp(12));background=round(cardColor(),14,border())};b.addView(e,LinearLayout.LayoutParams(-1,dp(190)));b.addView(space(12));b.addView(primary("Выбрать приложение и отправить",R.drawable.ic_about){if(e.text.isNotBlank())shareText(title,e.text.toString())});setScreen("about",s){showAbout()}}
+    private fun showAbout(){val (s,b)=page();b.addView(screenTitle(T("about"),T("app_title")));val c=card();c.addView(text(T("app_title"),22f,true));c.addView(text("Версия 0.4.0",13f,false,muted()).apply{setPadding(0,dp(4),0,dp(8))});c.addView(text(L("Решение уравнений, обучение, ежедневные тренировки и личная статистика.","Equation solving, learning, daily practice and personal statistics.","Denklem çözme, öğrenme, günlük alıştırma ve kişisel istatistikler.","Resolución de ecuaciones, aprendizaje, práctica diaria y estadísticas personales."),14f,false,fg()));b.addView(c);b.addView(space(10));b.addView(messageCard(T("disclaimer_short"),muted()));b.addView(space(10));b.addView(settingsCard(R.drawable.ic_info,T("feedback_error"),L("Можно приложить фото и видео","You can attach photos and videos","Fotoğraf ve video ekleyebilirsiniz","Puedes adjuntar fotos y vídeos")){showFeedbackPage(true,true)});b.addView(space(8));b.addView(settingsCard(R.drawable.ic_edit,T("feedback_idea"),L("Расскажите, чего не хватает приложению","Tell us what could be improved","Nelerin geliştirilebileceğini söyleyin","Cuéntanos qué mejorar")){showFeedbackPage(false,true)});b.addView(space(8));b.addView(settingsCard(R.drawable.ic_trophy,L("Оценить приложение","Rate the app","Uygulamayı değerlendir","Valorar la app"),L("Открыть страницу приложения","Open app page","Uygulama sayfasını aç","Abrir página de la app")){rateApp()});b.addView(space(8));b.addView(settingsCard(R.drawable.ic_book,T("guide"),L("Открыть подробное руководство","Open detailed guide","Ayrıntılı kılavuzu aç","Abrir guía detallada")){showGuide()});setScreen("about",s)}
+
+    private fun showFeedbackPage(error:Boolean,fresh:Boolean=true){
+        feedbackIsError=error;if(fresh){feedbackAttachments.clear();feedbackDraft=""};val (s,b)=page();val title=if(error)T("feedback_error") else T("feedback_idea");b.addView(screenTitle(title,L("Отправка на SKRYTONsupport@gmail.com","Send to SKRYTONsupport@gmail.com","SKRYTONsupport@gmail.com adresine gönderilir","Enviar a SKRYTONsupport@gmail.com")));val e=EditText(this).apply{hint=if(error)L("Что произошло? Что вы делали перед ошибкой?","What happened? What were you doing?","Ne oldu? Hata öncesinde ne yapıyordunuz?","¿Qué ocurrió? ¿Qué estabas haciendo?") else L("Что стоит добавить или изменить?","What should be added or changed?","Ne eklenmeli veya değiştirilmeli?","¿Qué debería añadirse o cambiarse?");setText(feedbackDraft);minLines=6;gravity=Gravity.TOP;textSize=16f;setTextColor(fg());setHintTextColor(muted());setPadding(dp(12),dp(12),dp(12),dp(12));background=round(cardColor(),14,border());addTextChangedListener(SimpleTextWatcher{feedbackDraft=it})};b.addView(e,LinearLayout.LayoutParams(-1,dp(175)));b.addView(space(10));b.addView(outline(T("attach_media"),R.drawable.ic_camera,accent){feedbackDraft=e.text.toString();pickFeedbackMedia()});b.addView(space(7));b.addView(messageCard(if(feedbackAttachments.isEmpty())T("no_attachments") else T("attachments")+": ${feedbackAttachments.size}",muted()));if(feedbackAttachments.isNotEmpty()){b.addView(space(5));b.addView(textButton(L("Убрать все вложения","Remove all attachments","Tüm ekleri kaldır","Quitar todos los adjuntos")){feedbackAttachments.clear();showFeedbackPage(error,false)})};b.addView(space(12));b.addView(primary(T("send_email"),R.drawable.ic_about){feedbackDraft=e.text.toString();if(feedbackDraft.isNotBlank())sendSupportEmail() else toast(L("Напишите сообщение","Write a message","Bir mesaj yazın","Escribe un mensaje"))});setScreen("about",s){showAbout()}
+    }
 
     // ---------- RESET ----------
     private fun showResetPage(){val (s,b)=page();b.addView(screenTitle("Сброс данных","Необратимое действие"));b.addView(messageCard("Будут удалены профили, история, статистика, ежедневный прогресс, корзина и настройки. Резервная копия на устройстве не удаляется.",red));b.addView(space(10));if(!store.securityEnabled())b.addView(messageCard("Для безопасного сброса сначала включите PIN, графический ключ или защиту телефона.",amber))else b.addView(dangerButton("Подтвердить защиту и сбросить",R.drawable.ic_delete){confirmCurrentSecurity("Подтверждение сброса"){store.resetAll();recreate()}});setScreen("settings",s){showSettings()}}
@@ -474,7 +505,14 @@ class MainActivity : Activity() {
     private fun unlockOverlay(){lockOverlay?.let{root.removeView(it)};lockOverlay=null;store.setBackgroundAt(System.currentTimeMillis())}
 
     // ---------- ACTIVITY RESULTS ----------
-    override fun onActivityResult(requestCode:Int,resultCode:Int,data:Intent?){super.onActivityResult(requestCode,resultCode,data);if(requestCode==REQ_DEVICE_AUTH){if(resultCode==RESULT_OK)onDeviceAuthSuccess();return};if(resultCode!=RESULT_OK||data?.data==null)return;val uri=data.data!!;try{when(requestCode){REQ_AVATAR->{try{contentResolver.takePersistableUriPermission(uri,Intent.FLAG_GRANT_READ_URI_PERMISSION)}catch(_:Exception){};store.profiles.firstOrNull{it.id==avatarProfileId}?.avatarUri=uri.toString();store.save();showEditProfile()};REQ_BACKUP_SAVE->{contentResolver.openOutputStream(uri)?.bufferedWriter()?.use{it.write(store.exportJson())};store.setLastBackupAt(System.currentTimeMillis());showBackup()};REQ_BACKUP_OPEN->{val text=contentResolver.openInputStream(uri)?.bufferedReader()?.use{it.readText()}?:return;store.importJson(text);recreate()}}}catch(e:Exception){toast(e.message?:"Ошибка")}}
+    override fun onActivityResult(requestCode:Int,resultCode:Int,data:Intent?){
+        super.onActivityResult(requestCode,resultCode,data)
+        if(requestCode==REQ_DEVICE_AUTH){if(resultCode==RESULT_OK)onDeviceAuthSuccess();return}
+        if(requestCode==REQ_FEEDBACK_MEDIA){if(resultCode==RESULT_OK&&data!=null){data.clipData?.let{clip->for(i in 0 until clip.itemCount){val u=clip.getItemAt(i).uri;if(u!=null&&!feedbackAttachments.contains(u))feedbackAttachments+=u}};data.data?.let{u->if(!feedbackAttachments.contains(u))feedbackAttachments+=u};showFeedbackPage(feedbackIsError,false)};return}
+        if(resultCode!=RESULT_OK||data?.data==null)return
+        val uri=data.data!!
+        try{when(requestCode){REQ_AVATAR->{try{contentResolver.takePersistableUriPermission(uri,Intent.FLAG_GRANT_READ_URI_PERMISSION)}catch(_:Exception){};store.profiles.firstOrNull{it.id==avatarProfileId}?.avatarUri=uri.toString();store.save();showEditProfile()};REQ_BACKUP_SAVE->{contentResolver.openOutputStream(uri)?.bufferedWriter()?.use{it.write(store.exportJson())};store.setLastBackupAt(System.currentTimeMillis());showBackup()};REQ_BACKUP_OPEN->{val raw=contentResolver.openInputStream(uri)?.bufferedReader()?.use{it.readText()}?:return;store.importJson(raw);rebuildUi{showResults()}}}}catch(e:Exception){toast(e.message?:"Ошибка")}
+    }
 
     // ---------- SHARE ----------
     private fun shareResult(r:SolveResult)=shareText(r.type,buildString{appendLine(r.type);appendLine(r.input);appendLine();r.steps.forEachIndexed{i,st->appendLine("${i+1}. $st")};appendLine();append("Ответ: ${r.answer}")})
@@ -514,7 +552,45 @@ class MainActivity : Activity() {
     private fun metric(label:String,value:String,icon:Int):View=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;gravity=Gravity.CENTER;addView(iconImage(icon,21,accent),LinearLayout.LayoutParams(dp(21),dp(21)).apply{gravity=Gravity.CENTER});addView(text(value,24f,true).apply{gravity=Gravity.CENTER;setPadding(0,dp(5),0,0)});addView(text(label,11.5f,false,muted()).apply{gravity=Gravity.CENTER})}
     private fun progressStrip(index:Int,total:Int):View=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;val p=ProgressBar(this@MainActivity,null,android.R.attr.progressBarStyleHorizontal).apply{max=total;progress=index;progressTintList=ColorStateList.valueOf(accent);progressBackgroundTintList=ColorStateList.valueOf(border())};addView(p,LinearLayout.LayoutParams(-1,dp(6)));addView(text("$index / $total",11.5f,true,muted()).apply{gravity=Gravity.END;setPadding(0,dp(3),0,0)})}
     private fun labeled(label:String,view:View,height:Int=-2):View=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;addView(text(label,12f,true,muted()).apply{setPadding(dp(2),0,0,dp(4))});addView(view,LinearLayout.LayoutParams(-1,height))}
-    private fun styledSpinner(items:List<String>):Spinner=Spinner(this).apply{adapter=ArrayAdapter(this@MainActivity,android.R.layout.simple_spinner_dropdown_item,items);background=round(cardColor(),13,border());setPadding(dp(10),0,dp(8),0)}
+    private fun styledSpinner(items:List<String>):Spinner=Spinner(this).apply{
+        val a=object:ArrayAdapter<String>(this@MainActivity,android.R.layout.simple_spinner_item,items){
+  override fun getView(position:Int,convertView:View?,parent:android.view.ViewGroup):View{return (super.getView(position,convertView,parent) as TextView).apply{setTextColor(fg());textSize=17f;setPadding(dp(12),0,dp(36),0);setBackgroundColor(Color.TRANSPARENT)}}
+  override fun getDropDownView(position:Int,convertView:View?,parent:android.view.ViewGroup):View{return (super.getDropDownView(position,convertView,parent) as TextView).apply{setTextColor(fg());textSize=16f;setPadding(dp(14),dp(12),dp(14),dp(12));setBackgroundColor(cardColor())}}
+        };a.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);adapter=a;background=round(cardColor(),13,border());setPopupBackgroundDrawable(round(cardColor(),13,border()));setPadding(dp(10),0,dp(8),0)
+    }
+    private fun T(key:String)=AppText.t(store.settings.language,key)
+    private fun L(ru:String,en:String,tr:String,es:String)=when(store.settings.language){"en"->en;"tr"->tr;"es"->es;else->ru}
+    private fun difficultyLabel(level:Int)=when(level.coerceIn(1,4)){1->T("easy");2->T("medium");3->T("hard");else->T("expert")}
+    private fun difficultyChoices()=listOf(T("easy"),T("medium"),T("hard"),T("expert"),T("adaptive"))
+    private fun localizedTopics()=when(store.settings.language){
+        "en"->listOf("Linear","Quadratic","Cubic","Systems 2×2","Fractions","Roots","Exponential","Logarithmic")
+        "tr"->listOf("Doğrusal","İkinci derece","Kübik","2×2 sistemler","Kesirli","Köklü","Üstel","Logaritmik")
+        "es"->listOf("Lineales","Cuadráticas","Cúbicas","Sistemas 2×2","Fracciones","Raíces","Exponenciales","Logarítmicas")
+        else->PracticeEngine.topics()
+    }
+    private fun rebuildUi(screen:()->Unit){buildShell();runCatching{applySystemBars()};screen()}
+    private fun answerReview(user:String,correctAnswer:String,ok:Boolean,steps:List<String>):View=LinearLayout(this).apply{
+        orientation=LinearLayout.VERTICAL;setPadding(dp(15),dp(14),dp(15),dp(14));background=round(Color.argb(if(dark())38 else 18,if(ok)37 else 215,if(ok)174 else 63,if(ok)99 else 70),17,if(ok)green else red)
+        addView(text((if(ok)"✓ " else "✕ ")+T(if(ok)"correct" else "incorrect"),17f,true,if(ok)green else red))
+        addView(text(T("your_answer")+": "+if(user.isBlank())"—" else user,16f,true,if(ok)green else red).apply{setPadding(0,dp(8),0,0)})
+        addView(text(T("correct_answer")+": "+correctAnswer,15f,true,green).apply{setPadding(0,dp(5),0,dp(10))})
+        addView(text(T("detailed_solution"),17f,true,fg()))
+        if(steps.isEmpty())addView(text(L("Подробные шаги недоступны для этой записи.","Detailed steps are unavailable for this item.","Bu kayıt için ayrıntılı adımlar mevcut değil.","No hay pasos detallados para este ejercicio."),13.5f,false,muted()).apply{setPadding(0,dp(6),0,0)}) else steps.forEachIndexed{i,st->addView(text("${i+1}. $st",14f,false,fg()).apply{setPadding(0,dp(3),0,dp(3))})}
+    }
+    private fun legendLine(color:Int,label:String):View=LinearLayout(this).apply{orientation=LinearLayout.HORIZONTAL;gravity=Gravity.CENTER_VERTICAL;val dot=TextView(this@MainActivity).apply{text="●";textSize=18f;setTextColor(color)};addView(dot,LinearLayout.LayoutParams(dp(24),-2));addView(text(label,13f,false,muted()))}
+    private fun pickFeedbackMedia(){startActivityForResult(Intent(Intent.ACTION_OPEN_DOCUMENT).apply{type="*/*";addCategory(Intent.CATEGORY_OPENABLE);putExtra(Intent.EXTRA_ALLOW_MULTIPLE,true);putExtra(Intent.EXTRA_MIME_TYPES,arrayOf("image/*","video/*"));addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)},REQ_FEEDBACK_MEDIA)}
+    private fun sendSupportEmail(){
+        val kind=if(feedbackIsError)L("Сообщение об ошибке","Error report","Hata bildirimi","Informe de error") else L("Предложение по улучшению","Improvement suggestion","Geliştirme önerisi","Sugerencia de mejora")
+        val subject="Математика — Прогресс — $kind"
+        val body="Приложение: Математика — Прогресс\nТип обращения: $kind\nВерсия: 0.4.0\nЯзык: ${AppText.languageName(store.settings.language)}\n\nСообщение пользователя:\n$feedbackDraft"
+        val intent=Intent(if(feedbackAttachments.size>1)Intent.ACTION_SEND_MULTIPLE else Intent.ACTION_SEND).apply{
+  type=if(feedbackAttachments.isEmpty())"message/rfc822" else "*/*";putExtra(Intent.EXTRA_EMAIL,arrayOf("SKRYTONsupport@gmail.com"));putExtra(Intent.EXTRA_SUBJECT,subject);putExtra(Intent.EXTRA_TEXT,body);addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+  if(feedbackAttachments.size==1)putExtra(Intent.EXTRA_STREAM,feedbackAttachments.first())
+  if(feedbackAttachments.size>1)putParcelableArrayListExtra(Intent.EXTRA_STREAM,ArrayList(feedbackAttachments))
+  if(feedbackAttachments.isNotEmpty()){clipData=ClipData.newUri(contentResolver,"MathProgress attachment",feedbackAttachments.first());for(u in feedbackAttachments.drop(1))clipData?.addItem(ClipData.Item(u))}
+        }
+        startActivity(Intent.createChooser(intent,L("Отправить обращение","Send report","Bildirimi gönder","Enviar mensaje")))
+    }
     private fun primary(title:String,icon:Int?=null,action:()->Unit):Button=Button(this).apply{text=(if(icon!=null)"  " else "")+title;textSize=14.5f;isAllCaps=false;setTextColor(Color.WHITE);background=round(accent,13);stateListAnimator=null;setOnClickListener{action()};if(icon!=null){setCompoundDrawablesWithIntrinsicBounds(icon,0,0,0);compoundDrawableTintList=ColorStateList.valueOf(Color.WHITE);compoundDrawablePadding=dp(8)};layoutParams=LinearLayout.LayoutParams(-1,dp(50))}
     private fun outline(title:String,icon:Int?=null,color:Int=fg(),action:()->Unit):Button=Button(this).apply{text=title;textSize=14f;isAllCaps=false;setTextColor(color);background=round(cardColor(),13,border());stateListAnimator=null;setOnClickListener{action()};if(icon!=null){setCompoundDrawablesWithIntrinsicBounds(icon,0,0,0);compoundDrawableTintList=ColorStateList.valueOf(color);compoundDrawablePadding=dp(7)}}
     private fun dangerButton(title:String,icon:Int,action:()->Unit):Button=outline(title,icon,red,action)
@@ -535,7 +611,7 @@ class MainActivity : Activity() {
     private fun startOfDay(time:Long)=Calendar.getInstance().apply{timeInMillis=time;set(Calendar.HOUR_OF_DAY,0);set(Calendar.MINUTE,0);set(Calendar.SECOND,0);set(Calendar.MILLISECOND,0)}.timeInMillis
     private fun endOfDay(time:Long)=startOfDay(time)+86_399_999L
     private fun dateKey(time:Long)=SimpleDateFormat("yyyy-MM-dd",Locale.US).format(Date(time))
-    private fun formatDateKey(key:String):String=try{val d=SimpleDateFormat("yyyy-MM-dd",Locale.US).parse(key)!!;SimpleDateFormat("d MMMM yyyy",Locale("ru")).format(d)}catch(_:Exception){key}
+    private fun formatDateKey(key:String):String=try{val d=SimpleDateFormat("yyyy-MM-dd",Locale.US).parse(key)!!;val loc=when(store.settings.language){"en"->Locale.ENGLISH;"tr"->Locale("tr");"es"->Locale("es");else->Locale("ru")};SimpleDateFormat("d MMMM yyyy",loc).format(d)}catch(_:Exception){key}
     private fun motivation(p:Int)=when{p==100->listOf("Без ошибок! Блестяще!","Идеальный результат!","Великолепно!").random();p>=90->listOf("Отличный результат!","Очень сильный результат!","Супер! Так держать!").random();p>=75->"Очень хорошо!";p>=60->"Есть хорошая база";else->"Разберём ошибки и станем сильнее"}
     private fun requestNotificationPermission(){if(Build.VERSION.SDK_INT>=33&&checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)!=PackageManager.PERMISSION_GRANTED)requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS),900)}
     private fun dark()=store.settings.theme!="light"

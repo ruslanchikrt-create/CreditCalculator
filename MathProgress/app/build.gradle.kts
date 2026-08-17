@@ -11,8 +11,8 @@ android {
         applicationId = "com.mathprogress.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 6
-        versionName = "0.3.3"
+        versionCode = 7
+        versionName = "0.4.0"
     }
 
     compileOptions {
