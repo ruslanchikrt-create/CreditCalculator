@@ -19,42 +19,40 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Normalize MathProgress v0.3 source
+      - name: Normalize MathProgress v0.3.1 source
         run: |
           python3 - <<'PY'
           from pathlib import Path
 
           main = Path('MathProgress/app/src/main/java/com/mathprogress/app/MainActivity.kt')
           text = main.read_text()
+
+          old_create = '''        NotificationScheduler.ensureChannels(this)\n        requestNotificationPermission()\n        buildShell()\n        showResults()\n        NotificationScheduler.scheduleAll(this, store)\n        store.setLastOpenNow()\n        if (store.securityEnabled()) lockNow()'''
+          new_create = '''        runCatching { NotificationScheduler.ensureChannels(this) }\n        buildShell()\n        try {\n            showResults()\n        } catch (e: Throwable) {\n            showStartupFallback(e)\n        }\n        store.setLastOpenNow()\n        if (store.securityEnabled()) runCatching { lockNow() }\n        root.postDelayed({\n            runCatching { requestNotificationPermission() }\n            runCatching { NotificationScheduler.scheduleAll(this, store) }\n        }, 1200L)'''
+          if old_create in text:
+              text = text.replace(old_create, new_create)
+
           text = text.replace(
-              'android.widget.ScrollView.LayoutParams(-1,-2)',
-              'android.widget.FrameLayout.LayoutParams(-1,-2)'
+              'NotificationScheduler.scheduleInactive(this, store)',
+              'runCatching { NotificationScheduler.scheduleInactive(this, store) }'
           )
+          text = text.replace(
+              'NotificationScheduler.scheduleUnfinished(this, store)',
+              'runCatching { NotificationScheduler.scheduleUnfinished(this, store) }'
+          )
+
+          marker = '    // ---------- HELPERS ----------\n'
+          fallback = '''    private fun showStartupFallback(error: Throwable) {\n        val box = LinearLayout(this).apply {\n            orientation = LinearLayout.VERTICAL\n            gravity = Gravity.CENTER_HORIZONTAL\n            setPadding(dp(24), dp(48), dp(24), dp(24))\n        }\n        box.addView(iconImage(R.drawable.ic_info, 54, amber))\n        box.addView(text("Не удалось открыть главный экран", 22f, true).apply {\n            gravity = Gravity.CENTER\n            setPadding(0, dp(16), 0, dp(8))\n        })\n        box.addView(text("Данные не удалены. Можно открыть решатель и продолжить работу.", 14f, false, muted()).apply { gravity = Gravity.CENTER })\n        box.addView(space(16))\n        box.addView(primary("Открыть решатель", R.drawable.ic_calculate) { showSolve() })\n        box.addView(space(8))\n        box.addView(outline("Повторить загрузку", R.drawable.ic_home) { showResults() })\n        content.removeAllViews()\n        content.addView(android.widget.ScrollView(this).apply { addView(box) }, FrameLayout.LayoutParams(-1, -1))\n        android.util.Log.e("MathProgress", "Startup screen error", error)\n    }\n\n'''
+          if fallback not in text and marker in text:
+              text = text.replace(marker, fallback + marker)
+
           main.write_text(text)
 
-          store = Path('MathProgress/app/src/main/java/com/mathprogress/app/LocalStore.kt')
-          text = store.read_text()
-          text = text.replace(
-              'val migratedMethod = if (oldPasswordHash.isNotBlank() && s.optString("securityMethod").isBlank()) "pin" else s.optString("securityMethod", "none")',
-              'val migratedMethod = s.optString("securityMethod", "none")'
-          )
-          text = text.replace(
-              'pinHash = s.optString("pinHash", oldPasswordHash),',
-              'pinHash = s.optString("pinHash", ""),'
-          )
-          store.write_text(text)
-
           gradle = Path('MathProgress/app/build.gradle.kts')
-          text = gradle.read_text().replace('versionCode = 1', 'versionCode = 3').replace('versionName = "0.1.0"', 'versionName = "0.3.0"')
-          gradle.write_text(text)
-
-          journey = Path('MathProgress/app/src/main/java/com/mathprogress/app/DailyJourneyView.kt')
-          text = journey.read_text()
-          old = '''        linePaint.color = if (darkMode) Color.rgb(67, 69, 79) else Color.rgb(218, 220, 229)\n        for (i in 0 until centersList.lastIndex) {\n            val (x1,y1)=centersList[i]; val (x2,y2)=centersList[i+1]\n            canvas.drawLine(x1,y1,x2,y2,linePaint)\n        }'''
-          new = '''        for (i in 0 until centersList.lastIndex) {\n            val day1 = i + 1\n            val day2 = i + 2\n            linePaint.color = when {\n                statuses[day1] == 2 && statuses[day2] == 2 -> Color.rgb(38, 174, 99)\n                statuses[day1] == 2 -> Color.rgb(99, 91, 255)\n                statuses[day1] == 1 -> Color.rgb(242, 158, 45)\n                else -> if (darkMode) Color.rgb(67, 69, 79) else Color.rgb(218, 220, 229)\n            }\n            val (x1,y1)=centersList[i]; val (x2,y2)=centersList[i+1]\n            canvas.drawLine(x1,y1,x2,y2,linePaint)\n        }'''
-          if old in text:
-              text = text.replace(old, new)
-          journey.write_text(text)
+          g = gradle.read_text()
+          g = g.replace('versionCode = 3', 'versionCode = 4')
+          g = g.replace('versionName = "0.3.0"', 'versionName = "0.3.1"')
+          gradle.write_text(g)
           PY
 
       - name: Persist normalized source
@@ -63,7 +61,7 @@ jobs:
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
             git add MathProgress
-            git commit -m "Fix MathProgress v0.3 source"
+            git commit -m "Fix MathProgress startup crash"
             git push origin HEAD:mathprogress-app || true
           fi
 
@@ -91,11 +89,11 @@ jobs:
         run: gradle --no-daemon clean assembleDebug
 
       - name: Rename APK
-        run: cp MathProgress/app/build/outputs/apk/debug/app-debug.apk MathProgress.apk
+        run: cp MathProgress/app/build/outputs/apk/debug/app-debug.apk MathProgress-v0.3.1.apk
 
       - name: Upload MathProgress APK
         uses: actions/upload-artifact@v4
         with:
-          name: MathProgress-APK
-          path: MathProgress.apk
+          name: MathProgress-v0.3.1-APK
+          path: MathProgress-v0.3.1.apk
           if-no-files-found: error
