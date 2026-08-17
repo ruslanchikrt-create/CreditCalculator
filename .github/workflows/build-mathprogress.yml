@@ -19,135 +19,35 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Polish MathProgress v0.3.3 results screen
+      - name: Apply v0.3.3 results polish
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          import re
-
+          import re, base64
           main = Path('MathProgress/app/src/main/java/com/mathprogress/app/MainActivity.kt')
           text = main.read_text()
-
-          # Move the app bar a little lower so it no longer visually fights
-          # the phone status icons, and make the title less dominant.
-          text = text.replace(
-              'val vertical = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(bg()) }',
-              'val vertical = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(bg()); setPadding(0, dp(12), 0, 0) }'
-          )
-          text = text.replace(
-              'top.addView(text("Математика — Прогресс", 19f, true)',
-              'top.addView(text("Математика — Прогресс", 17.5f, true)'
-          )
-          text = text.replace(
-              'vertical.addView(top, LinearLayout.LayoutParams(-1, dp(60)))',
-              'vertical.addView(top, LinearLayout.LayoutParams(-1, dp(56)))'
-          )
-
-          new_results = '''    private fun showResults(){
-        val (scroll,box)=page()
-        box.addView(screenTitle("Результаты","Ваш прогресс и успеваемость"))
-
-        val tabs=LinearLayout(this).apply{orientation=LinearLayout.HORIZONTAL}
-        listOf(
-            StatsPeriod.WEEK to "Неделя",
-            StatsPeriod.MONTH to "Месяц",
-            StatsPeriod.YEAR to "Год",
-            StatsPeriod.ALL to "Всё время"
-        ).forEach{(p,t)->
-            tabs.addView(segment(t,period==p){period=p;showResults()},LinearLayout.LayoutParams(0,dp(42),1f).apply{setMargins(dp(2),0,dp(2),0)})
-        }
-        box.addView(tabs)
-        box.addView(space(12))
-
-        val s=StatsEngine.snapshot(store.history(),period)
-        val hero=card()
-        hero.addView(text(s.message,19f,true))
-        if(s.comparison.isNotBlank()){
-            hero.addView(text(s.comparison,13.5f,true,green).apply{setPadding(0,dp(7),0,0)})
-        }
-        hero.addView(space(16))
-
-        val metrics=LinearLayout(this).apply{orientation=LinearLayout.HORIZONTAL}
-        metrics.addView(metric("Средняя",s.averageGrade?.let{String.format(Locale.US,"%.1f",it)}?:"—",R.drawable.ic_star),LinearLayout.LayoutParams(0,-2,1f))
-        metrics.addView(metric("Точность",s.accuracy?.let{"$it%"}?:"—",R.drawable.ic_target),LinearLayout.LayoutParams(0,-2,1f))
-        metrics.addView(metric("Решено",s.solved.toString(),R.drawable.ic_calculate),LinearLayout.LayoutParams(0,-2,1f))
-        hero.addView(metrics)
-        box.addView(hero)
-        box.addView(space(10))
-
-        val topics=card()
-        val bestText=if(s.bestTopic==null) "Сильная тема: пока недостаточно данных" else "Сильная тема: ${s.bestTopic}"
-        val weakText=if(s.weakTopic==null) "Стоит повторить: пока недостаточно данных" else "Стоит повторить: ${s.weakTopic}"
-        topics.addView(iconLine(R.drawable.ic_star,bestText,if(s.bestTopic==null)muted() else green))
-        topics.addView(space(8))
-        topics.addView(iconLine(R.drawable.ic_target,weakText,if(s.weakTopic==null)muted() else amber))
-        box.addView(topics)
-        box.addView(space(10))
-
-        val today=dateKey(System.currentTimeMillis())
-        val daily=store.daily(today)
-        val dc=card()
-        dc.addView(iconLine(R.drawable.ic_daily,"Ежедневная тренировка",accent,true))
-        dc.addView(space(6))
-        dc.addView(text(when{
-            daily?.completed==true -> "Сегодня выполнено ✓"
-            (daily?.attempts?:0)>0 -> "Сегодня можно улучшить результат"
-            else -> "5 коротких заданий на сегодня"
-        },14f,false,muted()))
-        dc.addView(space(10))
-        dc.addView(
-            if(daily?.completed==true)
-                outline("Открыть календарь",R.drawable.ic_daily,accent){showDaily()}
-            else
-                primary("Начать ежедневные задания",R.drawable.ic_play){startDaily(today)}
-        )
-        box.addView(dc)
-
-        val draft=store.getDraft()
-        if(draft.isNotBlank()){
-            box.addView(space(10))
-            val c=card()
-            c.addView(iconLine(R.drawable.ic_calculate,"Незавершённая задача",accent,true))
-            c.addView(text(draft.take(110),14f,false,muted()).apply{setPadding(0,dp(5),0,dp(8))})
-            c.addView(outline("Продолжить",R.drawable.ic_play,accent){showSolve(draft)})
-            box.addView(c)
-        }
-
-        box.addView(space(14))
-        box.addView(primary("Решить задачу",R.drawable.ic_calculate){showSolve()})
-        box.addView(space(8))
-        box.addView(outline("Проверить знания",R.drawable.ic_check,accent){showPracticeSetup()})
-        box.addView(space(24))
-        setScreen("results",scroll)
-    }
-'''
-
-          text = re.sub(
-              r'''    private fun showResults\(\)\{.*?\n    // ---------- SOLVER ----------''',
-              new_results + '\n    // ---------- SOLVER ----------',
-              text,
-              count=1,
-              flags=re.S
-          )
-
-          # Keep the visible version in About in sync.
-          text = re.sub(r'Версия 0\.3(?:\.\d+)?', 'Версия 0.3.3', text)
+          text = text.replace('val vertical = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(bg()) }','val vertical = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(bg()); setPadding(0, dp(12), 0, 0) }')
+          text = text.replace('top.addView(text("Математика — Прогресс", 19f, true)','top.addView(text("Математика — Прогресс", 17.5f, true)')
+          text = text.replace('vertical.addView(top, LinearLayout.LayoutParams(-1, dp(60)))','vertical.addView(top, LinearLayout.LayoutParams(-1, dp(56)))')
+          payload='ICAgIHByaXZhdGUgZnVuIHNob3dSZXN1bHRzKCl7CiAgICAgICAgdmFsIChzY3JvbGwsYm94KT1wYWdlKCkKICAgICAgICBib3guYWRkVmlldyhzY3JlZW5UaXRsZSgi0KDQtdC30YPQu9GM0YLQsNGC0YsiLCLQktCw0Ygg0L/RgNC+0LPRgNC10YHRgSDQuCDRg9GB0L/QtdCy0LDQtdC80L7RgdGC0YwiKSkKCiAgICAgICAgdmFsIHRhYnM9TGluZWFyTGF5b3V0KHRoaXMpLmFwcGx5e29yaWVudGF0aW9uPUxpbmVhckxheW91dC5IT1JJWk9OVEFMfQogICAgICAgIGxpc3RPZigKICAgICAgICAgICAgU3RhdHNQZXJpb2QuV0VFSyB0byAi0J3QtdC00LXQu9GPIiwKICAgICAgICAgICAgU3RhdHNQZXJpb2QuTU9OVEggdG8gItCc0LXRgdGP0YYiLAogICAgICAgICAgICBTdGF0c1BlcmlvZC5ZRUFSIHRvICLQk9C+0LQiLAogICAgICAgICAgICBTdGF0c1BlcmlvZC5BTEwgdG8gItCS0YHRkSDQstGA0LXQvNGPIgogICAgICAgICkuZm9yRWFjaHsocCx0KS0+CiAgICAgICAgICAgIHRhYnMuYWRkVmlldyhzZWdtZW50KHQscGVyaW9kPT1wKXtwZXJpb2Q9cDtzaG93UmVzdWx0cygpfSxMaW5lYXJMYXlvdXQuTGF5b3V0UGFyYW1zKDAsZHAoNDIpLDFmKS5hcHBseXtzZXRNYXJnaW5zKGRwKDIpLDAsZHAoMiksMCl9KQogICAgICAgIH0KICAgICAgICBib3guYWRkVmlldyh0YWJzKQogICAgICAgIGJveC5hZGRWaWV3KHNwYWNlKDEyKSkKCiAgICAgICAgdmFsIHM9U3RhdHNFbmdpbmUuc25hcHNob3Qoc3RvcmUuaGlzdG9yeSgpLHBlcmlvZCkKICAgICAgICB2YWwgaGVybz1jYXJkKCkKICAgICAgICBoZXJvLmFkZFZpZXcodGV4dChzLm1lc3NhZ2UsMTlmLHRydWUpKQogICAgICAgIGlmKHMuY29tcGFyaXNvbi5pc05vdEJsYW5rKCkpewogICAgICAgICAgICBoZXJvLmFkZFZpZXcodGV4dChzLmNvbXBhcmlzb24sMTMuNWYsdHJ1ZSxncmVlbikuYXBwbHl7c2V0UGFkZGluZygwLGRwKDcpLDAsMCl9KQogICAgICAgIH0KICAgICAgICBoZXJvLmFkZFZpZXcoc3BhY2UoMTYpKQoKICAgICAgICB2YWwgbWV0cmljcz1MaW5lYXJMYXlvdXQodGhpcykuYXBwbHl7b3JpZW50YXRpb249TGluZWFyTGF5b3V0LkhPUklaT05UQUx9CiAgICAgICAgbWV0cmljcy5hZGRWaWV3KG1ldHJpYygi0KHRgNC10LTQvdGP0Y8iLHMuYXZlcmFnZUdyYWRlPy5sZXR7U3RyaW5nLmZvcm1hdChMb2NhbGUuVVMsIiUuMWYiLGl0KX0/OiLigJQiLFIuZHJhd2FibGUuaWNfc3RhciksTGluZWFyTGF5b3V0LkxheW91dFBhcmFtcygwLC0yLDFmKSkKICAgICAgICBtZXRyaWNzLmFkZFZpZXcobWV0cmljKCLQotC+0YfQvdC+0YHRgtGMIixzLmFjY3VyYWN5Py5sZXR7IiRpdCUifT86IuKAlCIsUi5kcmF3YWJsZS5pY190YXJnZXQpLExpbmVhckxheW91dC5MYXlvdXRQYXJhbXMoMCwtMiwxZikpCiAgICAgICAgbWV0cmljcy5hZGRWaWV3KG1ldHJpYygi0KDQtdGI0LXQvdC+IixzLnNvbHZlZC50b1N0cmluZygpLFIuZHJhd2FibGUuaWNfY2FsY3VsYXRlKSxMaW5lYXJMYXlvdXQuTGF5b3V0UGFyYW1zKDAsLTIsMWYpKQogICAgICAgIGhlcm8uYWRkVmlldyhtZXRyaWNzKQogICAgICAgIGJveC5hZGRWaWV3KGhlcm8pCiAgICAgICAgYm94LmFkZFZpZXcoc3BhY2UoMTApKQoKICAgICAgICB2YWwgdG9waWNzPWNhcmQoKQogICAgICAgIHZhbCBiZXN0VGV4dD1pZihzLmJlc3RUb3BpYz09bnVsbCkgItCh0LjQu9GM0L3QsNGPINGC0LXQvNCwOiDQv9C+0LrQsCDQvdC10LTQvtGB0YLQsNGC0L7Rh9C90L4g0LTQsNC90L3Ri9GFIiBlbHNlICLQodC40LvRjNC90LDRjyDRgtC10LzQsDogJHtzLmJlc3RUb3BpY30iCiAgICAgICAgdmFsIHdlYWtUZXh0PWlmKHMud2Vha1RvcGljPT1udWxsKSAi0KHRgtC+0LjRgiDQv9C+0LLRgtC+0YDQuNGC0Yw6INC/0L7QutCwINC90LXQtNC+0YHRgtCw0YLQvtGH0L3QviDQtNCw0L3QvdGL0YUiIGVsc2UgItCh0YLQvtC40YIg0L/QvtCy0YLQvtGA0LjRgtGMOiAke3Mud2Vha1RvcGljfSIKICAgICAgICB0b3BpY3MuYWRkVmlldyhpY29uTGluZShSLmRyYXdhYmxlLmljX3N0YXIsYmVzdFRleHQsaWYocy5iZXN0VG9waWM9PW51bGwpbXV0ZWQoKSBlbHNlIGdyZWVuKSkKICAgICAgICB0b3BpY3MuYWRkVmlldyhzcGFjZSg4KSkKICAgICAgICB0b3BpY3MuYWRkVmlldyhpY29uTGluZShSLmRyYXdhYmxlLmljX3RhcmdldCx3ZWFrVGV4dCxpZihzLndlYWtUb3BpYz09bnVsbCltdXRlZCgpIGVsc2UgYW1iZXIpKQogICAgICAgIGJveC5hZGRWaWV3KHRvcGljcykKICAgICAgICBib3guYWRkVmlldyhzcGFjZSgxMCkpCgogICAgICAgIHZhbCB0b2RheT1kYXRlS2V5KFN5c3RlbS5jdXJyZW50VGltZU1pbGxpcygpKQogICAgICAgIHZhbCBkYWlseT1zdG9yZS5kYWlseSh0b2RheSkKICAgICAgICB2YWwgZGM9Y2FyZCgpCiAgICAgICAgZGMuYWRkVmlldyhpY29uTGluZShSLmRyYXdhYmxlLmljX2RhaWx5LCLQldC20LXQtNC90LXQstC90LDRjyDRgtGA0LXQvdC40YDQvtCy0LrQsCIsYWNjZW50LHRydWUpKQogICAgICAgIGRjLmFkZFZpZXcoc3BhY2UoNikpCiAgICAgICAgZGMuYWRkVmlldyh0ZXh0KHdoZW57CiAgICAgICAgICAgIGRhaWx5Py5jb21wbGV0ZWQ9PXRydWUgLT4gItCh0LXQs9C+0LTQvdGPINCy0YvQv9C+0LvQvdC10L3QviDinJMiCiAgICAgICAgICAgIChkYWlseT8uYXR0ZW1wdHM/OjApPjAgLT4gItCh0LXQs9C+0LTQvdGPINC80L7QttC90L4g0YPQu9GD0YfRiNC40YLRjCDRgNC10LfRg9C70YzRgtCw0YIiCiAgICAgICAgICAgIGVsc2UgLT4gIjUg0LrQvtGA0L7RgtC60LjRhSDQt9Cw0LTQsNC90LjQuSDQvdCwINGB0LXQs9C+0LTQvdGPIgogICAgICAgIH0sMTRmLGZhbHNlLG11dGVkKCkpKQogICAgICAgIGRjLmFkZFZpZXcoc3BhY2UoMTApKQogICAgICAgIGRjLmFkZFZpZXcoCiAgICAgICAgICAgIGlmKGRhaWx5Py5jb21wbGV0ZWQ9PXRydWUpCiAgICAgICAgICAgICAgICBvdXRsaW5lKCLQntGC0LrRgNGL0YLRjCDQutCw0LvQtdC90LTQsNGA0YwiLFIuZHJhd2FibGUuaWNfZGFpbHksYWNjZW50KXtzaG93RGFpbHkoKX0KICAgICAgICAgICAgZWxzZQogICAgICAgICAgICAgICAgcHJpbWFyeSgi0J3QsNGH0LDRgtGMINC10LbQtdC00L3QtdCy0L3Ri9C1INC30LDQtNCw0L3QuNGPIixSLmRyYXdhYmxlLmljX3BsYXkpe3N0YXJ0RGFpbHkodG9kYXkpfQogICAgICAgICkKICAgICAgICBib3guYWRkVmlldyhkYykKCiAgICAgICAgdmFsIGRyYWZ0PXN0b3JlLmdldERyYWZ0KCkKICAgICAgICBpZihkcmFmdC5pc05vdEJsYW5rKCkpewogICAgICAgICAgICBib3guYWRkVmlldyhzcGFjZSgxMCkpCiAgICAgICAgICAgIHZhbCBjPWNhcmQoKQogICAgICAgICAgICBjLmFkZFZpZXcoaWNvbkxpbmUoUi5kcmF3YWJsZS5pY19jYWxjdWxhdGUsItCd0LXQt9Cw0LLQtdGA0YjRkdC90L3QsNGPINC30LDQtNCw0YfQsCIsYWNjZW50LHRydWUpKQogICAgICAgICAgICBjLmFkZFZpZXcodGV4dChkcmFmdC50YWtlKDExMCksMTRmLGZhbHNlLG11dGVkKCkpLmFwcGx5e3NldFBhZGRpbmcoMCxkcCg1KSwwLGRwKDgpKX0pCiAgICAgICAgICAgIGMuYWRkVmlldyhvdXRsaW5lKCLQn9GA0L7QtNC+0LvQttC40YLRjCIsUi5kcmF3YWJsZS5pY19wbGF5LGFjY2VudCl7c2hvd1NvbHZlKGRyYWZ0KX0pCiAgICAgICAgICAgIGJveC5hZGRWaWV3KGMpCiAgICAgICAgfQoKICAgICAgICBib3guYWRkVmlldyhzcGFjZSgxNCkpCiAgICAgICAgYm94LmFkZFZpZXcocHJpbWFyeSgi0KDQtdGI0LjRgtGMINC30LDQtNCw0YfRgyIsUi5kcmF3YWJsZS5pY19jYWxjdWxhdGUpe3Nob3dTb2x2ZSgpfSkKICAgICAgICBib3guYWRkVmlldyhzcGFjZSg4KSkKICAgICAgICBib3guYWRkVmlldyhvdXRsaW5lKCLQn9GA0L7QstC10YDQuNGC0Ywg0LfQvdCw0L3QuNGPIixSLmRyYXdhYmxlLmljX2NoZWNrLGFjY2VudCl7c2hvd1ByYWN0aWNlU2V0dXAoKX0pCiAgICAgICAgYm94LmFkZFZpZXcoc3BhY2UoMjQpKQogICAgICAgIHNldFNjcmVlbigicmVzdWx0cyIsc2Nyb2xsKQogICAgfQo='
+          new_results=base64.b64decode(payload).decode()
+          text=re.sub(r'    private fun showResults\(\)\{.*?\n    // ---------- SOLVER ----------',new_results+'\n    // ---------- SOLVER ----------',text,count=1,flags=re.S)
+          text=re.sub(r'Версия 0\.3(?:\.\d+)?','Версия 0.3.3',text)
           main.write_text(text)
-
-          gradle = Path('MathProgress/app/build.gradle.kts')
-          g = gradle.read_text()
-          g = re.sub(r'versionCode = \d+', 'versionCode = 6', g)
-          g = re.sub(r'versionName = "[^"]+"', 'versionName = "0.3.3"', g)
+          gradle=Path('MathProgress/app/build.gradle.kts')
+          g=gradle.read_text()
+          g=re.sub(r'versionCode = \d+','versionCode = 6',g)
+          g=re.sub(r'versionName = "[^"]+"','versionName = "0.3.3"',g)
           gradle.write_text(g)
           PY
 
-      - name: Persist polished source
+      - name: Persist source polish
         run: |
           if ! git diff --quiet -- MathProgress; then
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
             git add MathProgress
-            git commit -m "Polish MathProgress results screen v0.3.3"
+            git commit -m "Apply MathProgress v0.3.3 results polish"
             git push origin HEAD:mathprogress-app || true
           fi
 
