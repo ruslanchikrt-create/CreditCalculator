@@ -49,7 +49,15 @@ class MathKeyboardView(context: Context, private val target: EditText, private v
     private fun move(delta:Int){target.setSelection((target.selectionStart+delta).coerceIn(0,target.text.length));target.requestFocus()}
     private fun backspace(){val s=target.selectionStart.coerceAtLeast(0);val e=target.selectionEnd.coerceAtLeast(s);if(e>s)target.text.delete(s,e) else if(s>0)target.text.delete(s-1,s);target.requestFocus()}
     private fun key(value:String,special:Boolean,action:()->Unit):View=Button(context).apply{
-        text=value; textSize=if(value.length>5)13f else 17f; typeface=if(special)Typeface.DEFAULT_BOLD else Typeface.create(Typeface.DEFAULT,Typeface.NORMAL); isAllCaps=false; gravity=Gravity.CENTER
+        text=value
+        textSize=when {
+            value == "Очистить" -> 13.5f
+            value.length > 5 -> 14.5f
+            value in listOf("←","→","↵","⌫") -> 18.5f
+            special -> 19f
+            else -> 19f
+        }
+        typeface=if(special)Typeface.DEFAULT_BOLD else Typeface.create(Typeface.DEFAULT,Typeface.NORMAL); isAllCaps=false; gravity=Gravity.CENTER
         setTextColor(if(special)accent else fg); background=shape(if(special)Color.argb(if(darkMode)55 else 24,99,91,255) else keySurface,10,border); stateListAnimator=null;minWidth=0;minHeight=0;setPadding(0,0,0,0);setOnClickListener{action()}
     }
     private fun shape(fill:Int,radius:Int,stroke:Int)=GradientDrawable().apply{cornerRadius=dp(radius).toFloat();setColor(fill);setStroke(dp(1),stroke)}
