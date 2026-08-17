@@ -1,0 +1,1 @@
+MathProgress v0.4.0 PR compile synchronize — 2026-08-18 02:29 +03
