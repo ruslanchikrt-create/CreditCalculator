@@ -1,1 +1,1 @@
-MathProgress v0.4.0 final compile trigger — 2026-08-18 02:18 +03
+MathProgress v0.4.0 observable compile trigger — 2026-08-18 02:22 +03
