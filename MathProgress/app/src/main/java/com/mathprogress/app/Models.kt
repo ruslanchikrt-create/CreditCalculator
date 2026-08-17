@@ -10,7 +10,13 @@ data class UserProfile(
     var avatarUri: String = ""
 ) {
     fun toJson() = JSONObject().put("id", id).put("name", name).put("avatarUri", avatarUri)
-    companion object { fun fromJson(o: JSONObject) = UserProfile(o.getString("id"), o.optString("name", "Пользователь"), o.optString("avatarUri", "")) }
+    companion object {
+        fun fromJson(o: JSONObject) = UserProfile(
+            id = o.optString("id", UUID.randomUUID().toString()),
+            name = o.optString("name", "Пользователь"),
+            avatarUri = o.optString("avatarUri", "")
+        )
+    }
 }
 
 data class TaskRecord(
@@ -40,7 +46,7 @@ data class TaskRecord(
             val a = o.optJSONArray("steps") ?: JSONArray()
             val steps = (0 until a.length()).map { a.optString(it) }
             return TaskRecord(
-                id = o.getString("id"), profileId = o.getString("profileId"), input = o.optString("input"),
+                id = o.optString("id", UUID.randomUUID().toString()), profileId = o.optString("profileId"), input = o.optString("input"),
                 type = o.optString("type"), answer = o.optString("answer"), steps = steps,
                 createdAt = o.optLong("createdAt", System.currentTimeMillis()), updatedAt = o.optLong("updatedAt", System.currentTimeMillis()),
                 deletedAt = o.optLong("deletedAt", 0L), selfSolved = o.optBoolean("selfSolved", false),
@@ -51,12 +57,33 @@ data class TaskRecord(
     }
 }
 
+data class DailyProgress(
+    val profileId: String,
+    val dateKey: String,
+    var attempts: Int = 0,
+    var bestCorrect: Int = 0,
+    var completed: Boolean = false,
+    var completedAt: Long = 0L
+) {
+    fun toJson() = JSONObject()
+        .put("profileId", profileId).put("dateKey", dateKey).put("attempts", attempts)
+        .put("bestCorrect", bestCorrect).put("completed", completed).put("completedAt", completedAt)
+
+    companion object {
+        fun fromJson(o: JSONObject) = DailyProgress(
+            profileId = o.optString("profileId"), dateKey = o.optString("dateKey"),
+            attempts = o.optInt("attempts", 0), bestCorrect = o.optInt("bestCorrect", 0),
+            completed = o.optBoolean("completed", false), completedAt = o.optLong("completedAt", 0L)
+        )
+    }
+}
+
 data class AppSettings(
-    var theme: String = "system",
+    var theme: String = "dark",
     var language: String = "ru",
-    var notificationsEnabled: Boolean = true,
-    var unfinishedNotifications: Boolean = true,
-    var inactivityNotifications: Boolean = true,
-    var inactivityDays: Int = 3,
-    var passwordHash: String = ""
+    var securityMethod: String = "none",
+    var pinHash: String = "",
+    var patternHash: String = "",
+    var autoLockSeconds: Int = 60,
+    var inactivityDays: Int = 3
 )

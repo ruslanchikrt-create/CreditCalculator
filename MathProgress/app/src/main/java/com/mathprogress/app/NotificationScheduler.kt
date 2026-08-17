@@ -3,37 +3,56 @@ package com.mathprogress.app
 import android.app.*
 import android.content.*
 import android.os.Build
+import java.util.Calendar
 
 object NotificationScheduler {
-    const val CHANNEL = "study_reminders_silent"
+    const val CHANNEL_SILENT = "study_reminders_silent"
+    const val CHANNEL_DAILY = "daily_training"
     const val ACTION_UNFINISHED = "com.mathprogress.app.UNFINISHED"
     const val ACTION_INACTIVE = "com.mathprogress.app.INACTIVE"
+    const val ACTION_DAILY = "com.mathprogress.app.DAILY"
 
-    fun ensureChannel(context: Context) {
+    fun ensureChannels(context: Context) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            val ch = NotificationChannel(CHANNEL, "Тихие напоминания", NotificationManager.IMPORTANCE_LOW).apply {
-                description = "Незавершённые задачи и мягкие напоминания о занятиях"
-                setSound(null, null)
-                enableVibration(false)
+            nm.createNotificationChannel(NotificationChannel(CHANNEL_SILENT, "Напоминания", NotificationManager.IMPORTANCE_LOW).apply {
+                description = "Незавершённые задачи и возвращение к занятиям"
+                setSound(null, null); enableVibration(false); setShowBadge(true)
+            })
+            nm.createNotificationChannel(NotificationChannel(CHANNEL_DAILY, "Ежедневная тренировка", NotificationManager.IMPORTANCE_DEFAULT).apply {
+                description = "Ежедневное задание после обеда"
                 setShowBadge(true)
-            }
-            nm.createNotificationChannel(ch)
+            })
         }
+    }
+
+    fun scheduleAll(context: Context, store: LocalStore) {
+        ensureChannels(context)
+        scheduleUnfinished(context, store)
+        scheduleInactive(context, store)
+        scheduleDaily(context)
     }
 
     fun scheduleUnfinished(context: Context, store: LocalStore) {
         cancel(context, 101, ACTION_UNFINISHED)
-        if (!store.settings.notificationsEnabled || !store.settings.unfinishedNotifications || store.getDraft().isBlank()) return
-        val trigger = System.currentTimeMillis() + 6L*60*60*1000
-        schedule(context, 101, ACTION_UNFINISHED, trigger)
+        if (store.getDraft().isBlank()) return
+        schedule(context, 101, ACTION_UNFINISHED, System.currentTimeMillis() + 6L * 60 * 60 * 1000)
     }
 
     fun scheduleInactive(context: Context, store: LocalStore) {
         cancel(context, 102, ACTION_INACTIVE)
-        if (!store.settings.notificationsEnabled || !store.settings.inactivityNotifications) return
-        val trigger = System.currentTimeMillis() + store.settings.inactivityDays*24L*60*60*1000
+        val trigger = System.currentTimeMillis() + store.settings.inactivityDays * 24L * 60 * 60 * 1000
         schedule(context, 102, ACTION_INACTIVE, trigger)
+    }
+
+    fun scheduleDaily(context: Context) {
+        cancel(context, 103, ACTION_DAILY)
+        val now = Calendar.getInstance()
+        val target = Calendar.getInstance().apply {
+            set(Calendar.HOUR_OF_DAY, 15); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
+            if (!after(now)) add(Calendar.DAY_OF_YEAR, 1)
+        }
+        schedule(context, 103, ACTION_DAILY, target.timeInMillis)
     }
 
     private fun schedule(context: Context, requestCode: Int, action: String, at: Long) {
@@ -51,35 +70,39 @@ object NotificationScheduler {
 
 class ReminderReceiver: BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
-        NotificationScheduler.ensureChannel(context)
+        NotificationScheduler.ensureChannels(context)
         val store = LocalStore(context)
         val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         val open = PendingIntent.getActivity(context, 1, Intent(context, MainActivity::class.java), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
-        val (id,title,text) = when(intent.action) {
+        val action = intent.action
+        val builder = when (action) {
             NotificationScheduler.ACTION_UNFINISHED -> {
-                if (store.getDraft().isBlank() || !store.settings.unfinishedNotifications) return
-                Triple(201, "Незавершённая задача", "Вы начали решение и не закончили. Продолжить?")
+                if (store.getDraft().isBlank()) return
+                Notification.Builder(context, NotificationScheduler.CHANNEL_SILENT)
+                    .setContentTitle("Незавершённое решение")
+                    .setContentText("Задача ждёт продолжения. Вернитесь к ней, когда будет удобно.")
+                    .setSilent(true)
             }
-            NotificationScheduler.ACTION_INACTIVE -> {
-                if (!store.settings.inactivityNotifications) return
-                Triple(202, "Небольшая тренировка?", "Вы несколько дней не заходили. Одна короткая задача поможет сохранить форму.")
+            NotificationScheduler.ACTION_INACTIVE -> Notification.Builder(context, NotificationScheduler.CHANNEL_SILENT)
+                .setContentTitle("Небольшая математическая разминка?")
+                .setContentText("Пара задач поможет не потерять форму.").setSilent(true)
+            NotificationScheduler.ACTION_DAILY -> {
+                val dateKey = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(java.util.Date())
+                if (store.daily(dateKey)?.completed == true) { NotificationScheduler.scheduleDaily(context); return }
+                Notification.Builder(context, NotificationScheduler.CHANNEL_DAILY)
+                    .setContentTitle("Ежедневная тренировка готова")
+                    .setContentText("Небольшой набор задач уже ждёт вас. Закройте сегодняшний день ✓")
             }
             else -> return
         }
-        val n = Notification.Builder(context, NotificationScheduler.CHANNEL)
-            .setSmallIcon(android.R.drawable.ic_dialog_info)
-            .setContentTitle(title).setContentText(text).setContentIntent(open).setAutoCancel(true)
-            .setSilent(true).build()
-        nm.notify(id,n)
+        val id = when(action) { NotificationScheduler.ACTION_UNFINISHED -> 201; NotificationScheduler.ACTION_INACTIVE -> 202; else -> 203 }
+        nm.notify(id, builder.setSmallIcon(android.R.drawable.ic_dialog_info).setContentIntent(open).setAutoCancel(true).build())
+        if (action == NotificationScheduler.ACTION_DAILY) NotificationScheduler.scheduleDaily(context)
     }
 }
 
 class BootReceiver: BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
-        if (intent.action == Intent.ACTION_BOOT_COMPLETED) {
-            val store = LocalStore(context)
-            NotificationScheduler.scheduleUnfinished(context, store)
-            NotificationScheduler.scheduleInactive(context, store)
-        }
+        if (intent.action == Intent.ACTION_BOOT_COMPLETED) NotificationScheduler.scheduleAll(context, LocalStore(context))
     }
 }

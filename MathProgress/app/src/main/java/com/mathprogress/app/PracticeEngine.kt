@@ -8,8 +8,8 @@ object PracticeEngine {
     private val topics = listOf("Линейные", "Квадратные", "Кубические", "Системы 2×2", "Дроби", "Корни", "Показательные", "Логарифмические")
     fun topics(): List<String> = topics
 
-    fun generate(topic: String, difficulty: Int = 1): PracticeQuestion {
-        val r = Random(System.nanoTime())
+    fun generate(topic: String, difficulty: Int = 1, seed: Long? = null): PracticeQuestion {
+        val r = if (seed == null) Random(System.nanoTime()) else Random(seed)
         return when(topic) {
             "Квадратные" -> {
                 val a = if (difficulty >= 3) r.nextInt(1,4) else 1
@@ -25,7 +25,7 @@ object PracticeEngine {
             }
             "Системы 2×2" -> {
                 val x=r.nextInt(-5,6); val y=r.nextInt(-5,6)
-                val a= r.nextInt(1,5); val b=r.nextInt(1,5); var c=r.nextInt(1,5); var d=r.nextInt(-4,5).let{if(it==0)1 else it}
+                val a=r.nextInt(1,5); val b=r.nextInt(1,5); val c=r.nextInt(1,5); var d=r.nextInt(-4,5).let{if(it==0)1 else it}
                 if (a*d-b*c==0) d += 1
                 val e=a*x+b*y; val f=c*x+d*y
                 val text="${coef(a)}x${signed(b,"y")}=$e; ${coef(c)}x${signed(d,"y")}=$f"
@@ -54,6 +54,15 @@ object PracticeEngine {
                 val x=r.nextInt(-10,11); val a=r.nextInt(1,8); val b=r.nextInt(-10,11); val c=a*x+b
                 PracticeQuestion("${coef(a)}x${signed(b,"")}=$c","Линейное уравнение",listOf(x.toDouble()),"x = $x")
             }
+        }
+    }
+
+    fun dailyQuestions(dateKey: String, profileId: String, attempt: Int, count: Int = 5): List<PracticeQuestion> {
+        val offset = kotlin.math.abs((dateKey + profileId).hashCode()) % topics.size
+        return (0 until count).map { index ->
+            val topic = topics[(offset + index) % topics.size]
+            val seed = "$dateKey|$profileId|$attempt|$index".hashCode().toLong() * 7919L
+            generate(topic, difficulty = 1 + (attempt.coerceAtMost(3) - 1), seed = seed)
         }
     }
 
