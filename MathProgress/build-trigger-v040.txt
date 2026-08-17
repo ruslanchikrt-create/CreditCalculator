@@ -1,1 +1,1 @@
-MathProgress v0.4.0 clean build trigger — 2026-08-18 02:05 +03
+MathProgress v0.4.0 registered workflow trigger — 2026-08-18 02:08 +03
