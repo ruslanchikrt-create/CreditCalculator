@@ -147,7 +147,7 @@ class MainActivity : Activity() {
 
     private fun buildShell() {
         root = FrameLayout(this).apply { setBackgroundColor(bg()) }
-        val vertical = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(bg()) }
+        val vertical = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(bg()); setPadding(0, dp(12), 0, 0) }
         val top = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
             setPadding(dp(10), dp(5), dp(14), dp(5)); setBackgroundColor(cardColor()); elevation = dp(2).toFloat()
@@ -157,8 +157,8 @@ class MainActivity : Activity() {
             contentDescription = "Меню"; setPadding(dp(11), dp(11), dp(11), dp(11)); setOnClickListener { openDrawer() }
         }
         top.addView(navButton, LinearLayout.LayoutParams(dp(46), dp(46)))
-        top.addView(text("Математика — Прогресс", 19f, true), LinearLayout.LayoutParams(0, -2, 1f).apply { setMargins(dp(10),0,0,0) })
-        vertical.addView(top, LinearLayout.LayoutParams(-1, dp(60)))
+        top.addView(text("Математика — Прогресс", 17.5f, true), LinearLayout.LayoutParams(0, -2, 1f).apply { setMargins(dp(10),0,0,0) })
+        vertical.addView(top, LinearLayout.LayoutParams(-1, dp(56)))
 
         content = FrameLayout(this)
         vertical.addView(content, LinearLayout.LayoutParams(-1, 0, 1f))
@@ -253,30 +253,78 @@ class MainActivity : Activity() {
     private fun showResults(){
         val (scroll,box)=page()
         box.addView(screenTitle("Результаты","Ваш прогресс и успеваемость"))
+
         val tabs=LinearLayout(this).apply{orientation=LinearLayout.HORIZONTAL}
-        listOf(StatsPeriod.WEEK to "Неделя",StatsPeriod.MONTH to "Месяц",StatsPeriod.YEAR to "Год",StatsPeriod.ALL to "Всё время").forEach{(p,t)->
+        listOf(
+            StatsPeriod.WEEK to "Неделя",
+            StatsPeriod.MONTH to "Месяц",
+            StatsPeriod.YEAR to "Год",
+            StatsPeriod.ALL to "Всё время"
+        ).forEach{(p,t)->
             tabs.addView(segment(t,period==p){period=p;showResults()},LinearLayout.LayoutParams(0,dp(42),1f).apply{setMargins(dp(2),0,dp(2),0)})
         }
-        box.addView(tabs);box.addView(space(12))
+        box.addView(tabs)
+        box.addView(space(12))
+
         val s=StatsEngine.snapshot(store.history(),period)
         val hero=card()
-        hero.addView(text(s.message,20f,true))
-        if(s.comparison.isNotBlank())hero.addView(text(s.comparison,14f,true,green).apply{setPadding(0,dp(7),0,0)})
-        hero.addView(space(14))
+        hero.addView(text(s.message,19f,true))
+        if(s.comparison.isNotBlank()){
+            hero.addView(text(s.comparison,13.5f,true,green).apply{setPadding(0,dp(7),0,0)})
+        }
+        hero.addView(space(16))
+
         val metrics=LinearLayout(this).apply{orientation=LinearLayout.HORIZONTAL}
-        metrics.addView(metric("Средняя",s.averageGrade?.let{String.format(Locale.US,"%.1f",it)}?:"—",R.drawable.ic_check),LinearLayout.LayoutParams(0,-2,1f))
-        metrics.addView(metric("Точность",s.accuracy?.let{"$it%"}?:"—",R.drawable.ic_trophy),LinearLayout.LayoutParams(0,-2,1f))
+        metrics.addView(metric("Средняя",s.averageGrade?.let{String.format(Locale.US,"%.1f",it)}?:"—",R.drawable.ic_star),LinearLayout.LayoutParams(0,-2,1f))
+        metrics.addView(metric("Точность",s.accuracy?.let{"$it%"}?:"—",R.drawable.ic_target),LinearLayout.LayoutParams(0,-2,1f))
         metrics.addView(metric("Решено",s.solved.toString(),R.drawable.ic_calculate),LinearLayout.LayoutParams(0,-2,1f))
-        hero.addView(metrics);box.addView(hero);box.addView(space(10))
-        val topics=card();topics.addView(iconLine(R.drawable.ic_check,"Сильная тема: ${s.bestTopic?:"—"}",if(s.bestTopic==null)muted() else green));topics.addView(space(7));topics.addView(iconLine(R.drawable.ic_info,"Стоит повторить: ${s.weakTopic?:"—"}",if(s.weakTopic==null)muted() else amber));box.addView(topics)
+        hero.addView(metrics)
+        box.addView(hero)
         box.addView(space(10))
-        val today=dateKey(System.currentTimeMillis());val daily=store.daily(today)
-        val dc=card();dc.addView(iconLine(R.drawable.ic_daily,"Ежедневная тренировка",accent,true));dc.addView(space(6))
-        dc.addView(text(when{daily?.completed==true->"Сегодня выполнено ✓";(daily?.attempts?:0)>0->"Сегодня можно исправить результат";else->"5 коротких заданий на сегодня"},14f,false,muted()))
-        dc.addView(space(9));dc.addView(if(daily?.completed==true)outline("Открыть календарь",R.drawable.ic_daily){showDaily()} else primary("Начать ежедневные задания",R.drawable.ic_daily){startDaily(today)})
+
+        val topics=card()
+        val bestText=if(s.bestTopic==null) "Сильная тема: пока недостаточно данных" else "Сильная тема: ${s.bestTopic}"
+        val weakText=if(s.weakTopic==null) "Стоит повторить: пока недостаточно данных" else "Стоит повторить: ${s.weakTopic}"
+        topics.addView(iconLine(R.drawable.ic_star,bestText,if(s.bestTopic==null)muted() else green))
+        topics.addView(space(8))
+        topics.addView(iconLine(R.drawable.ic_target,weakText,if(s.weakTopic==null)muted() else amber))
+        box.addView(topics)
+        box.addView(space(10))
+
+        val today=dateKey(System.currentTimeMillis())
+        val daily=store.daily(today)
+        val dc=card()
+        dc.addView(iconLine(R.drawable.ic_daily,"Ежедневная тренировка",accent,true))
+        dc.addView(space(6))
+        dc.addView(text(when{
+            daily?.completed==true -> "Сегодня выполнено ✓"
+            (daily?.attempts?:0)>0 -> "Сегодня можно улучшить результат"
+            else -> "5 коротких заданий на сегодня"
+        },14f,false,muted()))
+        dc.addView(space(10))
+        dc.addView(
+            if(daily?.completed==true)
+                outline("Открыть календарь",R.drawable.ic_daily,accent){showDaily()}
+            else
+                primary("Начать ежедневные задания",R.drawable.ic_play){startDaily(today)}
+        )
         box.addView(dc)
-        val draft=store.getDraft();if(draft.isNotBlank()){box.addView(space(10));val c=card();c.addView(iconLine(R.drawable.ic_calculate,"Незавершённая задача",accent,true));c.addView(text(draft.take(110),14f,false,muted()).apply{setPadding(0,dp(5),0,dp(8))});c.addView(outline("Продолжить",R.drawable.ic_calculate){showSolve(draft)});box.addView(c)}
-        box.addView(space(12));box.addView(primary("Решить задачу",R.drawable.ic_calculate){showSolve()});box.addView(space(8));box.addView(outline("Проверить знания",R.drawable.ic_check){showPracticeSetup()});box.addView(space(24))
+
+        val draft=store.getDraft()
+        if(draft.isNotBlank()){
+            box.addView(space(10))
+            val c=card()
+            c.addView(iconLine(R.drawable.ic_calculate,"Незавершённая задача",accent,true))
+            c.addView(text(draft.take(110),14f,false,muted()).apply{setPadding(0,dp(5),0,dp(8))})
+            c.addView(outline("Продолжить",R.drawable.ic_play,accent){showSolve(draft)})
+            box.addView(c)
+        }
+
+        box.addView(space(14))
+        box.addView(primary("Решить задачу",R.drawable.ic_calculate){showSolve()})
+        box.addView(space(8))
+        box.addView(outline("Проверить знания",R.drawable.ic_check,accent){showPracticeSetup()})
+        box.addView(space(24))
         setScreen("results",scroll)
     }
 
@@ -414,7 +462,7 @@ class MainActivity : Activity() {
     // ---------- GUIDE / ABOUT ----------
     private fun showGuide(){val (s,b)=page();b.addView(screenTitle("Инструкция","Подробное руководство по приложению"));guideSection(b,R.drawable.ic_home,"1. Результаты","Главная страница показывает среднюю оценку, точность, количество решений, сильные и слабые темы. Переключайте неделю, месяц, год или всё время. Если показатели растут, приложение отдельно покажет прогресс.");guideSection(b,R.drawable.ic_calculate,"2. Решение задач","Откройте «Решить задачу», выберите тип или оставьте «Авто», введите условие математической клавиатурой и нажмите «Решить подробно». Решение автоматически сохранится в историю.");guideSection(b,R.drawable.ic_check,"3. Решить самостоятельно","После получения решения можно перейти в режим самостоятельной проверки. Введите свой ответ — приложение сравнит результат и сохранит успех или ошибку.");guideSection(b,R.drawable.ic_check,"4. Проверка знаний","Выберите тему и число заданий. Все задания проходят на отдельных страницах. В конце появятся оценка, процент правильных ответов и переход к разбору ошибок.");guideSection(b,R.drawable.ic_daily,"5. Ежедневная тренировка","После обеда приложение напоминает о ежедневном наборе. День закрывается зелёной галочкой только после полностью правильной попытки. Если были ошибки — нажмите «Исправить», и приложение даст другой набор. Месяц, закрытый полностью, отмечается кубком.");guideSection(b,R.drawable.ic_history,"6. История","По умолчанию отображается вся история. В фильтрах можно выбрать период, конкретную дату или диапазон, источник, результат, режим, тип задачи, поиск и порядок сортировки. Запись можно открыть, отредактировать, пересчитать, поделиться или удалить.");guideSection(b,R.drawable.ic_delete,"7. Корзина","Удалённые решения хранятся 30 дней. Их можно восстановить или удалить окончательно раньше срока.");guideSection(b,R.drawable.ic_user,"8. Профили","Текущий пользователь находится вверху боковой панели. Нажмите на него, чтобы изменить имя или аватар, создать новый профиль либо переключиться на другого пользователя.");guideSection(b,R.drawable.ic_security,"9. Безопасность","В настройках можно выбрать PIN, графический ключ или системную защиту телефона. При смене защиты требуется текущий способ. Автоблокировка доступна сразу, через 1, 3 или 5 минут.");guideSection(b,R.drawable.ic_backup,"10. Резервная копия","Создайте файл резервной копии и сохраните его в удобное место. Для восстановления выберите этот файл. Защитные коды намеренно не переносятся между устройствами.");guideSection(b,R.drawable.ic_info,"11. Подсказки и связь","Значок информации открывает подсказки там, где они нужны. Ошибки и предложения отправляются через раздел «О приложении» с выбором установленного приложения для отправки.");b.addView(space(20));setScreen("guide",s)}
     private fun guideSection(box:LinearLayout,icon:Int,title:String,body:String){val c=card();c.addView(iconLine(icon,title,accent,true));c.addView(text(body,14f,false,fg()).apply{setPadding(0,dp(8),0,0);setLineSpacing(dp(2).toFloat(),1.08f)});box.addView(c);box.addView(space(8))}
-    private fun showAbout(){val (s,b)=page();b.addView(screenTitle("О приложении","Математика — Прогресс"));val c=card();c.addView(text("Математика — Прогресс",22f,true));c.addView(text("Версия 0.3.0",13f,false,muted()).apply{setPadding(0,dp(4),0,dp(8))});c.addView(text("Решение уравнений, обучение, проверка знаний, ежедневные тренировки и личная статистика в одном приложении.",14f,false,fg()));b.addView(c);b.addView(space(10));b.addView(settingsCard(R.drawable.ic_info,"Сообщить об ошибке","Опишите проблему и выберите приложение для отправки"){showFeedbackPage(true)});b.addView(space(8));b.addView(settingsCard(R.drawable.ic_edit,"Предложить улучшение","Расскажите, чего не хватает приложению"){showFeedbackPage(false)});b.addView(space(8));b.addView(settingsCard(R.drawable.ic_trophy,"Оценить приложение","Открыть страницу приложения"){rateApp()});b.addView(space(8));b.addView(settingsCard(R.drawable.ic_book,"Инструкция","Открыть подробное руководство"){showGuide()});setScreen("about",s)}
+    private fun showAbout(){val (s,b)=page();b.addView(screenTitle("О приложении","Математика — Прогресс"));val c=card();c.addView(text("Математика — Прогресс",22f,true));c.addView(text("Версия 0.3.3",13f,false,muted()).apply{setPadding(0,dp(4),0,dp(8))});c.addView(text("Решение уравнений, обучение, проверка знаний, ежедневные тренировки и личная статистика в одном приложении.",14f,false,fg()));b.addView(c);b.addView(space(10));b.addView(settingsCard(R.drawable.ic_info,"Сообщить об ошибке","Опишите проблему и выберите приложение для отправки"){showFeedbackPage(true)});b.addView(space(8));b.addView(settingsCard(R.drawable.ic_edit,"Предложить улучшение","Расскажите, чего не хватает приложению"){showFeedbackPage(false)});b.addView(space(8));b.addView(settingsCard(R.drawable.ic_trophy,"Оценить приложение","Открыть страницу приложения"){rateApp()});b.addView(space(8));b.addView(settingsCard(R.drawable.ic_book,"Инструкция","Открыть подробное руководство"){showGuide()});setScreen("about",s)}
     private fun showFeedbackPage(error:Boolean){val (s,b)=page();val title=if(error)"Сообщить об ошибке" else "Предложить улучшение";b.addView(screenTitle(title,"Сообщение отправится через выбранное вами приложение"));val e=EditText(this).apply{hint=if(error)"Что произошло? Что вы делали перед ошибкой?" else "Что стоит добавить или изменить?";minLines=7;gravity=Gravity.TOP;textSize=16f;setTextColor(fg());setHintTextColor(muted());setPadding(dp(12),dp(12),dp(12),dp(12));background=round(cardColor(),14,border())};b.addView(e,LinearLayout.LayoutParams(-1,dp(190)));b.addView(space(12));b.addView(primary("Выбрать приложение и отправить",R.drawable.ic_about){if(e.text.isNotBlank())shareText(title,e.text.toString())});setScreen("about",s){showAbout()}}
 
     // ---------- RESET ----------
