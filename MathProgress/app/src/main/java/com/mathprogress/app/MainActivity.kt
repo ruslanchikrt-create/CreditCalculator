@@ -70,20 +70,26 @@ class MainActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         store = LocalStore(this)
-        NotificationScheduler.ensureChannels(this)
-        requestNotificationPermission()
+        runCatching { NotificationScheduler.ensureChannels(this) }
         buildShell()
-        showResults()
-        NotificationScheduler.scheduleAll(this, store)
+        try {
+            showResults()
+        } catch (e: Throwable) {
+            showStartupFallback(e)
+        }
         store.setLastOpenNow()
-        if (store.securityEnabled()) lockNow()
+        if (store.securityEnabled()) runCatching { lockNow() }
+        root.postDelayed({
+            runCatching { requestNotificationPermission() }
+            runCatching { NotificationScheduler.scheduleAll(this, store) }
+        }, 1200L)
     }
 
     override fun onResume() {
         super.onResume()
         if (!::store.isInitialized) return
         store.setLastOpenNow()
-        NotificationScheduler.scheduleInactive(this, store)
+        runCatching { NotificationScheduler.scheduleInactive(this, store) }
         if (firstResume) { firstResume = false; return }
         if (store.securityEnabled() && lockOverlay == null) {
             val elapsed = System.currentTimeMillis() - store.backgroundAt()
@@ -95,7 +101,7 @@ class MainActivity : Activity() {
     override fun onPause() {
         if (::store.isInitialized) {
             store.setBackgroundAt(System.currentTimeMillis())
-            NotificationScheduler.scheduleUnfinished(this, store)
+            runCatching { NotificationScheduler.scheduleUnfinished(this, store) }
         }
         super.onPause()
     }
@@ -396,6 +402,27 @@ class MainActivity : Activity() {
     private fun shareTask(t:TaskRecord)=shareText(t.type,buildString{appendLine(t.type);appendLine(t.input);appendLine();t.steps.forEachIndexed{i,st->appendLine("${i+1}. $st")};appendLine();append("Ответ: ${t.answer}")})
     private fun shareText(title:String,body:String){startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply{type="text/plain";putExtra(Intent.EXTRA_SUBJECT,title);putExtra(Intent.EXTRA_TEXT,body)},"Через какое приложение отправить?"))}
     private fun rateApp(){val id=packageName;try{startActivity(Intent(Intent.ACTION_VIEW,Uri.parse("market://details?id=$id")))}catch(_:Exception){startActivity(Intent(Intent.ACTION_VIEW,Uri.parse("https://play.google.com/store/apps/details?id=$id")))}}
+
+    private fun showStartupFallback(error: Throwable) {
+        val box = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER_HORIZONTAL
+            setPadding(dp(24), dp(48), dp(24), dp(24))
+        }
+        box.addView(iconImage(R.drawable.ic_info, 54, amber))
+        box.addView(text("Не удалось открыть главный экран", 22f, true).apply {
+            gravity = Gravity.CENTER
+            setPadding(0, dp(16), 0, dp(8))
+        })
+        box.addView(text("Данные не удалены. Можно открыть решатель и продолжить работу.", 14f, false, muted()).apply { gravity = Gravity.CENTER })
+        box.addView(space(16))
+        box.addView(primary("Открыть решатель", R.drawable.ic_calculate) { showSolve() })
+        box.addView(space(8))
+        box.addView(outline("Повторить загрузку", R.drawable.ic_home) { showResults() })
+        content.removeAllViews()
+        content.addView(android.widget.ScrollView(this).apply { addView(box) }, FrameLayout.LayoutParams(-1, -1))
+        android.util.Log.e("MathProgress", "Startup screen error", error)
+    }
 
     // ---------- HELPERS ----------
     private fun page():Pair<android.widget.ScrollView,LinearLayout>{val scroll=android.widget.ScrollView(this).apply{isFillViewport=true};val box=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;setPadding(dp(18),dp(20),dp(18),dp(24))};scroll.addView(box,android.widget.FrameLayout.LayoutParams(-1,-2));return scroll to box}
