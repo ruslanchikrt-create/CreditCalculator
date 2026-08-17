@@ -19,7 +19,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Normalize MathProgress v0.3.2 safe startup
+      - name: Polish MathProgress v0.3.3 results screen
         run: |
           python3 - <<'PY'
           from pathlib import Path
@@ -28,66 +28,126 @@ jobs:
           main = Path('MathProgress/app/src/main/java/com/mathprogress/app/MainActivity.kt')
           text = main.read_text()
 
-          # Replace the entire lifecycle startup with a deliberately minimal,
-          # synchronous path. No notification permission, scheduler or system
-          # UI tricks are allowed to run before the first screen is visible.
+          # Move the app bar a little lower so it no longer visually fights
+          # the phone status icons, and make the title less dominant.
+          text = text.replace(
+              'val vertical = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(bg()) }',
+              'val vertical = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(bg()); setPadding(0, dp(12), 0, 0) }'
+          )
+          text = text.replace(
+              'top.addView(text("Математика — Прогресс", 19f, true)',
+              'top.addView(text("Математика — Прогресс", 17.5f, true)'
+          )
+          text = text.replace(
+              'vertical.addView(top, LinearLayout.LayoutParams(-1, dp(60)))',
+              'vertical.addView(top, LinearLayout.LayoutParams(-1, dp(56)))'
+          )
+
+          new_results = '''    private fun showResults(){
+        val (scroll,box)=page()
+        box.addView(screenTitle("Результаты","Ваш прогресс и успеваемость"))
+
+        val tabs=LinearLayout(this).apply{orientation=LinearLayout.HORIZONTAL}
+        listOf(
+            StatsPeriod.WEEK to "Неделя",
+            StatsPeriod.MONTH to "Месяц",
+            StatsPeriod.YEAR to "Год",
+            StatsPeriod.ALL to "Всё время"
+        ).forEach{(p,t)->
+            tabs.addView(segment(t,period==p){period=p;showResults()},LinearLayout.LayoutParams(0,dp(42),1f).apply{setMargins(dp(2),0,dp(2),0)})
+        }
+        box.addView(tabs)
+        box.addView(space(12))
+
+        val s=StatsEngine.snapshot(store.history(),period)
+        val hero=card()
+        hero.addView(text(s.message,19f,true))
+        if(s.comparison.isNotBlank()){
+            hero.addView(text(s.comparison,13.5f,true,green).apply{setPadding(0,dp(7),0,0)})
+        }
+        hero.addView(space(16))
+
+        val metrics=LinearLayout(this).apply{orientation=LinearLayout.HORIZONTAL}
+        metrics.addView(metric("Средняя",s.averageGrade?.let{String.format(Locale.US,"%.1f",it)}?:"—",R.drawable.ic_star),LinearLayout.LayoutParams(0,-2,1f))
+        metrics.addView(metric("Точность",s.accuracy?.let{"$it%"}?:"—",R.drawable.ic_target),LinearLayout.LayoutParams(0,-2,1f))
+        metrics.addView(metric("Решено",s.solved.toString(),R.drawable.ic_calculate),LinearLayout.LayoutParams(0,-2,1f))
+        hero.addView(metrics)
+        box.addView(hero)
+        box.addView(space(10))
+
+        val topics=card()
+        val bestText=if(s.bestTopic==null) "Сильная тема: пока недостаточно данных" else "Сильная тема: ${s.bestTopic}"
+        val weakText=if(s.weakTopic==null) "Стоит повторить: пока недостаточно данных" else "Стоит повторить: ${s.weakTopic}"
+        topics.addView(iconLine(R.drawable.ic_star,bestText,if(s.bestTopic==null)muted() else green))
+        topics.addView(space(8))
+        topics.addView(iconLine(R.drawable.ic_target,weakText,if(s.weakTopic==null)muted() else amber))
+        box.addView(topics)
+        box.addView(space(10))
+
+        val today=dateKey(System.currentTimeMillis())
+        val daily=store.daily(today)
+        val dc=card()
+        dc.addView(iconLine(R.drawable.ic_daily,"Ежедневная тренировка",accent,true))
+        dc.addView(space(6))
+        dc.addView(text(when{
+            daily?.completed==true -> "Сегодня выполнено ✓"
+            (daily?.attempts?:0)>0 -> "Сегодня можно улучшить результат"
+            else -> "5 коротких заданий на сегодня"
+        },14f,false,muted()))
+        dc.addView(space(10))
+        dc.addView(
+            if(daily?.completed==true)
+                outline("Открыть календарь",R.drawable.ic_daily,accent){showDaily()}
+            else
+                primary("Начать ежедневные задания",R.drawable.ic_play){startDaily(today)}
+        )
+        box.addView(dc)
+
+        val draft=store.getDraft()
+        if(draft.isNotBlank()){
+            box.addView(space(10))
+            val c=card()
+            c.addView(iconLine(R.drawable.ic_calculate,"Незавершённая задача",accent,true))
+            c.addView(text(draft.take(110),14f,false,muted()).apply{setPadding(0,dp(5),0,dp(8))})
+            c.addView(outline("Продолжить",R.drawable.ic_play,accent){showSolve(draft)})
+            box.addView(c)
+        }
+
+        box.addView(space(14))
+        box.addView(primary("Решить задачу",R.drawable.ic_calculate){showSolve()})
+        box.addView(space(8))
+        box.addView(outline("Проверить знания",R.drawable.ic_check,accent){showPracticeSetup()})
+        box.addView(space(24))
+        setScreen("results",scroll)
+    }
+'''
+
           text = re.sub(
-              r'''    override fun onCreate\(savedInstanceState: Bundle\?\) \{.*?\n    override fun onResume\(\) \{''',
-              '''    override fun onCreate(savedInstanceState: Bundle?) {\n        super.onCreate(savedInstanceState)\n        try {\n            store = LocalStore(this)\n            buildShell()\n            showResults()\n            store.setLastOpenNow()\n            if (store.securityEnabled()) {\n                root.post { runCatching { lockNow() } }\n            }\n        } catch (error: Throwable) {\n            showEmergencyStartup(error)\n        }\n    }\n\n    override fun onResume() {''',
+              r'''    private fun showResults\(\)\{.*?\n    // ---------- SOLVER ----------''',
+              new_results + '\n    // ---------- SOLVER ----------',
               text,
               count=1,
               flags=re.S
           )
 
-          text = re.sub(
-              r'''    override fun onResume\(\) \{.*?\n    override fun onPause\(\) \{''',
-              '''    override fun onResume() {\n        super.onResume()\n        if (!::store.isInitialized) return\n        store.setLastOpenNow()\n        if (firstResume) { firstResume = false; return }\n        runCatching {\n            if (store.securityEnabled() && lockOverlay == null) {\n                val elapsed = System.currentTimeMillis() - store.backgroundAt()\n                val timeout = store.settings.autoLockSeconds * 1000L\n                if (store.backgroundAt() > 0 && (timeout == 0L || elapsed >= timeout)) lockNow()\n            }\n        }\n    }\n\n    override fun onPause() {''',
-              text,
-              count=1,
-              flags=re.S
-          )
-
-          text = re.sub(
-              r'''    override fun onPause\(\) \{.*?\n    private fun buildShell\(\) \{''',
-              '''    override fun onPause() {\n        if (::store.isInitialized) {\n            store.setBackgroundAt(System.currentTimeMillis())\n        }\n        super.onPause()\n    }\n\n    private fun buildShell() {''',
-              text,
-              count=1,
-              flags=re.S
-          )
-
-          # Remove custom inset/status-bar startup handling. Android's default
-          # decor fitting is more robust across OEM skins for this test build.
-          text = text.replace('        applySystemBars()\n', '')
-          text = re.sub(
-              r'''        root\.setOnApplyWindowInsetsListener \{ _, insets ->.*?        \}\n\n        val top =''',
-              '        val top =',
-              text,
-              count=1,
-              flags=re.S
-          )
-          text = text.replace('        root.requestApplyInsets()\n', '')
-
-          marker = '    private fun buildShell() {'
-          emergency = '''    private fun showEmergencyStartup(error: Throwable) {\n        android.util.Log.e("MathProgress", "Fatal startup error", error)\n        val scroll = android.widget.ScrollView(this)\n        val box = LinearLayout(this).apply {\n            orientation = LinearLayout.VERTICAL\n            setPadding(36, 72, 36, 36)\n            setBackgroundColor(Color.rgb(24, 25, 29))\n        }\n        val title = TextView(this).apply {\n            text = "Не удалось открыть приложение"\n            textSize = 24f\n            setTextColor(Color.WHITE)\n            typeface = Typeface.DEFAULT_BOLD\n        }\n        val info = TextView(this).apply {\n            text = "Теперь приложение не закрывается автоматически. Ниже указана точная причина ошибки — сделайте скриншот этого экрана и пришлите его."\n            textSize = 15f\n            setTextColor(Color.rgb(205, 207, 215))\n            setPadding(0, 20, 0, 24)\n        }\n        val detail = TextView(this).apply {\n            text = error.javaClass.name + "\\n\\n" + (error.message ?: "Без сообщения")\n            textSize = 14f\n            setTextColor(Color.rgb(255, 190, 90))\n            setTextIsSelectable(true)\n            setPadding(20, 20, 20, 20)\n            setBackgroundColor(Color.rgb(39, 40, 46))\n        }\n        val retry = Button(this).apply {\n            text = "Повторить запуск"\n            isAllCaps = false\n            textSize = 16f\n            setOnClickListener { recreate() }\n        }\n        box.addView(title)\n        box.addView(info)\n        box.addView(detail, LinearLayout.LayoutParams(-1, -2))\n        box.addView(retry, LinearLayout.LayoutParams(-1, 60).apply { setMargins(0, 28, 0, 0) })\n        scroll.addView(box, android.widget.FrameLayout.LayoutParams(-1, -2))\n        setContentView(scroll)\n    }\n\n'''
-          if 'private fun showEmergencyStartup' not in text:
-              text = text.replace(marker, emergency + marker, 1)
-
+          # Keep the visible version in About in sync.
+          text = re.sub(r'Версия 0\.3(?:\.\d+)?', 'Версия 0.3.3', text)
           main.write_text(text)
 
           gradle = Path('MathProgress/app/build.gradle.kts')
           g = gradle.read_text()
-          g = re.sub(r'versionCode = \d+', 'versionCode = 5', g)
-          g = re.sub(r'versionName = "[^"]+"', 'versionName = "0.3.2"', g)
+          g = re.sub(r'versionCode = \d+', 'versionCode = 6', g)
+          g = re.sub(r'versionName = "[^"]+"', 'versionName = "0.3.3"', g)
           gradle.write_text(g)
           PY
 
-      - name: Persist normalized source
+      - name: Persist polished source
         run: |
           if ! git diff --quiet -- MathProgress; then
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
             git add MathProgress
-            git commit -m "Add MathProgress v0.3.2 safe startup"
+            git commit -m "Polish MathProgress results screen v0.3.3"
             git push origin HEAD:mathprogress-app || true
           fi
 
@@ -115,11 +175,11 @@ jobs:
         run: gradle --no-daemon clean assembleDebug
 
       - name: Rename APK
-        run: cp MathProgress/app/build/outputs/apk/debug/app-debug.apk MathProgress-v0.3.2.apk
+        run: cp MathProgress/app/build/outputs/apk/debug/app-debug.apk MathProgress-v0.3.3.apk
 
       - name: Upload MathProgress APK
         uses: actions/upload-artifact@v4
         with:
-          name: MathProgress-v0.3.2-APK
-          path: MathProgress-v0.3.2.apk
+          name: MathProgress-v0.3.3-APK
+          path: MathProgress-v0.3.3.apk
           if-no-files-found: error
