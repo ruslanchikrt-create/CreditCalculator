@@ -42,16 +42,16 @@ class LocalStore(context: Context) {
             for (i in 0 until dArr.length()) dailyProgress += DailyProgress.fromJson(dArr.getJSONObject(i))
             activeProfileId = prefs.getString("activeProfileId", "") ?: ""
             val s = JSONObject(prefs.getString("settings", "{}") ?: "{}")
-            val oldPasswordHash = s.optString("passwordHash", "")
-            val migratedMethod = s.optString("securityMethod", "none")
             settings = AppSettings(
                 theme = s.optString("theme", "dark").let { if (it == "system") "dark" else it },
-                language = s.optString("language", "ru"),
-                securityMethod = migratedMethod,
+                language = s.optString("language", "ru").let { if (it in listOf("ru","en","tr","es")) it else "ru" },
+                securityMethod = s.optString("securityMethod", "none"),
                 pinHash = s.optString("pinHash", ""),
                 patternHash = s.optString("patternHash", ""),
-                autoLockSeconds = s.optInt("autoLockSeconds", 60).let { if (it in listOf(0, 60, 180, 300)) it else 60 },
-                inactivityDays = s.optInt("inactivityDays", 3).coerceIn(2, 7)
+                autoLockSeconds = s.optInt("autoLockSeconds", 60).let { if (it in listOf(0,60,180,300)) it else 60 },
+                inactivityDays = s.optInt("inactivityDays", 3).coerceIn(2,7),
+                onboardingComplete = s.optBoolean("onboardingComplete", false),
+                disclaimerAccepted = s.optBoolean("disclaimerAccepted", false)
             )
         } catch (_: Exception) {
             profiles.clear(); tasks.clear(); dailyProgress.clear(); settings = AppSettings()
@@ -70,6 +70,8 @@ class LocalStore(context: Context) {
             .put("securityMethod", settings.securityMethod).put("pinHash", settings.pinHash)
             .put("patternHash", settings.patternHash).put("autoLockSeconds", settings.autoLockSeconds)
             .put("inactivityDays", settings.inactivityDays)
+            .put("onboardingComplete", settings.onboardingComplete)
+            .put("disclaimerAccepted", settings.disclaimerAccepted)
         prefs.edit().putString("profiles", pa.toString()).putString("tasks", ta.toString())
             .putString("dailyProgress", da.toString()).putString("activeProfileId", activeProfileId)
             .putString("settings", s.toString()).apply()
@@ -101,9 +103,7 @@ class LocalStore(context: Context) {
     }
     fun dailyForProfile(profileId: String = activeProfileId): List<DailyProgress> = dailyProgress.filter { it.profileId == profileId }
 
-    fun setDraft(text: String) {
-        prefs.edit().putString("draft_$activeProfileId", text).putLong("draft_time_$activeProfileId", System.currentTimeMillis()).apply()
-    }
+    fun setDraft(text: String) { prefs.edit().putString("draft_$activeProfileId", text).putLong("draft_time_$activeProfileId", System.currentTimeMillis()).apply() }
     fun getDraft(): String = prefs.getString("draft_$activeProfileId", "") ?: ""
     fun draftTime(): Long = prefs.getLong("draft_time_$activeProfileId", 0L)
     fun clearDraft() { prefs.edit().remove("draft_$activeProfileId").remove("draft_time_$activeProfileId").apply() }
@@ -118,16 +118,13 @@ class LocalStore(context: Context) {
     fun exportJson(): String {
         save()
         val drafts = JSONObject()
-        profiles.forEach { p ->
-            drafts.put(p.id, JSONObject()
-                .put("text", prefs.getString("draft_${p.id}", "") ?: "")
-                .put("time", prefs.getLong("draft_time_${p.id}", 0L)))
-        }
+        profiles.forEach { p -> drafts.put(p.id, JSONObject().put("text", prefs.getString("draft_${p.id}", "") ?: "").put("time", prefs.getLong("draft_time_${p.id}", 0L))) }
         val safeSettings = JSONObject()
             .put("theme", settings.theme).put("language", settings.language)
             .put("autoLockSeconds", settings.autoLockSeconds).put("inactivityDays", settings.inactivityDays)
+            .put("onboardingComplete", settings.onboardingComplete).put("disclaimerAccepted", settings.disclaimerAccepted)
         return JSONObject()
-            .put("version", 2)
+            .put("version", 3)
             .put("profiles", JSONArray(prefs.getString("profiles", "[]")))
             .put("tasks", JSONArray(prefs.getString("tasks", "[]")))
             .put("dailyProgress", JSONArray(prefs.getString("dailyProgress", "[]")))
@@ -149,6 +146,7 @@ class LocalStore(context: Context) {
             .put("patternHash", currentSecurity.patternHash)
             .put("autoLockSeconds", importedSettings.optInt("autoLockSeconds", currentSecurity.autoLockSeconds))
             .put("inactivityDays", importedSettings.optInt("inactivityDays", currentSecurity.inactivityDays))
+            .put("onboardingComplete", true).put("disclaimerAccepted", true)
         val editor = prefs.edit()
             .putString("profiles", root.optJSONArray("profiles")?.toString() ?: "[]")
             .putString("tasks", root.optJSONArray("tasks")?.toString() ?: "[]")
@@ -159,10 +157,8 @@ class LocalStore(context: Context) {
         if (drafts != null) {
             val keys = drafts.keys()
             while (keys.hasNext()) {
-                val id = keys.next()
-                val d = drafts.optJSONObject(id) ?: continue
-                editor.putString("draft_$id", d.optString("text", ""))
-                editor.putLong("draft_time_$id", d.optLong("time", 0L))
+                val id = keys.next(); val d = drafts.optJSONObject(id) ?: continue
+                editor.putString("draft_$id", d.optString("text", "")); editor.putLong("draft_time_$id", d.optLong("time", 0L))
             }
         }
         editor.apply(); load()
@@ -192,8 +188,7 @@ class LocalStore(context: Context) {
         }
         return try {
             val parts = stored.split(":", limit = 2)
-            val salt = Base64.getDecoder().decode(parts[0])
-            val expected = Base64.getDecoder().decode(parts[1])
+            val salt = Base64.getDecoder().decode(parts[0]); val expected = Base64.getDecoder().decode(parts[1])
             val spec = PBEKeySpec(value.toCharArray(), salt, 150_000, 256)
             val actual = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256").generateSecret(spec).encoded
             MessageDigest.isEqual(expected, actual)
