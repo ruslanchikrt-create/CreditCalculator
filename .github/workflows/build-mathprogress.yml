@@ -19,39 +19,65 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Normalize MathProgress v0.3.1 source
+      - name: Normalize MathProgress v0.3.2 safe startup
         run: |
           python3 - <<'PY'
           from pathlib import Path
+          import re
 
           main = Path('MathProgress/app/src/main/java/com/mathprogress/app/MainActivity.kt')
           text = main.read_text()
 
-          old_create = '''        NotificationScheduler.ensureChannels(this)\n        requestNotificationPermission()\n        buildShell()\n        showResults()\n        NotificationScheduler.scheduleAll(this, store)\n        store.setLastOpenNow()\n        if (store.securityEnabled()) lockNow()'''
-          new_create = '''        runCatching { NotificationScheduler.ensureChannels(this) }\n        buildShell()\n        try {\n            showResults()\n        } catch (e: Throwable) {\n            showStartupFallback(e)\n        }\n        store.setLastOpenNow()\n        if (store.securityEnabled()) runCatching { lockNow() }\n        root.postDelayed({\n            runCatching { requestNotificationPermission() }\n            runCatching { NotificationScheduler.scheduleAll(this, store) }\n        }, 1200L)'''
-          if old_create in text:
-              text = text.replace(old_create, new_create)
-
-          text = text.replace(
-              'NotificationScheduler.scheduleInactive(this, store)',
-              'runCatching { NotificationScheduler.scheduleInactive(this, store) }'
-          )
-          text = text.replace(
-              'NotificationScheduler.scheduleUnfinished(this, store)',
-              'runCatching { NotificationScheduler.scheduleUnfinished(this, store) }'
+          # Replace the entire lifecycle startup with a deliberately minimal,
+          # synchronous path. No notification permission, scheduler or system
+          # UI tricks are allowed to run before the first screen is visible.
+          text = re.sub(
+              r'''    override fun onCreate\(savedInstanceState: Bundle\?\) \{.*?\n    override fun onResume\(\) \{''',
+              '''    override fun onCreate(savedInstanceState: Bundle?) {\n        super.onCreate(savedInstanceState)\n        try {\n            store = LocalStore(this)\n            buildShell()\n            showResults()\n            store.setLastOpenNow()\n            if (store.securityEnabled()) {\n                root.post { runCatching { lockNow() } }\n            }\n        } catch (error: Throwable) {\n            showEmergencyStartup(error)\n        }\n    }\n\n    override fun onResume() {''',
+              text,
+              count=1,
+              flags=re.S
           )
 
-          marker = '    // ---------- HELPERS ----------\n'
-          fallback = '''    private fun showStartupFallback(error: Throwable) {\n        val box = LinearLayout(this).apply {\n            orientation = LinearLayout.VERTICAL\n            gravity = Gravity.CENTER_HORIZONTAL\n            setPadding(dp(24), dp(48), dp(24), dp(24))\n        }\n        box.addView(iconImage(R.drawable.ic_info, 54, amber))\n        box.addView(text("Не удалось открыть главный экран", 22f, true).apply {\n            gravity = Gravity.CENTER\n            setPadding(0, dp(16), 0, dp(8))\n        })\n        box.addView(text("Данные не удалены. Можно открыть решатель и продолжить работу.", 14f, false, muted()).apply { gravity = Gravity.CENTER })\n        box.addView(space(16))\n        box.addView(primary("Открыть решатель", R.drawable.ic_calculate) { showSolve() })\n        box.addView(space(8))\n        box.addView(outline("Повторить загрузку", R.drawable.ic_home) { showResults() })\n        content.removeAllViews()\n        content.addView(android.widget.ScrollView(this).apply { addView(box) }, FrameLayout.LayoutParams(-1, -1))\n        android.util.Log.e("MathProgress", "Startup screen error", error)\n    }\n\n'''
-          if fallback not in text and marker in text:
-              text = text.replace(marker, fallback + marker)
+          text = re.sub(
+              r'''    override fun onResume\(\) \{.*?\n    override fun onPause\(\) \{''',
+              '''    override fun onResume() {\n        super.onResume()\n        if (!::store.isInitialized) return\n        store.setLastOpenNow()\n        if (firstResume) { firstResume = false; return }\n        runCatching {\n            if (store.securityEnabled() && lockOverlay == null) {\n                val elapsed = System.currentTimeMillis() - store.backgroundAt()\n                val timeout = store.settings.autoLockSeconds * 1000L\n                if (store.backgroundAt() > 0 && (timeout == 0L || elapsed >= timeout)) lockNow()\n            }\n        }\n    }\n\n    override fun onPause() {''',
+              text,
+              count=1,
+              flags=re.S
+          )
+
+          text = re.sub(
+              r'''    override fun onPause\(\) \{.*?\n    private fun buildShell\(\) \{''',
+              '''    override fun onPause() {\n        if (::store.isInitialized) {\n            store.setBackgroundAt(System.currentTimeMillis())\n        }\n        super.onPause()\n    }\n\n    private fun buildShell() {''',
+              text,
+              count=1,
+              flags=re.S
+          )
+
+          # Remove custom inset/status-bar startup handling. Android's default
+          # decor fitting is more robust across OEM skins for this test build.
+          text = text.replace('        applySystemBars()\n', '')
+          text = re.sub(
+              r'''        root\.setOnApplyWindowInsetsListener \{ _, insets ->.*?        \}\n\n        val top =''',
+              '        val top =',
+              text,
+              count=1,
+              flags=re.S
+          )
+          text = text.replace('        root.requestApplyInsets()\n', '')
+
+          marker = '    private fun buildShell() {'
+          emergency = '''    private fun showEmergencyStartup(error: Throwable) {\n        android.util.Log.e("MathProgress", "Fatal startup error", error)\n        val scroll = android.widget.ScrollView(this)\n        val box = LinearLayout(this).apply {\n            orientation = LinearLayout.VERTICAL\n            setPadding(36, 72, 36, 36)\n            setBackgroundColor(Color.rgb(24, 25, 29))\n        }\n        val title = TextView(this).apply {\n            text = "Не удалось открыть приложение"\n            textSize = 24f\n            setTextColor(Color.WHITE)\n            typeface = Typeface.DEFAULT_BOLD\n        }\n        val info = TextView(this).apply {\n            text = "Теперь приложение не закрывается автоматически. Ниже указана точная причина ошибки — сделайте скриншот этого экрана и пришлите его."\n            textSize = 15f\n            setTextColor(Color.rgb(205, 207, 215))\n            setPadding(0, 20, 0, 24)\n        }\n        val detail = TextView(this).apply {\n            text = error.javaClass.name + "\\n\\n" + (error.message ?: "Без сообщения")\n            textSize = 14f\n            setTextColor(Color.rgb(255, 190, 90))\n            setTextIsSelectable(true)\n            setPadding(20, 20, 20, 20)\n            setBackgroundColor(Color.rgb(39, 40, 46))\n        }\n        val retry = Button(this).apply {\n            text = "Повторить запуск"\n            isAllCaps = false\n            textSize = 16f\n            setOnClickListener { recreate() }\n        }\n        box.addView(title)\n        box.addView(info)\n        box.addView(detail, LinearLayout.LayoutParams(-1, -2))\n        box.addView(retry, LinearLayout.LayoutParams(-1, 60).apply { setMargins(0, 28, 0, 0) })\n        scroll.addView(box, android.widget.FrameLayout.LayoutParams(-1, -2))\n        setContentView(scroll)\n    }\n\n'''
+          if 'private fun showEmergencyStartup' not in text:
+              text = text.replace(marker, emergency + marker, 1)
 
           main.write_text(text)
 
           gradle = Path('MathProgress/app/build.gradle.kts')
           g = gradle.read_text()
-          g = g.replace('versionCode = 3', 'versionCode = 4')
-          g = g.replace('versionName = "0.3.0"', 'versionName = "0.3.1"')
+          g = re.sub(r'versionCode = \d+', 'versionCode = 5', g)
+          g = re.sub(r'versionName = "[^"]+"', 'versionName = "0.3.2"', g)
           gradle.write_text(g)
           PY
 
@@ -61,7 +87,7 @@ jobs:
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
             git add MathProgress
-            git commit -m "Fix MathProgress startup crash"
+            git commit -m "Add MathProgress v0.3.2 safe startup"
             git push origin HEAD:mathprogress-app || true
           fi
 
@@ -89,11 +115,11 @@ jobs:
         run: gradle --no-daemon clean assembleDebug
 
       - name: Rename APK
-        run: cp MathProgress/app/build/outputs/apk/debug/app-debug.apk MathProgress-v0.3.1.apk
+        run: cp MathProgress/app/build/outputs/apk/debug/app-debug.apk MathProgress-v0.3.2.apk
 
       - name: Upload MathProgress APK
         uses: actions/upload-artifact@v4
         with:
-          name: MathProgress-v0.3.1-APK
-          path: MathProgress-v0.3.1.apk
+          name: MathProgress-v0.3.2-APK
+          path: MathProgress-v0.3.2.apk
           if-no-files-found: error
