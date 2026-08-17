@@ -58,8 +58,15 @@ class DailyJourneyView(
             centersList += x to y
         }
 
-        linePaint.color = if (darkMode) Color.rgb(67, 69, 79) else Color.rgb(218, 220, 229)
         for (i in 0 until centersList.lastIndex) {
+            val day1 = i + 1
+            val day2 = i + 2
+            linePaint.color = when {
+                statuses[day1] == 2 && statuses[day2] == 2 -> Color.rgb(38, 174, 99)
+                statuses[day1] == 2 -> Color.rgb(99, 91, 255)
+                statuses[day1] == 1 -> Color.rgb(242, 158, 45)
+                else -> if (darkMode) Color.rgb(67, 69, 79) else Color.rgb(218, 220, 229)
+            }
             val (x1,y1)=centersList[i]; val (x2,y2)=centersList[i+1]
             canvas.drawLine(x1,y1,x2,y2,linePaint)
         }

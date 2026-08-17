@@ -398,7 +398,7 @@ class MainActivity : Activity() {
     private fun rateApp(){val id=packageName;try{startActivity(Intent(Intent.ACTION_VIEW,Uri.parse("market://details?id=$id")))}catch(_:Exception){startActivity(Intent(Intent.ACTION_VIEW,Uri.parse("https://play.google.com/store/apps/details?id=$id")))}}
 
     // ---------- HELPERS ----------
-    private fun page():Pair<android.widget.ScrollView,LinearLayout>{val scroll=android.widget.ScrollView(this).apply{isFillViewport=true};val box=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;setPadding(dp(18),dp(20),dp(18),dp(24))};scroll.addView(box,android.widget.ScrollView.LayoutParams(-1,-2));return scroll to box}
+    private fun page():Pair<android.widget.ScrollView,LinearLayout>{val scroll=android.widget.ScrollView(this).apply{isFillViewport=true};val box=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;setPadding(dp(18),dp(20),dp(18),dp(24))};scroll.addView(box,android.widget.FrameLayout.LayoutParams(-1,-2));return scroll to box}
     private fun screenTitle(title:String,subtitle:String):View=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;addView(text(title,29f,true));if(subtitle.isNotBlank())addView(text(subtitle,13.5f,false,muted()).apply{setPadding(0,dp(3),0,dp(14))})}
     private fun card():LinearLayout=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;setPadding(dp(15),dp(14),dp(15),dp(14));background=round(cardColor(),17,border())}
     private fun messageCard(message:String,color:Int):View=card().apply{addView(text(message,15f,true,color))}

@@ -43,12 +43,12 @@ class LocalStore(context: Context) {
             activeProfileId = prefs.getString("activeProfileId", "") ?: ""
             val s = JSONObject(prefs.getString("settings", "{}") ?: "{}")
             val oldPasswordHash = s.optString("passwordHash", "")
-            val migratedMethod = if (oldPasswordHash.isNotBlank() && s.optString("securityMethod").isBlank()) "pin" else s.optString("securityMethod", "none")
+            val migratedMethod = s.optString("securityMethod", "none")
             settings = AppSettings(
                 theme = s.optString("theme", "dark").let { if (it == "system") "dark" else it },
                 language = s.optString("language", "ru"),
                 securityMethod = migratedMethod,
-                pinHash = s.optString("pinHash", oldPasswordHash),
+                pinHash = s.optString("pinHash", ""),
                 patternHash = s.optString("patternHash", ""),
                 autoLockSeconds = s.optInt("autoLockSeconds", 60).let { if (it in listOf(0, 60, 180, 300)) it else 60 },
                 inactivityDays = s.optInt("inactivityDays", 3).coerceIn(2, 7)
