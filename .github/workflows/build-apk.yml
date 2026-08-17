@@ -16,27 +16,36 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Apply prepared MathProgress v0.4.0 patch
+      - name: Clean duplicated v0.4.0 declarations
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          src = Path('.github/workflows/build-mathprogress.yml').read_text()
-          marker = "          python3 - <<'PY'\n"
-          start = src.index(marker) + len(marker)
-          end = src.index("\n          PY", start)
-          lines = src[start:end].splitlines()
-          code = '\n'.join(line[10:] if line.startswith('          ') else line for line in lines)
-          compile(code, 'apply_v040.py', 'exec')
-          exec(code, {'__name__': '__main__'})
+          import re
+          p = Path('MathProgress/app/src/main/java/com/mathprogress/app/MainActivity.kt')
+          t = p.read_text()
+          block = '''    private var onboardingActive = false
+    private val feedbackAttachments = mutableListOf<Uri>()
+    private var feedbackIsError = true
+    private var feedbackDraft = ""
+'''
+          t = re.sub(r'(?:' + re.escape(block) + r'){2,}', block, t)
+          pblock = '''    private var practiceDifficulty = 1
+    private var practiceAdaptive = false
+    private var practiceUserAnswer = ""
+'''
+          t = re.sub(r'(?:' + re.escape(pblock) + r'){2,}', pblock, t)
+          t = re.sub(r'(    private var dailyUserAnswer = ""\n){2,}', '    private var dailyUserAnswer = ""\n', t)
+          t = re.sub(r'(        const val REQ_FEEDBACK_MEDIA = 105\n){2,}', '        const val REQ_FEEDBACK_MEDIA = 105\n', t)
+          p.write_text(t)
           PY
 
-      - name: Persist source changes
+      - name: Persist cleaned source
         run: |
           if ! git diff --quiet -- MathProgress; then
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
             git add MathProgress
-            git commit -m "Apply MathProgress v0.4.0 source update"
+            git commit -m "Clean MathProgress v0.4.0 duplicate declarations"
             git push origin HEAD:mathprogress-app || true
           fi
 
@@ -59,14 +68,14 @@ jobs:
         with:
           gradle-version: "8.9"
 
-      - name: Build MathProgress debug APK
+      - name: Build MathProgress APK
         working-directory: MathProgress
         run: gradle --no-daemon clean assembleDebug
 
       - name: Prepare APK
         run: cp MathProgress/app/build/outputs/apk/debug/app-debug.apk MathProgress-v0.4.0.apk
 
-      - name: Upload APK
+      - name: Upload MathProgress APK
         uses: actions/upload-artifact@v4
         with:
           name: MathProgress-v0.4.0-APK
