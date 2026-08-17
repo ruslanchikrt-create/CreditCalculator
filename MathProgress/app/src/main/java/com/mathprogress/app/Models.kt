@@ -33,13 +33,15 @@ data class TaskRecord(
     var checked: Boolean = false,
     var correct: Boolean = false,
     var grade: Int = 0,
-    var source: String = "solver"
+    var source: String = "solver",
+    var difficulty: Int = 1,
+    var userAnswer: String = ""
 ) {
     fun toJson(): JSONObject = JSONObject()
         .put("id", id).put("profileId", profileId).put("input", input).put("type", type)
         .put("answer", answer).put("steps", JSONArray(steps)).put("createdAt", createdAt).put("updatedAt", updatedAt)
         .put("deletedAt", deletedAt).put("selfSolved", selfSolved).put("checked", checked).put("correct", correct)
-        .put("grade", grade).put("source", source)
+        .put("grade", grade).put("source", source).put("difficulty", difficulty).put("userAnswer", userAnswer)
 
     companion object {
         fun fromJson(o: JSONObject): TaskRecord {
@@ -51,7 +53,8 @@ data class TaskRecord(
                 createdAt = o.optLong("createdAt", System.currentTimeMillis()), updatedAt = o.optLong("updatedAt", System.currentTimeMillis()),
                 deletedAt = o.optLong("deletedAt", 0L), selfSolved = o.optBoolean("selfSolved", false),
                 checked = o.optBoolean("checked", false), correct = o.optBoolean("correct", false),
-                grade = o.optInt("grade", 0), source = o.optString("source", "solver")
+                grade = o.optInt("grade", 0), source = o.optString("source", "solver"),
+                difficulty = o.optInt("difficulty", 1).coerceIn(1,4), userAnswer = o.optString("userAnswer", "")
             )
         }
     }
@@ -85,5 +88,7 @@ data class AppSettings(
     var pinHash: String = "",
     var patternHash: String = "",
     var autoLockSeconds: Int = 60,
-    var inactivityDays: Int = 3
+    var inactivityDays: Int = 3,
+    var onboardingComplete: Boolean = false,
+    var disclaimerAccepted: Boolean = false
 )
