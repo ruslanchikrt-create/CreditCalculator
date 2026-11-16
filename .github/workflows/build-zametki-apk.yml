@@ -2,14 +2,13 @@ name: Build Notes Widget APK
 on:
   push:
     branches: [build-zametki-apk-20261117]
+    paths: ['source_apk.b64', '.github/workflows/build-zametki-apk.yml']
   workflow_dispatch:
 permissions:
   contents: write
 jobs:
   apk:
-    env:
-      ANDROID_HOME: /usr/local/lib/android/sdk
-      ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+    if: contains(github.event.head_commit.message, 'Deploy notes v1.1')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -17,26 +16,23 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-      - name: Accept Android SDK licenses
-        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null || true
+      - uses: android-actions/setup-android@v3
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
-      - name: Extract Android project
+      - name: Extract Android source
         run: |
           mkdir -p build-notes
           base64 -d source_apk.b64 | tar -xJ -C build-notes
-          sed -i '/import android.graphics.Color;/a import android.graphics.Typeface;' build-notes/app/src/main/java/com/notehome/widget/Ui.java
       - name: Install Android SDK
-        run: |
-          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" 'platforms;android-35' 'build-tools;35.0.0'
+        run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
       - name: Build APK
         working-directory: build-notes
-        run: gradle --no-daemon assembleDebug
-      - name: Publish direct APK download
+        run: gradle --no-daemon assembleDebug --stacktrace
+      - name: Publish direct APK
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           test -s build-notes/app/build/outputs/apk/debug/app-debug.apk
-          cp build-notes/app/build/outputs/apk/debug/app-debug.apk zametki-widget.apk
-          gh release create zametki-widget-1.0 zametki-widget.apk --title 'Заметки — Android-виджет 1.0' --notes 'Android 8+, заметки, виджет, напоминания' --target "${GITHUB_SHA}" || gh release upload zametki-widget-1.0 zametki-widget.apk --clobber
+          cp build-notes/app/build/outputs/apk/debug/app-debug.apk zametki-widget-v1.1.apk
+          gh release create zametki-widget-1.1 zametki-widget-v1.1.apk --title 'Заметки — Android-виджет 1.1' --notes 'Настройки фона, звуков, резервные копии, закрепление, сортировка, Неважное' --target "${GITHUB_SHA}" || gh release upload zametki-widget-1.1 zametki-widget-v1.1.apk --clobber
