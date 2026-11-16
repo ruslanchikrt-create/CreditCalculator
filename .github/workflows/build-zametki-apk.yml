@@ -26,6 +26,7 @@ jobs:
         run: |
           mkdir -p build-notes
           base64 -d source_apk.b64 | tar -xJ -C build-notes
+          sed -i '/import android.graphics.Color;/a import android.graphics.Typeface;' build-notes/app/src/main/java/com/notehome/widget/Ui.java
       - name: Install Android SDK
         run: |
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" 'platforms;android-35' 'build-tools;35.0.0'
