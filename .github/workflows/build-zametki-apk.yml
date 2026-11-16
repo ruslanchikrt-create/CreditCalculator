@@ -7,6 +7,9 @@ permissions:
   contents: write
 jobs:
   apk:
+    env:
+      ANDROID_HOME: /usr/local/lib/android/sdk
+      ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -15,7 +18,7 @@ jobs:
           distribution: temurin
           java-version: '17'
       - name: Accept Android SDK licenses
-        run: yes | sdkmanager --licenses >/dev/null || true
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null || true
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
@@ -24,7 +27,7 @@ jobs:
           mkdir -p build-notes
           base64 -d source_apk.b64 | tar -xJ -C build-notes
       - name: Install Android SDK
-        run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+        run: "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" 'platforms;android-35' 'build-tools;35.0.0'
       - name: Build APK
         working-directory: build-notes
         run: gradle --no-daemon assembleDebug
